@@ -19,6 +19,7 @@ dependencies = [
     # Deep learning
     "torch>=2.12.0",
     "torch_geometric>=2.8.0",
+    "torch-geometric-temporal",
     "pytorch-forecasting>=1.8.0",
     # Note: pytorch-lightning is a transitive dependency of pytorch-forecasting
     # (used to drive TFT training). It is intentionally not pinned explicitly

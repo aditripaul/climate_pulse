@@ -10,6 +10,7 @@
 
 # Deep learning
 torch_geometric>=2.8.0
+torch-geometric-temporal
 pytorch-forecasting>=1.8.0
 # pytorch-lightning is a transitive dependency of pytorch-forecasting.
 # It is NOT pinned here explicitly — pytorch-forecasting >=1.8.0 already

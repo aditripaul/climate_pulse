@@ -35,6 +35,7 @@ model:
   lstm_bidirectional: true
   # ST-GNN hyperparameters
   gnn_num_periods: 7
+  gnn_hidden_channels: 32
 
 log:
   level: "INFO"

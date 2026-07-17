@@ -81,6 +81,7 @@ This is the exact pattern used by `src/scripts/train_models.py` for the `--epoch
 | `MODEL_LSTM_ENCODER_LENGTH` | `60` | LSTM lookback window (months) |
 | `MODEL_LSTM_PREDICTION_MONTHS` | `12` | LSTM forecast horizon |
 | `MODEL_GNN_NUM_PERIODS` | `7` | ST-GNN sliding window days |
+| `MODEL_GNN_HIDDEN_CHANNELS` | `32` | ST-GNN hidden channels |
 
 ### Logging
 | Variable | Default | Description |

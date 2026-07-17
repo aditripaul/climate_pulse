@@ -201,6 +201,7 @@ class ModelSettings(BaseSettings):
 
     # Pollution ST-GNN hyperparameters
     gnn_num_periods: int = Field(default=7, ge=1, description="Sliding window size for ST-GNN")
+    gnn_hidden_channels: int = Field(default=32, ge=1, description="Hidden channel size for ST-GNN")
 
     @field_validator("checkpoint_dir", mode="before")
     @classmethod
