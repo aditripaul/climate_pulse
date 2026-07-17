@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+
+# Data (large files)
+datasets/raw/
+datasets/processed/
+datasets/metadata.json
+*.nc
+*.parquet
+*.db
+
+# Model artifacts
+runtime/models/checkpoints/
+runtime/models/saved/
+*.ckpt
+*.pt
+*.pth
+
+# Artifacts
+runtime/paper_artifacts/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Logs
+*.log
+runtime/logs/
+lightning_logs/

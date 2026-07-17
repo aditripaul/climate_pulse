@@ -1,0 +1,21 @@
+# ClimatePulse Dataset Configuration
+# This file defines default data sources, API endpoints, and regional limits/bounds.
+
+noaa_ersst:
+  url: "https://psl.noaa.gov/thredds/dodsC/Datasets/noaa.ersst.v5/sst.mnmean.nc"
+  nino34_bounds:
+    lat_min: -5.0
+    lat_max: 5.0
+    lon_min: 190.0 # 170°W in 0-360 coordinates
+    lon_max: 240.0 # 120°W in 0-360 coordinates
+
+openaq:
+  base_url: "https://api.openaq.org/v3"
+  max_locations: 50
+  limit: 10000
+
+nasa_gistemp:
+  url: "https://data.giss.nasa.gov/pub/gistemp/gistemp1200_GHCNv4_ERSSTv5.nc.gz"
+
+climate_trace:
+  base_url: "https://api.climatetrace.org/v7"
