@@ -36,8 +36,8 @@ def train_tft(
     Returns:
         Dictionary with training results and best checkpoint path.
     """
-    import pytorch_lightning as L  # noqa: N812
-    from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+    import lightning.pytorch as L  # noqa: N812
+    from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
     epochs = max_epochs or settings.model.max_epochs
     bs = batch_size or settings.model.batch_size
@@ -113,7 +113,7 @@ def train_tft(
     logger.info(f"Training TFT: {epochs} epochs, batch_size={bs}")
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-    from pytorch_lightning.callbacks import ModelCheckpoint
+    from lightning.pytorch.callbacks import ModelCheckpoint
 
     checkpoint_callback = trainer.checkpoint_callback
     if isinstance(checkpoint_callback, ModelCheckpoint):

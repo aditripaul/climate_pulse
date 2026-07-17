@@ -62,7 +62,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_tft_test_data():
     """Load TFT model and split test set."""
-    tft_dir = PROJECT_ROOT / "models" / "checkpoints" / "el_nino" / "tft"
+    tft_dir = settings.model.checkpoint_dir / "el_nino" / "tft"
     tft_ckpts = glob.glob(str(tft_dir / "*.ckpt"))
     if not tft_ckpts:
         raise FileNotFoundError("No TFT model checkpoints found.")
@@ -79,7 +79,7 @@ def load_tft_test_data():
 
 def load_lstm_test_data():
     """Load LSTM model and return test data."""
-    lstm_ckpt = PROJECT_ROOT / "models" / "checkpoints" / "el_nino" / "lstm" / "lstm_best.pt"
+    lstm_ckpt = settings.model.checkpoint_dir / "el_nino" / "lstm" / "lstm_best.pt"
     if not lstm_ckpt.exists():
         raise FileNotFoundError("No LSTM baseline checkpoint found.")
 
@@ -342,7 +342,7 @@ def evaluate_pollution():
     """Evaluate Pollution ST-GNN on the test split."""
     print("Evaluating Pollution ST-GNN model...")
 
-    ckpt_path = PROJECT_ROOT / "models" / "checkpoints" / "pollution" / "stgnn_best.pt"
+    ckpt_path = settings.model.checkpoint_dir / "pollution" / "stgnn_best.pt"
     if not ckpt_path.exists():
         raise FileNotFoundError("No ST-GNN pollution model checkpoint found.")
 
@@ -565,7 +565,7 @@ def generate_training_loss_curves():
 
     # 2. LSTM loss
     lstm_epochs, lstm_train, lstm_val = [], [], []
-    lstm_csv = PROJECT_ROOT / "models" / "checkpoints" / "el_nino" / "lstm" / "metrics.csv"
+    lstm_csv = settings.model.checkpoint_dir / "el_nino" / "lstm" / "metrics.csv"
     if lstm_csv.exists():
         try:
             df = pd.read_csv(lstm_csv)
@@ -584,7 +584,7 @@ def generate_training_loss_curves():
 
     # 3. ST-GNN loss
     gnn_epochs, gnn_train, gnn_val = [], [], []
-    gnn_csv = PROJECT_ROOT / "models" / "checkpoints" / "pollution" / "metrics.csv"
+    gnn_csv = settings.model.checkpoint_dir / "pollution" / "metrics.csv"
     if gnn_csv.exists():
         try:
             df = pd.read_csv(gnn_csv)
