@@ -123,7 +123,7 @@ RUNTIME_CONF=configs/custom_runtime.yaml DATASET_CONF=configs/custom_dataset.yam
 make download-data
 
 # 2. Download ERA5 Zarr data for the Neural Weather Model (large download)
-python src/scripts/download_nwm_data.py
+make download-nwm-data
 
 # 3. Train all models
 make train

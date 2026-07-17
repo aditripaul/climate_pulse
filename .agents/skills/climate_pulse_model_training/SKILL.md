@@ -11,7 +11,7 @@ This skill guides you through training all Climate Pulse models. Each model has 
 
 1. Virtual environment installed: `make install`
 2. Datasets downloaded: `make download-data`
-3. ERA5 data downloaded (NWM only): `PYTHONPATH=src .venv/bin/python src/scripts/download_nwm_data.py`
+3. ERA5 data downloaded (NWM only): `make download-nwm-data`
 
 ## Model Overview
 

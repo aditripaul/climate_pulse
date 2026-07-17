@@ -35,7 +35,7 @@ Pass `--force` to bypass cache and re-download.
 ### 2. Download ERA5 data (NWM only — separate step)
 The NWM requires ERA5 data which must be downloaded separately before NWM training:
 ```bash
-PYTHONPATH=src .venv/bin/python src/scripts/download_nwm_data.py
+make download-nwm-data
 ```
 This streams 2020–2022 data from the WeatherBench2 GCS Zarr store and saves to `datasets/raw/nwm_era5/era5_5deg_6hr_2020_2022.nc`.
 

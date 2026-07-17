@@ -1,4 +1,4 @@
-.PHONY: install install-rocm install-npu download-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-research-paper-artifacts clean-downloaded-datasets gen-research-paper-artifacts gen-research-paper-pdf help
+.PHONY: install install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-research-paper-artifacts clean-downloaded-datasets gen-research-paper-artifacts gen-research-paper-pdf help
 
 # Use a local temporary directory inside the virtual environment to prevent
 # "Disk quota exceeded" errors on systems with small/restricted tmpfs /tmp partitions.
@@ -63,6 +63,9 @@ install-npu: venv
 download-data:
 	PYTHONPATH=src .venv/bin/python src/scripts/download_data.py
 
+download-nwm-data:
+	PYTHONPATH=src .venv/bin/python src/scripts/download_nwm_data.py
+
 # === Model Training ===
 train:
 	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/train_models.py --model all
@@ -114,6 +117,7 @@ help:
 	@echo "  make install-rocm : Install the package with AMD ROCm GPU support"
 	@echo "  make install-npu : Install the package with Intel NPU support"
 	@echo "  make download-data : Download all data sources"
+	@echo "  make download-nwm-data : Download ERA5 data for the Neural Weather Model (NWM)"
 	@echo "  make train : Train all models"
 	@echo "  make train-elnino : Train El Niño model only"
 	@echo "  make train-pollution : Train pollution model only"
