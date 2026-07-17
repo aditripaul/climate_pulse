@@ -19,12 +19,18 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.config import settings
 
 def download_nwm_era5():
+    import gcsfs
+    import pandas as pd
+    from tqdm import tqdm
+    
     logger.info("Connecting to WeatherBench2 Google Cloud Storage Zarr store...")
-    zarr_url = "gs://weatherbench2/datasets/era5/1959-2022-5deg-6hr.zarr"
+    zarr_url = "gs://weatherbench2/datasets/era5/1959-2022-6h-64x32_equiangular_conservative.zarr"
     
     try:
-        # Open Zarr store directly from GCP without authentication
-        ds = xr.open_zarr(zarr_url, storage_options={'anon': True}, consolidated=True)
+        # Open Zarr store directly from GCP without authentication using gcsfs anon mapper
+        fs = gcsfs.GCSFileSystem(token='anon')
+        mapper = fs.get_mapper(zarr_url)
+        ds = xr.open_zarr(mapper, consolidated=True)
     except Exception as e:
         logger.error(f"Failed to connect to GCP Zarr store: {e}")
         sys.exit(1)
@@ -33,8 +39,8 @@ def download_nwm_era5():
     
     # Subset to manageable variables for NWM prototype
     # '2m_temperature' -> 't2m'
-    # 'total_precipitation' -> 'tp'
-    target_vars = ['2m_temperature', 'total_precipitation']
+    # 'total_precipitation_6hr' -> 'total_precipitation'
+    target_vars = ['2m_temperature', 'total_precipitation_6hr']
     
     # Check if variables exist in this dataset (WeatherBench uses these names)
     avail_vars = list(ds.data_vars)
@@ -42,8 +48,8 @@ def download_nwm_era5():
         if v not in avail_vars:
             logger.warning(f"Variable '{v}' not found in dataset. Available: {avail_vars[:10]}...")
             
-    # Subset the dataset
-    subset = ds[target_vars]
+    # Subset the dataset and rename variables for NWM dataset compatibility
+    subset = ds[target_vars].rename({'total_precipitation_6hr': 'total_precipitation'})
     
     # Slice time to 2020 - 2022 to keep it small (~3 years of 6-hourly data)
     subset = subset.sel(time=slice('2020-01-01', '2022-12-31'))
@@ -57,10 +63,22 @@ def download_nwm_era5():
         return
         
     logger.info(f"Downloading data to {output_file}...")
-    logger.info("This might take a few minutes as it streams the required chunks from GCP.")
+    logger.info("This will stream the data from GCP in monthly chunks to show progress.")
     
-    # Save to local netCDF
-    subset.to_netcdf(output_file, engine='netcdf4')
+    # Generate list of months
+    months = pd.date_range(start="2020-01-01", end="2022-12-31", freq="MS")
+    datasets = []
+    
+    for start_date in tqdm(months, desc="Downloading ERA5 data (monthly chunks)"):
+        end_date = start_date + pd.offsets.MonthEnd(0)
+        # slice time and eagerly load
+        month_ds = subset.sel(time=slice(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))).load()
+        datasets.append(month_ds)
+        
+    logger.info("Merging monthly datasets...")
+    final_ds = xr.concat(datasets, dim='time')
+    logger.info(f"Saving merged dataset to {output_file}...")
+    final_ds.to_netcdf(output_file, engine='netcdf4')
     
     file_size_mb = output_file.stat().st_size / (1024 * 1024)
     logger.info(f"Successfully saved {file_size_mb:.2f} MB to {output_file}")
