@@ -18,14 +18,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Load dataset defaults from dataset_conf.yaml
-DATASET_CONF_PATH = PROJECT_ROOT / "configs" / "dataset_conf.yaml"
-
-
 def _load_dataset_defaults() -> dict[str, Any]:
+    import os
+    conf_path_str = os.environ.get("DATASET_CONF", "configs/dataset_conf.yaml")
+    dataset_conf_path = Path(conf_path_str)
+    if not dataset_conf_path.is_absolute():
+        dataset_conf_path = PROJECT_ROOT / dataset_conf_path
+
     try:
-        if DATASET_CONF_PATH.exists():
-            with open(DATASET_CONF_PATH) as f:
+        if dataset_conf_path.exists():
+            with open(dataset_conf_path) as f:
                 return yaml.safe_load(f) or {}
     except Exception:
         pass
@@ -220,7 +222,7 @@ class LogSettings(BaseSettings):
     )
 
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    dir: Path = Field(default=PROJECT_ROOT / "runtime" / "logs")
+    dir: Path = Field(default=PROJECT_ROOT / "runtime" / "logs", description="Log output directory")
 
 
 class Settings(BaseSettings):
@@ -265,7 +267,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    yaml_path = PROJECT_ROOT / "configs" / "default.yaml"
+    import os
+    conf_path_str = os.environ.get("RUNTIME_CONF", "configs/runtime_conf.yaml")
+    yaml_path = Path(conf_path_str)
+    if not yaml_path.is_absolute():
+        yaml_path = PROJECT_ROOT / yaml_path
+
     config_dict: dict[str, Any] = {}
     if yaml_path.exists():
         with open(yaml_path) as f:
@@ -310,7 +317,7 @@ def setup_logging(s: Settings) -> None:
     # Add file handler if directory can be resolved/created
     try:
         s.log.dir.mkdir(parents=True, exist_ok=True)
-        log_file = s.log.dir / "log"
+        log_file = s.log.dir / "run.log"
         logger.add(
             str(log_file),
             level=s.log.level,

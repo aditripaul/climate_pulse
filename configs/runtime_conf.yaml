@@ -15,6 +15,12 @@ tft:
   hidden_continuous_size: 16
 
 model:
+  checkpoint_dir: "./runtime/models/checkpoints"
+  device: "auto"
+  max_epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  log_frequency: 1
   # TFT hyperparameters
   tft_hidden_size: 32
   tft_attention_head_size: 4
@@ -25,7 +31,11 @@ model:
   lstm_hidden_size: 64
   lstm_num_layers: 2
   lstm_encoder_length: 60
-  lstm_prediction_months: 12
+  lstm_prediction_months: 36
   lstm_bidirectional: true
   # ST-GNN hyperparameters
   gnn_num_periods: 7
+
+log:
+  level: "INFO"
+  dir: "./runtime/logs"

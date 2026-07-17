@@ -90,7 +90,7 @@ cp .env.example .env
 # Fill in DATA_OPENAQ_API_KEY and any overrides
 ```
 
-**2. `configs/default.yaml` — operational parameters**
+**2. `configs/runtime_conf.yaml` — operational parameters**
 ```yaml
 data:
   dir: "./datasets"
@@ -106,6 +106,15 @@ model:
 ```
 
 All values can also be overridden via environment variables prefixed with `DATA_`, `MODEL_`, `LOG_`, etc.
+
+Additionally, the configuration file paths themselves can be overridden using the `RUNTIME_CONF` and `DATASET_CONF` environment variables or command-line parameters:
+```bash
+# Override config paths for Make command
+make train RUNTIME_CONF=configs/custom_runtime.yaml DATASET_CONF=configs/custom_dataset.yaml
+
+# Or directly in python
+RUNTIME_CONF=configs/custom_runtime.yaml DATASET_CONF=configs/custom_dataset.yaml PYTHONPATH=src .venv/bin/python src/scripts/train_models.py
+```
 
 ### Running the Pipeline
 
@@ -157,7 +166,7 @@ climate_pulse/
 │       ├── train_models.py       # CLI entry point for all training
 │       └── generate_paper_artifacts.py
 ├── configs/
-│   ├── default.yaml              # Default runtime configuration
+│   ├── runtime_conf.yaml         # Default runtime configuration
 │   └── dataset_conf.yaml         # Dataset-specific metadata
 ├── datasets/                     # Data root (gitignored)
 │   ├── raw/                      # Raw downloads

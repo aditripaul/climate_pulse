@@ -47,7 +47,7 @@ After downloading, check that:
 
 ## Configuration
 
-All data settings are controlled by environment variables with the `DATA_` prefix, loaded from `.env`, or overridden in `configs/default.yaml`.
+All data settings are controlled by environment variables with the `DATA_` prefix, loaded from `.env`, or overridden in `configs/runtime_conf.yaml`.
 
 Key variables:
 | Variable | Default | Description |

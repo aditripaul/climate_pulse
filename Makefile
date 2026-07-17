@@ -4,6 +4,11 @@
 # "Disk quota exceeded" errors on systems with small/restricted tmpfs /tmp partitions.
 export TMPDIR := $(shell mkdir -p .venv/tmp && pwd)/.venv/tmp
 
+# Config file overrides (can be overridden via command line parameters, e.g. RUNTIME_CONF=custom.yaml)
+export RUNTIME_CONF ?= configs/runtime_conf.yaml
+export DATASET_CONF ?= configs/dataset_conf.yaml
+
+
 # Check for AMD GPU
 HAS_AMD_GPU := $(shell lspci 2>/dev/null | grep -i -E 'vga|3d|display' | grep -i -E 'amd|radeon' >/dev/null 2>&1 && echo 1 || echo 0)
 ifeq ($(HAS_AMD_GPU),1)

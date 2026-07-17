@@ -11,8 +11,8 @@ The project uses a **Pydantic-Settings** configuration system with a layered ove
 
 1. **Environment variables** (e.g., `export MODEL_MAX_EPOCHS=200`)
 2. **`.env` file** at the project root (gitignored, loaded automatically)
-3. **`configs/default.yaml`** — default runtime values
-4. **`configs/dataset_conf.yaml`** — dataset-specific URL defaults
+3. **`configs/runtime_conf.yaml`** — default runtime values (path can be overridden via `RUNTIME_CONF` env var / CLI parameter)
+4. **`configs/dataset_conf.yaml`** — dataset-specific URL defaults (path can be overridden via `DATASET_CONF` env var / CLI parameter)
 5. **Field defaults** in `src/config.py`
 
 ## Settings Classes
@@ -90,7 +90,7 @@ This is the exact pattern used by `src/scripts/train_models.py` for the `--epoch
 
 ## YAML Config Files
 
-### `configs/default.yaml`
+### `configs/runtime_conf.yaml`
 Provides runtime defaults for `data`, `tft`, `model` (and nested `nwm`) sections. Values here override Python field defaults.
 
 ### `configs/dataset_conf.yaml`

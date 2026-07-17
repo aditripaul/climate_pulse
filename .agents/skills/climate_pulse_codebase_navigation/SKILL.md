@@ -16,7 +16,7 @@ climate_pulse.git/
 ├── .env.example              # Template for .env
 ├── .python-version           # Pins Python 3.12
 ├── configs/
-│   ├── default.yaml          # Runtime configuration defaults
+│   ├── runtime_conf.yaml     # Runtime configuration defaults
 │   └── dataset_conf.yaml     # Data source URL defaults
 ├── datasets/
 │   ├── raw/                  # Downloaded raw data files
@@ -107,7 +107,7 @@ climate_pulse.git/
 ### Logging
 - Use `loguru`: `from loguru import logger`
 - `logger` is configured by `setup_logging()` in `config.py`.
-- Log files are written to `runtime/logs/log` with 10MB rotation and 10-day retention.
+- Log files are written to `runtime/logs/run.log` with 10MB rotation and 10-day retention.
 
 ### Device Selection
 - Use `get_device()` from `src/utils.py` to get the correct `torch.device`.

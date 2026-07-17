@@ -92,7 +92,7 @@ get_settings()  →  Settings (singleton, lru_cache)
 
 Each `BaseSettings` subclass reads from three sources in increasing priority:
 1. Default field values in code
-2. `configs/default.yaml` (loaded explicitly in `get_settings()`)
+2. `configs/runtime_conf.yaml` (loaded explicitly in `get_settings()`)
 3. `.env` file and environment variables (Pydantic-Settings native)
 
 ### 3.2 Path Resolution

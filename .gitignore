@@ -53,13 +53,6 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 
-# MyPy
-.mypy_cache/
-
-# Ruff
-.ruff_cache/
-
-# Logs
-*.log
-runtime/logs/
+# Logs (runtime log files — directory tracked via runtime/logs/.gitignore)
+runtime/logs/*.log
 lightning_logs/

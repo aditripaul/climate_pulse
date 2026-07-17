@@ -56,7 +56,7 @@ The `--epochs` flag temporarily overrides `MODEL_MAX_EPOCHS` via environment var
 
 ## Configuration
 
-All model hyperparameters are controlled via environment variables with the `MODEL_` prefix, loaded from `.env`, or overridden in `configs/default.yaml`.
+All model hyperparameters are controlled via environment variables with the `MODEL_` prefix, loaded from `.env`, or overridden in `configs/runtime_conf.yaml`.
 
 Key variables:
 | Variable | Default | Description |
