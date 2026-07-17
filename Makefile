@@ -34,24 +34,24 @@ venv: .venv/.created
 
 install: venv
 	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install torch==2.13.0
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.13.0+cpu.html
+	.venv/bin/pip install torch==2.12.1
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (AMD ROCm) ===
 # pytorch-lightning 2.6.5 is the safe version (2.6.2-2.6.3 had supply-chain compromise)
 install-rocm: venv
-	.venv/bin/pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/rocm7.2
+	.venv/bin/pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/rocm6.1
 	.venv/bin/python src/scripts/patch_rocm_elf.py
 	.venv/bin/python src/scripts/install_rocm_deps.py
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.13.0+rocm7.2.html
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (Intel NPU) ===
 install-npu: venv
 	.venv/bin/pip install openvino
-	.venv/bin/pip install torch==2.13.0
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.13.0+cpu.html
+	.venv/bin/pip install torch==2.12.1
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Data ===

@@ -5,7 +5,7 @@
   <p>An academic research project integrating deep learning forecasting for El Niño, global pollution, and downstream weather modeling.</p>
 
   [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
-  [![PyTorch 2.13](https://img.shields.io/badge/PyTorch-2.13.0-ee4c2c.svg)](https://pytorch.org/)
+  [![PyTorch 2.12](https://img.shields.io/badge/PyTorch-2.12.1-ee4c2c.svg)](https://pytorch.org/)
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 </div>
 
@@ -30,7 +30,7 @@ The full stack is Python-only, using efficient data formats (Parquet + JSON) and
 
 | Layer | Libraries |
 |:---|:---|
-| **Deep Learning** | PyTorch 2.13, torch-geometric 2.8, pytorch-forecasting 1.8 |
+| **Deep Learning** | PyTorch 2.12, torch-geometric 2.8, pytorch-forecasting 1.8 |
 | **Bayesian Modelling** | PyMC 6, ArviZ 1.2 |
 | **Data Engineering** | xarray 2026.7, pandas 3, pyarrow 25, zarr 3, gcsfs |
 | **Configuration** | Pydantic-Settings v2, PyYAML |
@@ -76,7 +76,7 @@ make install-rocm
 make install-npu
 ```
 
-`make install` creates `.venv/` using `python3.12`, installs `torch 2.13.0`,
+`make install` creates `.venv/` using `python3.12`, installs `torch 2.12.1`,
 `pyg-lib` (the PyG 2.8 accelerator — replaces the deprecated `torch-scatter`/`torch-sparse`),
 then runs `pip install -e .` to install the package itself.
 
@@ -183,8 +183,8 @@ climate_pulse/
 ```bash
 # Setup
 make install              # Standard install (torch CPU/CUDA)
-make install-rocm         # torch 2.13 with ROCm 7.2 (AMD GPUs)
-make install-npu          # torch 2.13 + OpenVINO (Intel NPU)
+make install-rocm         # torch 2.12 with ROCm 6.1 (AMD GPUs)
+make install-npu          # torch 2.12 + OpenVINO (Intel NPU)
 
 # Data
 make download-data        # Ingest NOAA, OpenAQ, NASA, Climate TRACE
