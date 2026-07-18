@@ -99,6 +99,7 @@ This document defines the functional, data, model, and non-functional requiremen
 |:---|:---|
 | **R-01** | The system shall generate reproducible evaluation metrics, comparison plots, and LaTeX-ready tables for all four model families. |
 | **R-02** | The `gen-research-paper-pdf` Makefile target shall compile `docs/research_paper/research_paper.md` to PDF using Pandoc + XeLaTeX. |
+| **R-03** | The `save-run` Makefile target shall copy and snapshot the latest model checkpoints and evaluation artifacts to a timestamped folder under `runtime/saved/` for future reference and inference. |
 
 ---
 

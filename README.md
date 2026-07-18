@@ -137,7 +137,10 @@ make train-climate     # Bayesian climate feedback model
 # 4. Generate paper artifacts (figures, metrics, tables)
 make gen-eval-artifacts
 
-# 5. Compile research paper to PDF (requires pandoc + xelatex)
+# 5. Save the latest run checkpoints and artifacts for future reference
+make save-run
+
+# 6. Compile research paper to PDF (requires pandoc + xelatex)
 make gen-research-paper-pdf
 ```
 
@@ -174,6 +177,7 @@ climate_pulse/
 ├── runtime/                      # Execution artifacts (gitignored)
 │   ├── models/checkpoints/       # Trained model weights
 │   ├── eval_artifacts/           # Figures, CSVs for paper
+│   ├── saved/                    # Snapshot runs saved for future inference
 │   └── logs/                     # Training logs
 ├── docs/
 │   ├── research_paper/           # Research paper source
@@ -207,11 +211,12 @@ make train-climate        # Bayesian regression
 
 # Research outputs
 make gen-eval-artifacts   # Figures, tables, metrics
+make save-run             # Save run checkpoints/artifacts to runtime/saved/
 make gen-research-paper-pdf         # Compile to PDF (needs pandoc + xelatex)
 
 # Cleanup
 make clean                # Remove __pycache__, build artifacts
-make clean-checkpoints    # Remove trained model weights
+make clean-checkpoints    # Remove trained model weights (also cleans runtime/saved/)
 make clean-downloaded-datasets  # Remove raw and processed datasets
 ```
 
