@@ -32,8 +32,8 @@ This document summarizes the performance metrics generated during the evaluation
 
 | Metric | Value (MSE) |
 | :--- | :---: |
-| **Best Validation Loss** | 0.1448 |
-| **Final Training Loss** | 0.1284 |
+| **Best Validation Loss** | 0.1182 |
+| **Final Training Loss** | 0.1035 |
 
 ---
 
