@@ -9,6 +9,7 @@ saves raw prediction/metric files, and plots standard graphics.
 import glob
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -686,6 +687,73 @@ def generate_training_loss_curves():
     print("Saved training curves to runtime/eval_artifacts/model_training_curves.png")
 
 
+def copy_runtime_data():
+    """Copy all key runtime-generated data into eval_artifacts/run_results/.
+
+    Collects:
+    - Per-model training metrics CSVs (NWM, LSTM, Pollution ST-GNN)
+    - TFT Lightning metrics CSV (latest version)
+    - NWM checkpoint metadata (file size + path)
+    """
+    print("Copying runtime data into eval_artifacts/run_results/...")
+
+    # ---- NWM metrics.csv -----------------------------------------------
+    nwm_src = settings.model.checkpoint_dir / "nwm" / "metrics.csv"
+    if nwm_src.exists():
+        dst = RESULTS_DIR / "nwm_metrics.csv"
+        shutil.copy2(nwm_src, dst)
+        print(f"  Copied {nwm_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {nwm_src} not found – skipping.")
+
+    # ---- LSTM metrics.csv -----------------------------------------------
+    lstm_src = settings.model.checkpoint_dir / "el_nino" / "lstm" / "metrics.csv"
+    if lstm_src.exists():
+        dst = RESULTS_DIR / "lstm_metrics.csv"
+        shutil.copy2(lstm_src, dst)
+        print(f"  Copied {lstm_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {lstm_src} not found – skipping.")
+
+    # ---- Pollution ST-GNN metrics.csv -----------------------------------
+    pollution_src = settings.model.checkpoint_dir / "pollution" / "metrics.csv"
+    if pollution_src.exists():
+        dst = RESULTS_DIR / "pollution_metrics.csv"
+        shutil.copy2(pollution_src, dst)
+        print(f"  Copied {pollution_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {pollution_src} not found – skipping.")
+
+    # ---- TFT Lightning metrics.csv (latest version) ---------------------
+    metric_files = glob.glob(
+        str(settings.log.dir / "lightning_logs" / "version_*" / "metrics.csv")
+    )
+    if metric_files:
+        latest_csv = Path(max(metric_files, key=os.path.getctime))
+        dst = RESULTS_DIR / "tft_metrics.csv"
+        shutil.copy2(latest_csv, dst)
+        print(f"  Copied TFT {latest_csv.parent.name}/metrics.csv -> {dst}")
+    else:
+        print("  WARNING: No TFT Lightning metrics.csv found – skipping.")
+
+    # ---- NWM checkpoint info (metadata only, not the weight file) -------
+    nwm_ckpt = settings.model.checkpoint_dir / "nwm" / "nwm_best.pt"
+    if nwm_ckpt.exists():
+        size_mb = nwm_ckpt.stat().st_size / 1_048_576
+        ckpt_info = {
+            "checkpoint_path": str(nwm_ckpt),
+            "size_mb": round(size_mb, 3),
+        }
+        info_path = RESULTS_DIR / "nwm_checkpoint_info.json"
+        with open(info_path, "w") as f:
+            json.dump(ckpt_info, f, indent=2)
+        print(f"  Wrote NWM checkpoint metadata -> {info_path.name}")
+    else:
+        print("  WARNING: nwm_best.pt not found – skipping checkpoint info.")
+
+    print("Runtime data copy complete.")
+
+
 def main():
     print("=" * 60)
     print("ClimatePulse Paper Artifacts Generator")
@@ -788,6 +856,11 @@ This document summarizes the performance metrics generated during the evaluation
 """
     with open(ARTIFACTS_DIR / "metrics_summary.md", "w") as f:
         f.write(md_content)
+
+    try:
+        copy_runtime_data()
+    except Exception as e:
+        print(f"Failed to copy runtime data: {e}")
 
     print("=" * 60)
     print(f"Artifact generation completed! Output directory: {ARTIFACTS_DIR}")
