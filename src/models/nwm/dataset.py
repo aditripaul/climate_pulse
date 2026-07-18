@@ -49,9 +49,9 @@ class NWMDataset(Dataset):
         self.lat = self.ds.latitude.values
         self.lon = self.ds.longitude.values
         
-        # [Time, Lat, Lon]
-        self.t2m = self.ds['2m_temperature'].values
-        self.tp = self.ds['total_precipitation'].values
+        # Explicitly transpose to [Time, Lat, Lon] to ensure correct spatial alignment
+        self.t2m = self.ds['2m_temperature'].transpose('time', 'latitude', 'longitude').values
+        self.tp = self.ds['total_precipitation'].transpose('time', 'latitude', 'longitude').values
         
         # --- B3: Latitude-cosine-weighted normalization ---
         # Grid cells near the equator represent larger physical areas (cos(lat) → 1)
@@ -62,9 +62,15 @@ class NWMDataset(Dataset):
         # Expand to [Time, Lat, Lon] for broadcasting
         w = lat_weights[np.newaxis, :, np.newaxis]
 
-        self.t2m_mean = float(np.average(self.t2m.mean(0), weights=lat_weights, axis=0).mean())
+        # Per-grid-node weights: repeat each lat weight across all longitudes
+        node_weights = np.repeat(lat_weights, len(self.lon))  # [Lat*Lon]
+
+        t2m_spatial = self.t2m.mean(axis=0).flatten()  # [Lat*Lon]
+        tp_spatial  = self.tp.mean(axis=0).flatten()    # [Lat*Lon]
+
+        self.t2m_mean = float(np.average(t2m_spatial, weights=node_weights))
         self.t2m_std  = float(np.sqrt(((self.t2m - self.t2m_mean) ** 2 * w).mean()) + 1e-6)
-        self.tp_mean  = float(np.average(self.tp.mean(0),  weights=lat_weights, axis=0).mean())
+        self.tp_mean  = float(np.average(tp_spatial,  weights=node_weights))
         self.tp_std   = float(np.sqrt(((self.tp  - self.tp_mean)  ** 2 * w).mean()) + 1e-6)
 
         self.t2m = (self.t2m - self.t2m_mean) / self.t2m_std
