@@ -98,7 +98,7 @@ gen-research-paper-pdf:
 save-run:
 	@echo "Saving latest run artifacts and checkpoints for future inference..."
 	@TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
-	SAVE_DIR="runtime/models/saved/run_$$TIMESTAMP"; \
+	SAVE_DIR="runtime/saved/run_$$TIMESTAMP"; \
 	mkdir -p "$$SAVE_DIR"; \
 	if [ -d "runtime/models/checkpoints" ]; then cp -r runtime/models/checkpoints "$$SAVE_DIR/"; fi; \
 	if [ -d "runtime/eval_artifacts" ]; then cp -r runtime/eval_artifacts "$$SAVE_DIR/"; fi; \
@@ -107,7 +107,7 @@ save-run:
 # === Cleanup ===
 clean-checkpoints:
 	find runtime/models/checkpoints/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
-	find runtime/models/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
+	find runtime/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
 
 clean-eval-artifacts:
 	rm -rf runtime/eval_artifacts/
