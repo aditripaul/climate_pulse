@@ -135,7 +135,7 @@ make train-nwm         # Spherical Mesh Neural Weather Model
 make train-climate     # Bayesian climate feedback model
 
 # 4. Generate paper artifacts (figures, metrics, tables)
-make gen-research-paper-artifacts
+make gen-eval-artifacts
 
 # 5. Compile research paper to PDF (requires pandoc + xelatex)
 make gen-research-paper-pdf
@@ -164,7 +164,7 @@ climate_pulse/
 │       ├── download_data.py
 │       ├── download_nwm_data.py
 │       ├── train_models.py       # CLI entry point for all training
-│       └── generate_paper_artifacts.py
+│       └── generate_eval_artifacts.py
 ├── configs/
 │   ├── runtime_conf.yaml         # Default runtime configuration
 │   └── dataset_conf.yaml         # Dataset-specific metadata
@@ -173,7 +173,7 @@ climate_pulse/
 │   └── processed/                # Cleaned Parquet files
 ├── runtime/                      # Execution artifacts (gitignored)
 │   ├── models/checkpoints/       # Trained model weights
-│   ├── paper_artifacts/          # Figures, CSVs for paper
+│   ├── eval_artifacts/           # Figures, CSVs for paper
 │   └── logs/                     # Training logs
 ├── docs/
 │   ├── research_paper/           # Research paper source
@@ -206,7 +206,7 @@ make train-nwm            # Spherical Mesh ST-GNN
 make train-climate        # Bayesian regression
 
 # Research outputs
-make gen-research-paper-artifacts   # Figures, tables, metrics
+make gen-eval-artifacts   # Figures, tables, metrics
 make gen-research-paper-pdf         # Compile to PDF (needs pandoc + xelatex)
 
 # Cleanup

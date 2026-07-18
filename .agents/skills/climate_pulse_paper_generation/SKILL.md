@@ -15,10 +15,10 @@ All models must be trained before generating paper artifacts. Checkpoints must e
 
 ### 1. Generate paper artifacts (figures, metrics, LaTeX tables)
 ```bash
-make gen-research-paper-artifacts
+make gen-eval-artifacts
 ```
-This runs `src/scripts/generate_paper_artifacts.py` with `PYTHONPATH=src`.  
-Outputs are saved to `runtime/paper_artifacts/`.
+This runs `src/scripts/generate_eval_artifacts.py` with `PYTHONPATH=src`.  
+Outputs are saved to `runtime/eval_artifacts/`.
 
 Artifacts include:
 - Evaluation metrics for all models (RMSE, MAE, skill scores)
@@ -35,14 +35,14 @@ Requirements: `pandoc` and `xelatex` (TeX Live or MikTeX) must be installed on t
 
 ### 3. Clean generated artifacts
 ```bash
-make clean-research-paper-artifacts   # Removes runtime/paper_artifacts/
+make clean-eval-artifacts   # Removes runtime/eval_artifacts/
 ```
 
 ## Key Source Files
 
 | File | Purpose |
 |:---|:---|
-| `src/scripts/generate_paper_artifacts.py` | Main artifact generation entry point |
+| `src/scripts/generate_eval_artifacts.py` | Main artifact generation entry point |
 | `src/visualization/charts.py` | Plot generation helpers |
 | `src/visualization/themes.py` | Matplotlib/Plotly theme configuration |
 | `src/models/el_nino/evaluate.py` | TFT / LSTM evaluation metrics |

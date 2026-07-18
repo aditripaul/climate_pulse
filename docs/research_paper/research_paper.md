@@ -441,7 +441,7 @@ make install-npu install-dev-npu # For Intel
 
 make download-data  # Fetches NOAA, OpenAQ, NASA, Climate TRACE datasets
 make train          # Trains all models (TFT, LSTM, A3TGCN, Bayesian)
-make gen-research-paper-artifacts       # Generates metrics and figures
+make gen-eval-artifacts       # Generates metrics and figures
 ```
 
 **Datasets** (All Publicly Accessible):

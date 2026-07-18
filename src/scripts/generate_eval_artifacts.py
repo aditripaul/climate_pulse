@@ -19,8 +19,8 @@ import seaborn as sns
 import torch
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from config import settings  # noqa: E402
 from models.el_nino.dataset import (  # noqa: E402
@@ -54,7 +54,7 @@ plt.rcParams.update(
 )
 
 # Create output directories
-ARTIFACTS_DIR = PROJECT_ROOT / "runtime" / "paper_artifacts"
+ARTIFACTS_DIR = PROJECT_ROOT / "runtime" / "eval_artifacts"
 RESULTS_DIR = ARTIFACTS_DIR / "run_results"
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -284,7 +284,7 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     fig.savefig(ARTIFACTS_DIR / "elnino_predicted_vs_actual_scatter.png", dpi=300)
     plt.close(fig)
     print(
-        "Saved El Nino scatter plot to docs/paper_artifacts/elnino_predicted_vs_actual_scatter.png"
+        "Saved El Nino scatter plot to runtime/eval_artifacts/elnino_predicted_vs_actual_scatter.png"
     )
 
     # Plot 5: Absolute Error Heatmap
@@ -304,7 +304,7 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "elnino_error_heatmap.png", dpi=300)
     plt.close(fig)
-    print("Saved El Nino error heatmap to docs/paper_artifacts/elnino_error_heatmap.png")
+    print("Saved El Nino error heatmap to runtime/eval_artifacts/elnino_error_heatmap.png")
 
     # Plot 6: Quantile Coverage over time (6-month lead)
     fig, ax = plt.subplots(figsize=(8, 3.5))
@@ -328,7 +328,7 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "elnino_quantile_coverage.png", dpi=300)
     plt.close(fig)
-    print("Saved El Nino quantile coverage to docs/paper_artifacts/elnino_quantile_coverage.png")
+    print("Saved El Nino quantile coverage to runtime/eval_artifacts/elnino_quantile_coverage.png")
 
     return {
         "tft": tft_metrics,
@@ -437,7 +437,7 @@ def evaluate_pollution():
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "pollution_confusion_matrix.png", dpi=300)
     plt.close(fig)
-    print("Saved pollution confusion matrix to docs/paper_artifacts/pollution_confusion_matrix.png")
+    print("Saved pollution confusion matrix to runtime/eval_artifacts/pollution_confusion_matrix.png")
 
     return metrics
 
@@ -541,7 +541,7 @@ def generate_training_loss_curves():
     # 1. TFT loss
     tft_epochs, tft_train, tft_val = [], [], []
     metric_files = glob.glob(
-        str(PROJECT_ROOT / "logs" / "lightning_logs" / "version_*" / "metrics.csv")
+        str(settings.log.dir / "lightning_logs" / "version_*" / "metrics.csv")
     )
     if metric_files:
         latest_csv = max(metric_files, key=os.path.getctime)
@@ -632,7 +632,7 @@ def generate_training_loss_curves():
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "model_training_curves.png", dpi=300)
     plt.close(fig)
-    print("Saved training curves to docs/paper_artifacts/model_training_curves.png")
+    print("Saved training curves to runtime/eval_artifacts/model_training_curves.png")
 
 
 def main():
@@ -682,7 +682,7 @@ def main():
     with open(RESULTS_DIR / "summary_metrics.json", "w") as f:
         json.dump(clean_summary, f, indent=2)
 
-    # Write docs/paper_artifacts/metrics_summary.md
+    # Write runtime/eval_artifacts/metrics_summary.md
     print("Writing markdown summary metrics table...")
     md_content = f"""# ClimatePulse Model Evaluation Metrics
 

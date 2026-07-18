@@ -39,7 +39,7 @@ runtime/models/saved/
 *.pth
 
 # Artifacts
-runtime/paper_artifacts/
+runtime/eval_artifacts/
 
 # Jupyter
 .ipynb_checkpoints/

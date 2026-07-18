@@ -1,4 +1,4 @@
-.PHONY: install install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-research-paper-artifacts clean-downloaded-datasets gen-research-paper-artifacts gen-research-paper-pdf help
+.PHONY: install install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts gen-research-paper-pdf help
 
 # Use a local temporary directory inside the virtual environment to prevent
 # "Disk quota exceeded" errors on systems with small/restricted tmpfs /tmp partitions.
@@ -83,9 +83,9 @@ train-climate:
 train-nwm:
 	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/train_models.py --model nwm
 
-# === Paper Artifacts ===
-gen-research-paper-artifacts:
-	PYTHONPATH=src .venv/bin/python src/scripts/generate_paper_artifacts.py
+# === Evaluation Artifacts ===
+gen-eval-artifacts:
+	PYTHONPATH=src .venv/bin/python src/scripts/generate_eval_artifacts.py
 
 gen-research-paper-pdf:
 	cd docs/research_paper/ && pandoc research_paper.md -o climatepulse_research_paper.pdf \
@@ -99,13 +99,13 @@ clean-checkpoints:
 	find runtime/models/checkpoints/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
 	find runtime/models/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
 
-clean-research-paper-artifacts:
-	rm -rf runtime/paper_artifacts/
+clean-eval-artifacts:
+	rm -rf runtime/eval_artifacts/
 
 clean-downloaded-datasets:
 	rm -rf datasets/raw/ datasets/processed/ datasets/metadata.json
 
-# clean: clean-checkpoints clean-research-paper-artifacts clean-downloaded-datasets
+# clean: clean-checkpoints clean-eval-artifacts clean-downloaded-datasets
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info/ htmlcov/
@@ -123,9 +123,9 @@ help:
 	@echo "  make train-pollution : Train pollution model only"
 	@echo "  make train-climate : Train climate feedback model only"
 	@echo "  make train-nwm : Train Neural Weather Model (ST-GNN) only"
-	@echo "  make gen-research-paper-artifacts : Generate publication-quality paper figures/results"
+	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
 	@echo "  make clean : Remove build and test cache artifacts"
 	@echo "  make clean-checkpoints : Remove trained model checkpoints"
-	@echo "  make clean-research-paper-artifacts : Remove generated paper figures/results"
+	@echo "  make clean-eval-artifacts : Remove generated paper figures/results"
 	@echo "  make clean-downloaded-datasets : Remove raw and processed datasets and JSON metadata"

@@ -72,7 +72,7 @@ src/                  # PYTHONPATH root
     ├── download_data.py           # CLI: ingest pipeline
     ├── download_nwm_data.py       # CLI: ERA5 Zarr download
     ├── train_models.py            # CLI: train all / individual models
-    └── generate_paper_artifacts.py
+    └── generate_eval_artifacts.py
 ```
 
 ---
@@ -405,7 +405,7 @@ External APIs / Files
                               ┌──────────────────────┐
                               │  runtime/             │
                               │  ├─ models/           │
-                              │  ├─ paper_artifacts/  │
+                              │  ├─ eval_artifacts/   │
                               │  └─ logs/             │
                               └──────────────────────┘
 ```

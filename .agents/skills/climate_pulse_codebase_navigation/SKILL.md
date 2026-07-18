@@ -75,7 +75,7 @@ climate_pulse.git/
 │   │   ├── download_data.py          # CLI: download all data sources
 │   │   ├── download_nwm_data.py      # CLI: download ERA5 for NWM (separate step)
 │   │   ├── train_models.py           # CLI: train any/all models
-│   │   ├── generate_paper_artifacts.py  # CLI: generate paper figures/tables
+│   │   ├── generate_eval_artifacts.py  # CLI: generate evaluation figures/tables
 │   │   ├── install_rocm_deps.py      # ROCm-specific dependency installer
 │   │   └── patch_rocm_elf.py         # Radeon 680M ELF patcher
 │   └── visualization/
