@@ -201,6 +201,9 @@ $$\mathcal{L}_\text{STGNN} = \mathcal{L}_\text{MSE}(\hat{y}, y) + 0.5 \cdot \mat
 
 **Spherical Graph Construction.** The ERA5 $5.625^{\circ}$ grid generates $N_\text{grid} = 32 \times 64 = 2{,}048$ grid nodes. Each node's position is projected to 3D Cartesian unit-sphere coordinates: $[x, y, z] = [\cos\phi\cos\lambda,\, \cos\phi\sin\lambda,\, \sin\phi]$. A latent mesh of $N_\text{mesh} = 2{,}000$ nodes is generated using the Fibonacci lattice (golden-angle spiral $\phi_\text{golden} = \pi(3 - \sqrt{5})$), providing near-uniform spherical coverage. Three bipartite edge sets are built via KD-Tree nearest-neighbor lookup: grid-to-mesh ($k=4$ mesh neighbors per grid node), mesh-to-mesh ($k=8$ per mesh node, excluding self-loops), and mesh-to-grid ($k=4$ grid neighbors per mesh node). Per-grid-node static positional features are $[\sin\phi,\, \cos\phi,\, \sin\lambda,\, \cos\lambda]$.
 
+![Figure 4c: NWM Mesh Topology](eval_artifacts/nwm_fibonacci_mesh.png)
+*Figure 4c: The NWM operates on a bipartite graph structure mapping the 2,048 equirectangular ERA5 grid nodes (light coral) to a 2,000-node Fibonacci lattice spherical mesh (royal blue) for isotropic message passing.*
+
 **Model Architecture.** The NWM follows a five-stage Encoder-Processor-Decoder pipeline:
 
 1. **Grid Embedding**: Linear projection + LayerNorm + GELU maps each grid node's input $\mathbf{x}_g \in \mathbb{R}^{2CW+4}$ to latent dimension $d=128$, where $C=2$ channels, $W=2$ input time steps, $+4$ static features.
@@ -332,7 +335,7 @@ The per-node RMSE distribution (from `runtime/eval_artifacts/run_results/polluti
 ![Figure 4b: Exceedance Confusion Matrix](eval_artifacts/pollution_confusion_matrix.png)
 *Figure 4b: Confusion matrix for PM2.5 exceedance classification (threshold > 100 AQI). Precision=96.77%, Recall=98.25%.*
 
-### 5.3 Neural Weather Model Convergence
+### 5.3 Neural Weather Model Performance & Convergence
 
 The NWM was trained for 89 epochs (0--88). The best validation checkpoint was saved at **epoch 78** (validation MSE = **0.1182**). The final epoch achieved training MSE = **0.1035** and validation MSE = **0.1185**.
 
@@ -345,6 +348,17 @@ The NWM was trained for 89 epochs (0--88). The best validation checkpoint was sa
 
 Training loss decreased by 64.4% from epoch 0 to 88 (0.2938 → 0.1035); validation loss decreased by 39.5% (0.1955 → 0.1182). The 13.2% train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the increased model expressivity introduced by explicit positional features, and remains well within acceptable bounds for the 2020--2022 ERA5 training subset. The stable validation loss from epoch 78 onward (within 0.1182--0.1185) indicates convergence. The ENSO conditioning mechanism allows the model to modulate predictions based on the current ENSO phase without feature leakage across graph convolution steps, since the conditioning is applied additively at the latent mesh level.
 
+![Figure 5: NWM Training Convergence](eval_artifacts/nwm_convergence_lr.png)
+*Figure 5: NWM MSE loss convergence and ReduceLROnPlateau learning rate schedule. The model reached optimal validation loss at epoch 78.*
+
+**Predictive Spatial Performance.** The model effectively learns atmospheric dynamics without manifesting numerical artifacts at the poles (a common issue with equirectangular CNNs).
+
+![Figure 5b: NWM Predicted vs Actual T2m](eval_artifacts/nwm_predicted_vs_actual.png)
+*Figure 5b: Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right).*
+
+![Figure 5c: Spatial Error Heatmap](eval_artifacts/nwm_spatial_error_map.png)
+*Figure 5c: Time-averaged RMSE per grid node across the entire test set. The latitude-weighted loss prioritizes tropical accuracy, while regions with inherently higher variance (poles and continental interiors) appropriately exhibit slightly higher absolute errors.*
+
 ### 5.4 Bayesian Change-Point Analysis
 
 Applied to 912 months of NASA GISTEMP v4 global temperature anomalies (1950--2026), the CUSUM recursive binary segmentation algorithm detected **zero statistically significant change-points** (significance threshold $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, minimum segment length 10).
@@ -353,8 +367,8 @@ This result is physically consistent: greenhouse gas concentrations have risen m
 
 *Source: `runtime/eval_artifacts/run_results/climate_feedback_results.json`*
 
-![Figure 5: Bayesian Piecewise Regression](eval_artifacts/climate_changepoint_regression.png)
-*Figure 5: Bayesian piecewise regression on GISTEMP temperature anomalies. No structural break detected; continuous monotonic warming is consistent with anthropogenic forcing.*
+![Figure 6: Bayesian Piecewise Regression](eval_artifacts/climate_changepoint_regression.png)
+*Figure 6: Bayesian piecewise regression on GISTEMP temperature anomalies. No structural break detected; continuous monotonic warming is consistent with anthropogenic forcing.*
 
 ### 5.5 Policy Sandbox Simulations
 
@@ -368,8 +382,8 @@ The ABM simulates 50-month trajectories under five policy scenarios:
 | Wildfire Control Focus | \$30/tonne | 10% |
 | Rapid Renewable Adoption | \$80/tonne | 100% |
 
-![Figure 6: ABM Scenario Dynamics](paper_artifacts/abm_scenario_dynamics.png)
-*Figure 6: 50-month ABM trajectories across five policy scenarios: emissions, carbon tax, green technology adoption, and cumulative abatement.*
+![Figure 7: ABM Scenario Dynamics](paper_artifacts/abm_scenario_dynamics.png)
+*Figure 7: 50-month ABM trajectories across five policy scenarios: emissions, carbon tax, green technology adoption, and cumulative abatement.*
 
 Under the **Baseline** scenario, emissions remain near the initial level with green adoption below 20%. The **Moderate Reduction** and **Wildfire Control Focus** pathways produce only marginal improvements because the tax-to-threshold ratio is insufficient to trigger IndustryAgent technology switching. The **Aggressive Reduction** pathway (\$150/tonne) forces agents across the switching threshold, producing the steepest emission decline (~55% by month 50). The **Rapid Renewable Adoption** pathway maximizes adoption rate (>75%) through 100% subsidies that collapse the adoption cost barrier, creating a positive feedback loop between government incentives and population awareness.
 
@@ -397,8 +411,8 @@ Under the **Baseline** scenario, emissions remain near the initial level with gr
 
 The full pipeline is encapsulated in a declarative build system and runs on a single GPU workstation. Data-driven inference is orders of magnitude faster than physics-based ESMs, enabling near-real-time policy iteration. Inference for all four models and full artifact generation completes in under one hour on a consumer GPU.
 
-![Figure 7: Model Training Dynamics](eval_artifacts/model_training_curves.png)
-*Figure 7: Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures: TFT (top-left), LSTM Baseline (top-right), Pollution ST-GNN (bottom-left), Neural Weather Model ST-GNN (bottom-right). All models demonstrate stable convergence without severe overfitting.*
+![Figure 8: Model Training Dynamics](eval_artifacts/model_training_curves.png)
+*Figure 8: Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures: TFT (top-left), LSTM Baseline (top-right), Pollution ST-GNN (bottom-left), Neural Weather Model ST-GNN (bottom-right). All models demonstrate stable convergence without severe overfitting.*
 
 ---
 
