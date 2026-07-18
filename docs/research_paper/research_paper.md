@@ -122,8 +122,6 @@ flowchart LR
     G -->|"Lags, Rolling Stats"| H[("Unified Feature Matrix")]
 ```
 
-![ClimatePulse Data Pipeline](paper_artifacts/data_pipeline.png)
-
 ### 3.1 Data Sources
 
 ClimatePulse integrates five primary data sources:
@@ -166,8 +164,6 @@ flowchart TD
     E{"Integrated ClimatePulse"} -->|"Policy Scenarios"| D["Socioeconomic ABM"]
     D -->|"Green Adoption / Emissions"| E
 ```
-
-![Methodology Flowchart](paper_artifacts/methodology_flowchart.png)
 
 ### 4.1 El Niño Forecasting: Temporal Fusion Transformer
 
