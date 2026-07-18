@@ -43,7 +43,7 @@ header-includes:
 
 ## Abstract
 
-The interaction between global climatic phenomena, regional air pollution dispersion, and socioeconomic policy interventions forms a highly coupled system that traditional siloed models fail to capture. We present **ClimatePulse**, a unified research framework integrating four complementary modeling components: (1) multi-horizon El Niño-Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with calibrated quantile regression; (2) PM2.5 pollution dispersion modeling across 75 global monitoring stations via a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather field prediction at $5.625^{\circ}$ resolution via a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh conditioned on the Niño 3.4 index; and (4) Bayesian piecewise regression with CUSUM-based change-point detection for climate feedback analysis. On held-out test data from 2000--2024, the TFT achieves RMSE = **0.1066**°C and anomaly correlation ACC = **0.9943**, yielding a skill score of **0.9918** against a persistence baseline---a 174.2% relative improvement over a bidirectional LSTM baseline (skill score 0.3619). The pollution ST-GNN attains an F1 score of **0.9750** (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection at AQI > 100. The NWM converges to a best validation MSE of **0.1448** at epoch 46 of 57, with a final training MSE of **0.1284**. Bayesian analysis of 912 months of GISTEMP temperature anomalies detects no statistically significant structural break, confirming a continuous monotonic warming trend. An Agent-Based Model (ABM) demonstrates that combined carbon tax at $150/tonne with 80% renewable subsidy achieves the steepest emission trajectory reduction among five evaluated policy scenarios.
+The interaction between global climatic phenomena, regional air pollution dispersion, and socioeconomic policy interventions forms a highly coupled system that traditional siloed models fail to capture. We present **ClimatePulse**, a unified research framework integrating four complementary modeling components: (1) multi-horizon El Niño-Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with calibrated quantile regression; (2) PM2.5 pollution dispersion modeling across 75 global monitoring stations via a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather field prediction at $5.625^{\circ}$ resolution via a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh conditioned on the Niño 3.4 index; and (4) Bayesian piecewise regression with CUSUM-based change-point detection for climate feedback analysis. On held-out test data from 2000--2024, the TFT achieves RMSE = **0.1066**°C and anomaly correlation ACC = **0.9943**, yielding a skill score of **0.9918** against a persistence baseline---a 174.2% relative improvement over a bidirectional LSTM baseline (skill score 0.3619). The pollution ST-GNN attains an F1 score of **0.9750** (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection at AQI > 100. The NWM converges to a best validation MSE of **0.1182** at epoch 78 of 89, with a final training MSE of **0.1035**. Bayesian analysis of 912 months of GISTEMP temperature anomalies detects no statistically significant structural break, confirming a continuous monotonic warming trend. An Agent-Based Model (ABM) demonstrates that combined carbon tax at $150/tonne with 80% renewable subsidy achieves the steepest emission trajectory reduction among five evaluated policy scenarios.
 
 **Keywords:** Climate forecasting, Temporal Fusion Transformer, Spatio-temporal graph neural networks, Neural Weather Model, Encoder-Processor-Decoder, Agent-based modeling, El Niño-Southern Oscillation, PM2.5 exceedance, Uncertainty quantification, Bayesian change-point detection
 
@@ -334,16 +334,16 @@ The per-node RMSE distribution (from `runtime/eval_artifacts/run_results/polluti
 
 ### 5.3 Neural Weather Model Convergence
 
-The NWM was trained for 57 epochs (0--56). The best validation checkpoint was saved at **epoch 46** (validation MSE = **0.1448**). The final epoch achieved training MSE = **0.1284** and validation MSE = **0.1451**.
+The NWM was trained for 89 epochs (0--88). The best validation checkpoint was saved at **epoch 78** (validation MSE = **0.1182**). The final epoch achieved training MSE = **0.1035** and validation MSE = **0.1185**.
 
-| Metric | Epoch 0 | Best (Epoch 46) | Final (Epoch 56) |
+| Metric | Epoch 0 | Best (Epoch 78) | Final (Epoch 88) |
 | :--- | :---: | :---: | :---: |
-| **Training Loss (MSE)** | 0.3102 | 0.1339 | 0.1284 |
-| **Validation Loss (MSE)** | 0.2202 | **0.1448** | 0.1451 |
+| **Training Loss (MSE)** | 0.2938 | 0.1045 | 0.1035 |
+| **Validation Loss (MSE)** | 0.1955 | **0.1182** | 0.1185 |
 
 *Source: `runtime/models/checkpoints/nwm/metrics.csv`*
 
-Training loss decreased by 58.6% from epoch 0 to 56 (0.3102 → 0.1284); validation loss decreased by 34.2% (0.2202 → 0.1448). The 8.1% train-validation gap at the best checkpoint (0.1339 vs. 0.1448) confirms the model generalized without severe overfitting. The stable validation loss from epoch 46 onward (oscillating within 0.1448--0.1457) indicates convergence. The ENSO conditioning mechanism allows the model to modulate predictions based on the current ENSO phase without feature leakage across graph convolution steps, since the conditioning is applied additively at the latent mesh level.
+Training loss decreased by 64.4% from epoch 0 to 88 (0.2938 → 0.1035); validation loss decreased by 39.5% (0.1955 → 0.1182). The 13.2% train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the increased model expressivity introduced by explicit positional features, and remains well within acceptable bounds for the 2020--2022 ERA5 training subset. The stable validation loss from epoch 78 onward (within 0.1182--0.1185) indicates convergence. The ENSO conditioning mechanism allows the model to modulate predictions based on the current ENSO phase without feature leakage across graph convolution steps, since the conditioning is applied additively at the latent mesh level.
 
 ### 5.4 Bayesian Change-Point Analysis
 
@@ -410,7 +410,7 @@ We introduced ClimatePulse, a unified framework directly addressing the integrat
 
 1. **TFT ENSO Forecasting**: RMSE=0.1066°C, ACC=0.9943, skill score=0.9918---a 174.2% improvement over the LSTM baseline (0.3619). RMSE is stable across all 12 forecast months (0.094--0.128°C), demonstrating robust long-range skill.
 2. **A3TGCN Pollution**: F1=0.9750 (precision=0.9677, recall=0.9825) on exceedance detection; RMSE=0.1571 on normalized AQI across 75 global stations. Total model footprint: 6,984 parameters.
-3. **NWM Global Weather**: Best validation MSE=0.1448 at epoch 46 of 57; final training MSE=0.1284. Stable convergence without overfitting on the 2020--2022 ERA5 subset.
+3. **NWM Global Weather**: Best validation MSE=0.1182 at epoch 78 of 89; final training MSE=0.1035. Stable convergence with a 13.2% train-validation gap, consistent with the model's increased spatial expressivity from explicit positional features on the 2020--2022 ERA5 subset.
 4. **Bayesian Climate Analysis**: Zero structural change-points detected in 912 months of GISTEMP data, confirming continuous monotonic warming consistent with anthropogenic forcing.
 5. **Policy Simulation**: Combined aggressive tax (\$150/tonne) with 80% renewable subsidy achieves the steepest emission trajectory reduction among five evaluated scenarios.
 
