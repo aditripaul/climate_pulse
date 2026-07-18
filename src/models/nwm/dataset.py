@@ -62,9 +62,9 @@ class NWMDataset(Dataset):
         # Expand to [Time, Lat, Lon] for broadcasting
         w = lat_weights[np.newaxis, :, np.newaxis]
 
-        self.t2m_mean = float(np.average(self.t2m.mean(0), weights=lat_weights))
+        self.t2m_mean = float(np.average(self.t2m.mean(0), weights=lat_weights, axis=0).mean())
         self.t2m_std  = float(np.sqrt(((self.t2m - self.t2m_mean) ** 2 * w).mean()) + 1e-6)
-        self.tp_mean  = float(np.average(self.tp.mean(0),  weights=lat_weights))
+        self.tp_mean  = float(np.average(self.tp.mean(0),  weights=lat_weights, axis=0).mean())
         self.tp_std   = float(np.sqrt(((self.tp  - self.tp_mean)  ** 2 * w).mean()) + 1e-6)
 
         self.t2m = (self.t2m - self.t2m_mean) / self.t2m_std
