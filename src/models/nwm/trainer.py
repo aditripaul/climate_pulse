@@ -56,6 +56,7 @@ class NWMTrainer:
         edge_mesh_to_mesh: torch.Tensor,
         edge_mesh_to_grid: torch.Tensor,
         num_mesh_nodes: int,
+        lat_weights: torch.Tensor | None = None,
     ) -> None:
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -67,6 +68,15 @@ class NWMTrainer:
         self.edge_grid_to_mesh = edge_grid_to_mesh.to(self.device)
         self.edge_mesh_to_mesh = edge_mesh_to_mesh.to(self.device)
         self.edge_mesh_to_grid = edge_mesh_to_grid.to(self.device)
+
+        # C3: Latitude-cosine loss weights — [num_grid_nodes], normalised to unit mean.
+        # Equatorial nodes (large area, cos≈1) contribute more to the loss than polar
+        # nodes (small area, cos≈0), giving the optimizer a physically correct signal.
+        if lat_weights is not None:
+            w = lat_weights.float()
+            self.lat_weights: torch.Tensor | None = (w / w.mean()).to(self.device)  # [N]
+        else:
+            self.lat_weights = None
 
         self.model = NWMModel(
             grid_in_channels=grid_in_channels,
@@ -141,7 +151,7 @@ class NWMTrainer:
 
                 optimizer.zero_grad()
                 y_hat = self._forward(x, condition)
-                loss = F.mse_loss(y_hat, y)
+                loss = self._weighted_mse(y_hat, y)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), grad_clip)
                 optimizer.step()
@@ -244,7 +254,24 @@ class NWMTrainer:
             condition = condition.to(self.device)
             y = y.to(self.device)
             y_hat = self._forward(x, condition)
-            total_loss += F.mse_loss(y_hat, y).item()
+            total_loss += self._weighted_mse(y_hat, y).item()
             n_batches += 1
         self.model.train()
         return total_loss / max(n_batches, 1)
+
+    def _weighted_mse(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """C3: Cosine-latitude-weighted MSE.
+
+        Args:
+            y_hat: [batch, num_grid_nodes, out_channels]
+            y:     [batch, num_grid_nodes, out_channels]
+
+        Returns:
+            Scalar weighted MSE loss.
+        """
+        sq_err = (y_hat - y) ** 2  # [batch, num_grid_nodes, out_channels]
+        if self.lat_weights is not None:
+            # lat_weights: [num_grid_nodes] -> broadcast to [1, N, 1]
+            w = self.lat_weights.view(1, -1, 1)
+            return (sq_err * w).mean()
+        return sq_err.mean()

@@ -211,7 +211,9 @@ def train_nwm():
     e_m2m = graph_builder.build_mesh_to_mesh()
     e_m2g = graph_builder.build_mesh_to_grid()
 
-    grid_in_channels = train_ds.window_size * 2   # T2m + Precip
+    # A1: grid_in_channels includes 4 static positional features (sin/cos lat/lon)
+    # that are now appended to every input sample inside NWMDataset.__getitem__.
+    grid_in_channels = train_ds.window_size * 2 + 4   # T2m_W + Precip_W + static
     grid_out_channels = train_ds.prediction_steps * 2
 
     trainer = NWMTrainer(
@@ -225,6 +227,8 @@ def train_nwm():
         edge_mesh_to_mesh=e_m2m,
         edge_mesh_to_grid=e_m2g,
         num_mesh_nodes=2000,
+        # C3: pass cosine-latitude weights for area-correct loss computation
+        lat_weights=torch.tensor(train_ds.lat_weights),
     )
 
     result = trainer.fit(

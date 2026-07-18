@@ -53,12 +53,37 @@ class NWMDataset(Dataset):
         self.t2m = self.ds['2m_temperature'].values
         self.tp = self.ds['total_precipitation'].values
         
-        # Simple z-score normalization over the entire dataset to stabilize FP16
-        self.t2m_mean, self.t2m_std = float(self.t2m.mean()), float(self.t2m.std())
-        self.tp_mean, self.tp_std = float(self.tp.mean()), float(self.tp.std()) + 1e-6
-        
+        # --- B3: Latitude-cosine-weighted normalization ---
+        # Grid cells near the equator represent larger physical areas (cos(lat) → 1)
+        # than polar cells (cos(lat) → 0). Weighting prevents polar nodes from
+        # distorting the global normalization statistics.
+        lat_weights = np.cos(np.radians(self.lat))  # [Lat]
+        lat_weights = lat_weights / lat_weights.mean()  # unit mean
+        # Expand to [Time, Lat, Lon] for broadcasting
+        w = lat_weights[np.newaxis, :, np.newaxis]
+
+        self.t2m_mean = float(np.average(self.t2m.mean(0), weights=lat_weights))
+        self.t2m_std  = float(np.sqrt(((self.t2m - self.t2m_mean) ** 2 * w).mean()) + 1e-6)
+        self.tp_mean  = float(np.average(self.tp.mean(0),  weights=lat_weights))
+        self.tp_std   = float(np.sqrt(((self.tp  - self.tp_mean)  ** 2 * w).mean()) + 1e-6)
+
         self.t2m = (self.t2m - self.t2m_mean) / self.t2m_std
-        self.tp = (self.tp - self.tp_mean) / self.tp_std
+        self.tp  = (self.tp  - self.tp_mean)  / self.tp_std
+
+        # --- A1: Static positional features ---
+        # Precompute [sin(lat), cos(lat), sin(lon), cos(lon)] for each grid node.
+        # These are constant across all time steps and are concatenated to every
+        # input sample so the model has explicit spatial awareness.
+        lons_2d, lats_2d = np.meshgrid(self.lon, self.lat)   # [Lat, Lon]
+        lat_rad = np.radians(lats_2d.flatten())
+        lon_rad = np.radians(lons_2d.flatten())
+        self.static_features = np.stack(
+            [np.sin(lat_rad), np.cos(lat_rad), np.sin(lon_rad), np.cos(lon_rad)],
+            axis=1,
+        ).astype(np.float32)  # [num_grid_nodes, 4]
+
+        # Cosine-latitude weights per grid node, used by the trainer for weighted loss.
+        self.lat_weights = np.cos(np.radians(lats_2d.flatten())).astype(np.float32)  # [num_grid_nodes]
         
         # Time indices
         total_steps = len(self.times)
@@ -105,7 +130,10 @@ class NWMDataset(Dataset):
         x_tp_flat = np.transpose(x_tp, (1, 2, 0))   # [Lat, Lon, Window]
         
         x = np.concatenate([x_t2m_flat, x_tp_flat], axis=-1)
-        x_flat = x.reshape(-1, x.shape[-1]) # [Lat*Lon, Channels*Window]
+        x_flat = x.reshape(-1, x.shape[-1])  # [num_grid_nodes, Channels*Window]
+
+        # A1: Append static positional features so the model knows where each node is.
+        x_flat = np.concatenate([x_flat, self.static_features], axis=-1)  # [num_grid_nodes, C*W + 4]
         
         # 2. Get target prediction [Lat, Lon, Channels * PredictionSteps]
         y_t2m = self.t2m[time_idx : time_idx + self.prediction_steps]
