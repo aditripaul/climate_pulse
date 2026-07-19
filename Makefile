@@ -46,10 +46,10 @@ install: venv
 # === Setup (AMD ROCm) ===
 # pytorch-lightning 2.6.5 is the safe version (2.6.2-2.6.3 had supply-chain compromise)
 install-rocm: venv
-	.venv/bin/pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/rocm6.1
+	.venv/bin/pip install torch==2.6.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1
 	.venv/bin/python src/scripts/patch_rocm_elf.py
 	.venv/bin/python src/scripts/install_rocm_deps.py
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.6.0+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (Intel NPU) ===

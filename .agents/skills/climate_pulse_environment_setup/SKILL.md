@@ -31,7 +31,7 @@ This:
 make install-rocm
 ```
 
-Uses ROCm 6.1 PyTorch index. Also runs `src/scripts/patch_rocm_elf.py` (Radeon 680M ELF patcher) and `src/scripts/install_rocm_deps.py`.
+Uses PyTorch `2.6.0+rocm6.1` from the ROCm 6.1 PyTorch index. Also runs `src/scripts/patch_rocm_elf.py` (Radeon 680M ELF patcher) and `src/scripts/install_rocm_deps.py`.
 
 ## Installation (Intel NPU)
 
