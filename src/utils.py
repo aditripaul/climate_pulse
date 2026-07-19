@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import torch
 
+torch.backends.cudnn.enabled = False
+
 from config import settings
 
 

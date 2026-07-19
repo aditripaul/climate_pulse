@@ -13,11 +13,18 @@ import shutil
 import sys
 from pathlib import Path
 
+# Radeon 680M (RDNA2) workaround for PyTorch ROCm (gfx1036 -> gfx1030)
+os.environ.setdefault("HSA_OVERRIDE_GFX_VERSION", "10.3.0")
+os.environ.setdefault("HSA_ENABLE_SDMA", "0")
+os.environ.setdefault("TORCH_BLAS_PREFER_HIPBLASLT", "0")
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
+
+torch.backends.cudnn.enabled = False
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent

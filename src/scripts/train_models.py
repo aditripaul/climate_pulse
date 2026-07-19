@@ -15,8 +15,13 @@ import os
 
 # Radeon 680M (RDNA2) workaround for PyTorch ROCm (gfx1036 -> gfx1030)
 os.environ.setdefault("HSA_OVERRIDE_GFX_VERSION", "10.3.0")
+os.environ.setdefault("HSA_ENABLE_SDMA", "0")
+os.environ.setdefault("TORCH_BLAS_PREFER_HIPBLASLT", "0")
 # Disable PyTensor C compilation (missing Python.h)
 os.environ.setdefault("PYTENSOR_FLAGS", "cxx=")
+
+import torch
+torch.backends.cudnn.enabled = False
 
 from loguru import logger  # noqa: E402
 

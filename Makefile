@@ -12,7 +12,7 @@ export DATASET_CONF ?= configs/dataset_conf.yaml
 # Check for AMD GPU
 HAS_AMD_GPU := $(shell lspci 2>/dev/null | grep -i -E 'vga|3d|display' | grep -i -E 'amd|radeon' >/dev/null 2>&1 && echo 1 || echo 0)
 ifeq ($(HAS_AMD_GPU),1)
-    ROCM_ENV := HSA_OVERRIDE_GFX_VERSION=10.3.0
+    ROCM_ENV := HSA_OVERRIDE_GFX_VERSION=10.3.0 HSA_ENABLE_SDMA=0 TORCH_BLAS_PREFER_HIPBLASLT=0
 else
     ROCM_ENV :=
 endif
@@ -85,7 +85,7 @@ train-nwm:
 
 # === Evaluation Artifacts ===
 gen-eval-artifacts:
-	PYTHONPATH=src .venv/bin/python src/scripts/generate_eval_artifacts.py
+	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/generate_eval_artifacts.py
 
 gen-research-paper-pdf:
 	cd docs/research_paper/ && pandoc research_paper.md -o climatepulse_research_paper.pdf \
