@@ -49,7 +49,6 @@ install-rocm: venv
 	.venv/bin/pip install torch==2.6.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1
 	.venv/bin/python src/scripts/patch_rocm_elf.py
 	.venv/bin/python src/scripts/install_rocm_deps.py
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.6.0+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (Intel NPU) ===
