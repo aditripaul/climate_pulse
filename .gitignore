@@ -41,6 +41,10 @@ runtime/models/saved/
 # Artifacts
 runtime/eval_artifacts/
 
+# Whitelist saved runs for git tracking
+!runtime/saved/
+!runtime/saved/**
+
 # Jupyter
 .ipynb_checkpoints/
 

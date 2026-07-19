@@ -26,6 +26,29 @@ The full stack is Python-only, using efficient data formats (Parquet + JSON) and
 
 ---
 
+## Models
+
+ClimatePulse integrates four distinct modeling approaches to capture the complexity of the global climate system:
+
+### 1. El Niño Forecaster (TFT & LSTM)
+Predicts the phase and intensity of the El Niño-Southern Oscillation (ENSO) up to 60 months in advance.
+- **TFT (Temporal Fusion Transformer):** The primary model, leveraging multi-head self-attention and variable selection networks to capture long-range dependencies and provide probabilistic prediction intervals (e.g., 10th-90th quantiles).
+- **LSTM Baseline:** A bidirectional LSTM used as a baseline to benchmark the TFT's skill score and attention mechanisms.
+
+### 2. Pollution Dispersion (A3TGCN)
+Models the spatiotemporal dispersion of PM2.5 across global monitoring networks.
+- **Architecture:** Uses an Attention-based Spatial-Temporal Graph Convolutional Network (A3TGCN). It constructs a k-nearest-neighbor spatial graph of OpenAQ sensor locations and applies Chebyshev graph convolutions combined with Gated Recurrent Units (GRUs) to capture both spatial diffusion and temporal accumulation of pollutants.
+
+### 3. Neural Weather Model (ST-GNN)
+A global, autoregressive weather surrogate model that predicts 2-meter temperature (T2m) and precipitation, conditioned on the ENSO phase.
+- **Architecture:** Employs an Encoder-Processor-Decoder Graph Neural Network. It maps the high-resolution ERA5 equirectangular grid (2,048 nodes) to a latent spherical Fibonacci mesh (2,000 nodes) for isotropic message passing, avoiding the spatial distortion at the poles inherent in standard CNN-based weather models.
+
+### 4. Climate Feedback (Bayesian Regression)
+Detects structural changes in the global warming trend and quantifies climate sensitivity to greenhouse gas emissions.
+- **Architecture:** A Bayesian piecewise hierarchical regression implemented in PyMC. It models NASA GISTEMP temperature anomalies against Climate TRACE emissions data to provide credible intervals for the continuous warming slope and rigorously identify potential regime shifts.
+
+---
+
 ## Technical Stack
 
 | Layer | Libraries |
@@ -137,13 +160,24 @@ make train-climate     # Bayesian climate feedback model
 # 4. Generate paper artifacts (figures, metrics, tables)
 make gen-eval-artifacts
 
-# 5. Compile research paper to PDF (requires pandoc + xelatex)
+# 5. Save the latest run checkpoints and artifacts for future reference
+make save-run
+
+# 6. Compile research paper to PDF (requires pandoc + xelatex)
 make gen-research-paper-pdf
 ```
 
 ---
 
 ## Project Structure
+
+This project follows a modular architecture designed to separate data ingestion, modeling, and execution. The repository is organized into the following primary directories:
+
+- **`src/`**: Contains the core Python source code, structured into submodules for data processing (`src/data/`), model architectures (`src/models/`), and execution scripts (`src/scripts/`).
+- **`configs/`**: Stores YAML configuration files that define runtime behavior, hyperparameter values, and dataset parameters.
+- **`datasets/`**: The local storage directory for raw downloads and processed Parquet files.
+- **`runtime/`**: Directory for artifacts generated during execution, including trained model checkpoints, evaluation figures, saved runs, and training logs.
+- **`docs/`**: Contains formal project documentation, requirement specifications, architectural design documents, and the markdown source for the research paper.
 
 ```text
 climate_pulse/
@@ -174,6 +208,7 @@ climate_pulse/
 ├── runtime/                      # Execution artifacts (gitignored)
 │   ├── models/checkpoints/       # Trained model weights
 │   ├── eval_artifacts/           # Figures, CSVs for paper
+│   ├── saved/                    # Snapshot runs saved for future inference
 │   └── logs/                     # Training logs
 ├── docs/
 │   ├── research_paper/           # Research paper source
@@ -207,11 +242,12 @@ make train-climate        # Bayesian regression
 
 # Research outputs
 make gen-eval-artifacts   # Figures, tables, metrics
+make save-run             # Save run checkpoints/artifacts to runtime/saved/
 make gen-research-paper-pdf         # Compile to PDF (needs pandoc + xelatex)
 
 # Cleanup
 make clean                # Remove __pycache__, build artifacts
-make clean-checkpoints    # Remove trained model weights
+make clean-checkpoints    # Remove trained model weights (also cleans runtime/saved/)
 make clean-downloaded-datasets  # Remove raw and processed datasets
 ```
 

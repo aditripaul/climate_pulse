@@ -114,10 +114,10 @@
     "changepoint_years": []
   },
   "nwm": {
-    "best_epoch": 46,
-    "best_train_loss": 0.133885872317478,
-    "best_val_loss": 0.1447979594979967,
-    "final_train_loss": 0.1283611073158681,
-    "final_val_loss": 0.1451060601643153
+    "best_epoch": 78,
+    "best_train_loss": 0.1044783376855775,
+    "best_val_loss": 0.1182419519339289,
+    "final_train_loss": 0.1035167379304766,
+    "final_val_loss": 0.1185140274465084
   }
 }

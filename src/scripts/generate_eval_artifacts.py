@@ -9,6 +9,7 @@ saves raw prediction/metric files, and plots standard graphics.
 import glob
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -686,6 +687,438 @@ def generate_training_loss_curves():
     print("Saved training curves to runtime/eval_artifacts/model_training_curves.png")
 
 
+# ======================================================================
+# NWM-Specific Publication Figures
+# ======================================================================
+
+
+def _plot_nwm_convergence():
+    """Plot 4: Dedicated NWM loss curve with reconstructed LR schedule."""
+    nwm_csv = settings.model.checkpoint_dir / "nwm" / "metrics.csv"
+    if not nwm_csv.exists():
+        print("  SKIP: NWM metrics.csv not found.")
+        return
+
+    df = pd.read_csv(nwm_csv)
+    epochs = df["epoch"].values
+    train_loss = df["train_loss"].values
+    val_loss = df["val_loss"].values
+
+    best_idx = int(df["val_loss"].idxmin())
+    best_epoch = int(df.loc[best_idx, "epoch"])
+    best_val = float(df.loc[best_idx, "val_loss"])
+
+    # Reconstruct ReduceLROnPlateau schedule (factor=0.5, patience=3)
+    lr = float(settings.model.learning_rate)
+    lr_schedule = []
+    best_so_far = float("inf")
+    patience_ctr = 0
+
+    for v in val_loss:
+        if v < best_so_far - 1e-8:
+            best_so_far = v
+            patience_ctr = 0
+        else:
+            patience_ctr += 1
+
+        lr_schedule.append(lr)
+
+        if patience_ctr >= 3:
+            lr *= 0.5
+            patience_ctr = 0
+
+    fig, ax1 = plt.subplots(figsize=(8, 4.5))
+
+    ax1.plot(epochs, train_loss, color="#1f77b4", linewidth=1.5,
+             label="Training Loss", alpha=0.9)
+    ax1.plot(epochs, val_loss, color="#d62728", linewidth=1.5,
+             linestyle="--", label="Validation Loss", alpha=0.9)
+    ax1.axvline(best_epoch, color="#2ca02c", linestyle=":", alpha=0.7,
+                label=f"Best Epoch ({best_epoch})")
+    ax1.scatter([best_epoch], [best_val], color="#2ca02c", zorder=5, s=60,
+                edgecolors="white", linewidth=0.5)
+
+    # Annotate the best point
+    ax1.annotate(
+        f"Val MSE = {best_val:.4f}",
+        xy=(best_epoch, best_val),
+        xytext=(best_epoch + 3, best_val + 0.015),
+        fontsize=8,
+        arrowprops=dict(arrowstyle="->", color="#2ca02c", lw=0.8),
+        color="#2ca02c",
+    )
+
+    # Early stopping window annotation
+    last_epoch = int(epochs[-1])
+    if last_epoch > best_epoch:
+        ax1.axvspan(best_epoch, last_epoch, alpha=0.06, color="red")
+        ax1.text(
+            best_epoch + (last_epoch - best_epoch) / 2,
+            ax1.get_ylim()[1] * 0.95,
+            "Early\nStopping\nWindow",
+            ha="center", va="top", fontsize=7, color="#d62728", alpha=0.7,
+        )
+
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss (MSE)")
+    ax1.set_title("Neural Weather Model: Training Convergence & Learning Rate Schedule")
+
+    # LR on secondary y-axis
+    ax2 = ax1.twinx()
+    ax2.plot(epochs, lr_schedule, color="#9467bd", linewidth=1.0, alpha=0.5,
+             label="Learning Rate")
+    ax2.set_ylabel("Learning Rate", color="#9467bd")
+    ax2.tick_params(axis="y", labelcolor="#9467bd")
+    ax2.set_yscale("log")
+
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(ARTIFACTS_DIR / "nwm_convergence_lr.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print("  Saved nwm_convergence_lr.png")
+
+
+def _plot_fibonacci_mesh(graph_builder):
+    """Plot 3: Fibonacci mesh topology — 3D sphere + 2D equirectangular projection."""
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+    mesh = graph_builder.mesh_coords       # [2000, 3]
+    grid = graph_builder.grid_coords       # [num_grid, 3]
+    m2m = graph_builder.build_mesh_to_mesh(k=8)
+
+    fig = plt.figure(figsize=(12, 5))
+
+    # ---- Left panel: 3D sphere ----
+    ax1 = fig.add_subplot(121, projection="3d")
+
+    # Semi-transparent wireframe sphere
+    u = np.linspace(0, 2 * np.pi, 30)
+    v_s = np.linspace(0, np.pi, 20)
+    xs = 0.98 * np.outer(np.cos(u), np.sin(v_s))
+    ys = 0.98 * np.outer(np.sin(u), np.sin(v_s))
+    zs = 0.98 * np.outer(np.ones_like(u), np.cos(v_s))
+    ax1.plot_wireframe(xs, ys, zs, color="lightgray", alpha=0.12, linewidth=0.3)
+
+    # Mesh nodes
+    ax1.scatter(mesh[:, 0], mesh[:, 1], mesh[:, 2],
+                c="royalblue", s=4, alpha=0.8, label=f"Mesh ({len(mesh)})")
+
+    # Draw a subset of mesh-to-mesh edges for visual clarity
+    esrc = m2m[0].numpy()
+    etgt = m2m[1].numpy()
+    step = max(1, len(esrc) // 3000)
+    for i in range(0, len(esrc), step):
+        s, t = esrc[i], etgt[i]
+        ax1.plot(
+            [mesh[s, 0], mesh[t, 0]],
+            [mesh[s, 1], mesh[t, 1]],
+            [mesh[s, 2], mesh[t, 2]],
+            "b-", alpha=0.04, linewidth=0.3,
+        )
+
+    ax1.set_title("3D Fibonacci Lattice Mesh", fontsize=10)
+    ax1.set_xlim([-1.1, 1.1])
+    ax1.set_ylim([-1.1, 1.1])
+    ax1.set_zlim([-1.1, 1.1])
+    ax1.set_box_aspect([1, 1, 1])
+    ax1.axis("off")
+
+    # ---- Right panel: 2D equirectangular ----
+    ax2 = fig.add_subplot(122)
+
+    # Convert 3D → geographic lat/lon using the grid convention (z = sin(lat))
+    grid_lat = np.degrees(np.arcsin(np.clip(grid[:, 2], -1, 1)))
+    grid_lon = np.degrees(np.arctan2(grid[:, 1], grid[:, 0]))
+
+    # For Fibonacci mesh: y is the polar axis, so lat = arcsin(y)
+    mesh_lat = np.degrees(np.arcsin(np.clip(mesh[:, 1], -1, 1)))
+    mesh_lon = np.degrees(np.arctan2(mesh[:, 2], mesh[:, 0]))
+
+    ax2.scatter(grid_lon, grid_lat, c="lightcoral", s=2, alpha=0.3,
+                label=f"Grid nodes ({len(grid)})", zorder=1)
+    ax2.scatter(mesh_lon, mesh_lat, c="royalblue", s=4, alpha=0.6,
+                label=f"Mesh nodes ({len(mesh)})", zorder=2)
+
+    ax2.set_xlabel("Longitude (°)")
+    ax2.set_ylabel("Latitude (°)")
+    ax2.set_title("Equirectangular Projection", fontsize=10)
+    ax2.legend(fontsize=7, loc="lower left")
+    ax2.set_xlim([-180, 180])
+    ax2.set_ylim([-90, 90])
+    ax2.set_aspect("equal")
+
+    fig.suptitle(
+        "NWM Encoder–Processor–Decoder: Fibonacci Spherical Mesh Topology\n"
+        f"({len(mesh)} mesh nodes, k=8 connectivity, {len(grid)} grid nodes)",
+        fontsize=11,
+    )
+    fig.tight_layout()
+    fig.savefig(ARTIFACTS_DIR / "nwm_fibonacci_mesh.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print("  Saved nwm_fibonacci_mesh.png")
+
+
+def _plot_predicted_vs_actual(preds, targets, test_ds, num_lat, num_lon):
+    """Plot 1: Side-by-side predicted vs actual T2m field with error map."""
+    # Pick a sample near the middle of the test set
+    mid = len(preds) // 2
+
+    # out_channels layout: [T2m_step0, ..., T2m_stepN, Precip_step0, ..., Precip_stepN]
+    # For prediction_steps=1: channel 0 = T2m, channel 1 = Precip
+    pred_t2m = preds[mid, :, 0].reshape(num_lat, num_lon)
+    true_t2m = targets[mid, :, 0].reshape(num_lat, num_lon)
+
+    # Denormalize back to Kelvin
+    pred_K = pred_t2m * test_ds.t2m_std + test_ds.t2m_mean
+    true_K = true_t2m * test_ds.t2m_std + test_ds.t2m_mean
+    error_K = pred_K - true_K
+
+    lat = test_ds.lat
+    lon = test_ds.lon
+    extent = [lon.min(), lon.max(), lat.min(), lat.max()]
+
+    vmin = min(true_K.min(), pred_K.min())
+    vmax = max(true_K.max(), pred_K.max())
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+
+    im0 = axes[0].imshow(true_K, aspect="auto", origin="upper",
+                          extent=extent, cmap="RdYlBu_r", vmin=vmin, vmax=vmax)
+    axes[0].set_title("ERA5 Ground Truth", fontsize=10)
+    axes[0].set_xlabel("Longitude (°)")
+    axes[0].set_ylabel("Latitude (°)")
+    plt.colorbar(im0, ax=axes[0], shrink=0.8, label="T2m (K)")
+
+    im1 = axes[1].imshow(pred_K, aspect="auto", origin="upper",
+                          extent=extent, cmap="RdYlBu_r", vmin=vmin, vmax=vmax)
+    axes[1].set_title("NWM Prediction", fontsize=10)
+    axes[1].set_xlabel("Longitude (°)")
+    axes[1].set_ylabel("Latitude (°)")
+    plt.colorbar(im1, ax=axes[1], shrink=0.8, label="T2m (K)")
+
+    # Diverging error map centred on zero
+    eabs = max(abs(error_K.min()), abs(error_K.max()), 1e-6)
+    im2 = axes[2].imshow(error_K, aspect="auto", origin="upper",
+                          extent=extent, cmap="RdBu_r", vmin=-eabs, vmax=eabs)
+    axes[2].set_title("Prediction Error", fontsize=10)
+    axes[2].set_xlabel("Longitude (°)")
+    axes[2].set_ylabel("Latitude (°)")
+    plt.colorbar(im2, ax=axes[2], shrink=0.8, label="Error (K)")
+
+    # Add equator line
+    for ax in axes:
+        ax.axhline(0, color="black", linestyle="--", alpha=0.3, linewidth=0.5)
+
+    rmse_sample = float(np.sqrt(np.mean(error_K ** 2)))
+    fig.suptitle(
+        f"NWM: 2m Temperature — Predicted vs. ERA5 Ground Truth "
+        f"(Test sample RMSE = {rmse_sample:.2f} K)",
+        fontsize=11,
+    )
+    fig.tight_layout()
+    fig.savefig(ARTIFACTS_DIR / "nwm_predicted_vs_actual.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved nwm_predicted_vs_actual.png  (sample RMSE = {rmse_sample:.2f} K)")
+
+
+def _plot_spatial_error_map(preds, targets, test_ds, num_lat, num_lon):
+    """Plot 2: Per-grid-node RMSE heatmap across all test samples."""
+    # Compute per-node RMSE for T2m across all test samples
+    sq_err = (preds[:, :, 0] - targets[:, :, 0]) ** 2   # [N_test, num_grid_nodes]
+    rmse_per_node = np.sqrt(sq_err.mean(axis=0))          # [num_grid_nodes]
+
+    # Denormalize to Kelvin scale
+    rmse_map_K = rmse_per_node.reshape(num_lat, num_lon) * test_ds.t2m_std
+
+    lat = test_ds.lat
+    lon = test_ds.lon
+    extent = [lon.min(), lon.max(), lat.min(), lat.max()]
+
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+
+    im = ax.imshow(rmse_map_K, aspect="auto", origin="upper",
+                    extent=extent, cmap="YlOrRd")
+    ax.set_xlabel("Longitude (°)")
+    ax.set_ylabel("Latitude (°)")
+
+    # Equator and tropics
+    for line_lat, label in [(0, "Equator"), (23.5, "Tropic of Cancer"),
+                             (-23.5, "Tropic of Capricorn")]:
+        ax.axhline(line_lat, color="white", linestyle="--", alpha=0.5, linewidth=0.5)
+        ax.text(lon.max() + 2, line_lat, label, fontsize=6, va="center",
+                alpha=0.7, color="gray")
+
+    cbar = plt.colorbar(im, ax=ax, shrink=0.85, label="RMSE (K)")
+
+    global_rmse = float(np.sqrt(sq_err.mean()) * test_ds.t2m_std)
+    equatorial = rmse_map_K[num_lat // 3 : 2 * num_lat // 3, :].mean()
+    polar = np.concatenate([rmse_map_K[:num_lat // 6, :].flatten(),
+                            rmse_map_K[-num_lat // 6:, :].flatten()]).mean()
+
+    ax.set_title(
+        f"NWM: Spatial RMSE — 2m Temperature (Test Set)\n"
+        f"Global = {global_rmse:.2f} K | Tropical = {equatorial:.2f} K | Polar = {polar:.2f} K",
+        fontsize=10,
+    )
+
+    fig.tight_layout()
+    fig.savefig(ARTIFACTS_DIR / "nwm_spatial_error_map.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved nwm_spatial_error_map.png  (global RMSE = {global_rmse:.2f} K)")
+
+
+def generate_nwm_plots():
+    """Orchestrate generation of all four NWM-specific publication figures."""
+    print("Generating NWM-specific plots...")
+
+    # Plot 4 (convergence) only needs the metrics CSV
+    _plot_nwm_convergence()
+
+    nc_path = settings.data.raw_dir / "nwm_era5" / "era5_5deg_6hr_2020_2022.nc"
+    nino_path = settings.data.processed_dir / "nino_features.parquet"
+    ckpt_path = settings.model.checkpoint_dir / "nwm" / "nwm_best.pt"
+
+    if not nc_path.exists():
+        print("  SKIP: ERA5 NetCDF not found — skipping spatial NWM plots.")
+        return
+
+    from models.nwm.dataset import NWMDataset
+    from models.nwm.graph_builder import SphericalGraphBuilder
+    from models.nwm.trainer import NWMTrainer
+    from torch.utils.data import DataLoader
+
+    test_ds = NWMDataset(nc_path, nino_path, mode="test")
+    graph_builder = SphericalGraphBuilder(test_ds.lat, test_ds.lon, num_mesh_nodes=2000)
+
+    # Plot 3: Fibonacci mesh topology (does not need model checkpoint)
+    _plot_fibonacci_mesh(graph_builder)
+
+    # Plots 1 & 2 need the trained model
+    if not ckpt_path.exists():
+        print("  SKIP: nwm_best.pt not found — skipping prediction plots.")
+        return
+
+    e_g2m = graph_builder.build_grid_to_mesh()
+    e_m2m = graph_builder.build_mesh_to_mesh()
+    e_m2g = graph_builder.build_mesh_to_grid()
+
+    grid_in = test_ds.window_size * 2 + 4   # A1: temporal channels + static features
+    grid_out = test_ds.prediction_steps * 2  # T2m + Precip per prediction step
+
+    trainer = NWMTrainer(
+        grid_in_channels=grid_in,
+        grid_out_channels=grid_out,
+        hidden_dim=128,
+        num_processor_layers=4,
+        learning_rate=1e-3,
+        weight_decay=1e-4,
+        edge_grid_to_mesh=e_g2m,
+        edge_mesh_to_mesh=e_m2m,
+        edge_mesh_to_grid=e_m2g,
+        num_mesh_nodes=2000,
+    )
+    trainer.load_checkpoint(ckpt_path)
+    trainer.model.eval()
+
+    # Run inference on full test set
+    test_loader = DataLoader(test_ds, batch_size=16, shuffle=False, num_workers=0)
+    all_preds, all_targets = [], []
+
+    with torch.no_grad():
+        for x, cond, y in test_loader:
+            x = x.to(trainer.device)
+            cond = cond.to(trainer.device)
+            y_hat = trainer._forward(x, cond)
+            all_preds.append(y_hat.cpu().numpy())
+            all_targets.append(y.numpy())
+
+    preds = np.concatenate(all_preds, axis=0)      # [N_test, num_grid, out_channels]
+    targets = np.concatenate(all_targets, axis=0)
+
+    num_lat = len(test_ds.lat)
+    num_lon = len(test_ds.lon)
+    print(f"  NWM inference: {len(preds)} test samples, grid {num_lat}×{num_lon}")
+
+    # Plot 1: Predicted vs Actual T2m (single sample)
+    _plot_predicted_vs_actual(preds, targets, test_ds, num_lat, num_lon)
+
+    # Plot 2: Spatial RMSE heatmap (all test samples)
+    _plot_spatial_error_map(preds, targets, test_ds, num_lat, num_lon)
+
+    print("NWM plot generation complete.")
+
+
+def copy_runtime_data():
+    """Copy all key runtime-generated data into eval_artifacts/run_results/.
+
+    Collects:
+    - Per-model training metrics CSVs (NWM, LSTM, Pollution ST-GNN)
+    - TFT Lightning metrics CSV (latest version)
+    - NWM checkpoint metadata (file size + path)
+    """
+    print("Copying runtime data into eval_artifacts/run_results/...")
+
+    # ---- NWM metrics.csv -----------------------------------------------
+    nwm_src = settings.model.checkpoint_dir / "nwm" / "metrics.csv"
+    if nwm_src.exists():
+        dst = RESULTS_DIR / "nwm_metrics.csv"
+        shutil.copy2(nwm_src, dst)
+        print(f"  Copied {nwm_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {nwm_src} not found – skipping.")
+
+    # ---- LSTM metrics.csv -----------------------------------------------
+    lstm_src = settings.model.checkpoint_dir / "el_nino" / "lstm" / "metrics.csv"
+    if lstm_src.exists():
+        dst = RESULTS_DIR / "lstm_metrics.csv"
+        shutil.copy2(lstm_src, dst)
+        print(f"  Copied {lstm_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {lstm_src} not found – skipping.")
+
+    # ---- Pollution ST-GNN metrics.csv -----------------------------------
+    pollution_src = settings.model.checkpoint_dir / "pollution" / "metrics.csv"
+    if pollution_src.exists():
+        dst = RESULTS_DIR / "pollution_metrics.csv"
+        shutil.copy2(pollution_src, dst)
+        print(f"  Copied {pollution_src.name} -> {dst}")
+    else:
+        print(f"  WARNING: {pollution_src} not found – skipping.")
+
+    # ---- TFT Lightning metrics.csv (latest version) ---------------------
+    metric_files = glob.glob(
+        str(settings.log.dir / "lightning_logs" / "version_*" / "metrics.csv")
+    )
+    if metric_files:
+        latest_csv = Path(max(metric_files, key=os.path.getctime))
+        dst = RESULTS_DIR / "tft_metrics.csv"
+        shutil.copy2(latest_csv, dst)
+        print(f"  Copied TFT {latest_csv.parent.name}/metrics.csv -> {dst}")
+    else:
+        print("  WARNING: No TFT Lightning metrics.csv found – skipping.")
+
+    # ---- NWM checkpoint info (metadata only, not the weight file) -------
+    nwm_ckpt = settings.model.checkpoint_dir / "nwm" / "nwm_best.pt"
+    if nwm_ckpt.exists():
+        size_mb = nwm_ckpt.stat().st_size / 1_048_576
+        ckpt_info = {
+            "checkpoint_path": str(nwm_ckpt),
+            "size_mb": round(size_mb, 3),
+        }
+        info_path = RESULTS_DIR / "nwm_checkpoint_info.json"
+        with open(info_path, "w") as f:
+            json.dump(ckpt_info, f, indent=2)
+        print(f"  Wrote NWM checkpoint metadata -> {info_path.name}")
+    else:
+        print("  WARNING: nwm_best.pt not found – skipping checkpoint info.")
+
+    print("Runtime data copy complete.")
+
+
 def main():
     print("=" * 60)
     print("ClimatePulse Paper Artifacts Generator")
@@ -727,6 +1160,11 @@ def main():
         generate_training_loss_curves()
     except Exception as e:
         print(f"Failed to generate training loss curves: {e}")
+
+    try:
+        generate_nwm_plots()
+    except Exception as e:
+        print(f"Failed to generate NWM-specific plots: {e}")
 
     # Save overall summary metrics to JSON
     # Filter non-serializable elements
@@ -788,6 +1226,11 @@ This document summarizes the performance metrics generated during the evaluation
 """
     with open(ARTIFACTS_DIR / "metrics_summary.md", "w") as f:
         f.write(md_content)
+
+    try:
+        copy_runtime_data()
+    except Exception as e:
+        print(f"Failed to copy runtime data: {e}")
 
     print("=" * 60)
     print(f"Artifact generation completed! Output directory: {ARTIFACTS_DIR}")

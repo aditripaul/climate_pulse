@@ -161,15 +161,14 @@ class NWMModel(nn.Module):
         cond_embed = cond_embed.unsqueeze(1).expand(-1, num_mesh_nodes, -1).reshape(-1, grid_feat.size(-1))
         
         for conv, norm in zip(self.processor_layers, self.processor_norms):
-            # Inject condition by adding it
-            mesh_feat = mesh_feat + cond_embed
-            
-            # Message pass
-            msg = conv(mesh_feat, batched_m2m)
-            msg = norm(msg)
+            # A3: Inject conditioning into the *message* path only, not the residual.
+            # This prevents the Nino 3.4 signal from being added twice per layer
+            # (once explicitly + once through the residual carrying the pre-conditioned state).
+            msg = conv(mesh_feat, batched_m2m)          # spatial message passing
+            msg = norm(msg + cond_embed)                 # condition injected into message
             msg = torch.nn.functional.gelu(msg)
-            
-            # Residual connection
+
+            # Residual connection over unconditioned mesh_feat
             mesh_feat = mesh_feat + msg
             
         # 5. Decoder: Mesh -> Grid (vectorised batch offset)

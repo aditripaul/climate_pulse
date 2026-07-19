@@ -94,10 +94,20 @@ gen-research-paper-pdf:
     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
     -s
 
+# === Save Run ===
+save-run:
+	@echo "Saving latest run artifacts and checkpoints for future inference..."
+	@TIMESTAMP=$$(date +"%Y%m%d_%H%M%S"); \
+	SAVE_DIR="runtime/saved/run_$$TIMESTAMP"; \
+	mkdir -p "$$SAVE_DIR"; \
+	if [ -d "runtime/models/checkpoints" ]; then cp -r runtime/models/checkpoints "$$SAVE_DIR/"; fi; \
+	if [ -d "runtime/eval_artifacts" ]; then cp -r runtime/eval_artifacts "$$SAVE_DIR/"; fi; \
+	echo "Run successfully saved to: $$SAVE_DIR"
+
 # === Cleanup ===
 clean-checkpoints:
 	find runtime/models/checkpoints/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
-	find runtime/models/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
+	find runtime/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
 
 clean-eval-artifacts:
 	rm -rf runtime/eval_artifacts/
@@ -125,6 +135,7 @@ help:
 	@echo "  make train-nwm : Train Neural Weather Model (ST-GNN) only"
 	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
+	@echo "  make save-run : Save the latest trained checkpoints and evaluation artifacts to a timestamped folder for future inference"
 	@echo "  make clean : Remove build and test cache artifacts"
 	@echo "  make clean-checkpoints : Remove trained model checkpoints"
 	@echo "  make clean-eval-artifacts : Remove generated paper figures/results"

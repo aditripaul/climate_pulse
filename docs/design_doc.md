@@ -402,17 +402,61 @@ External APIs / Files
          └─────────────────────────────┴──────────────────────────────┘
                                        │
                                        ▼
-                              ┌──────────────────────┐
-                              │  runtime/             │
-                              │  ├─ models/           │
-                              │  ├─ eval_artifacts/   │
-                              │  └─ logs/             │
-                              └──────────────────────┘
+                               ┌──────────────────────┐
+                               │  runtime/             │
+                               │  ├─ models/           │
+                               │  ├─ eval_artifacts/   │
+                               │  ├─ saved/            │
+                               │  └─ logs/             │
+                               └──────────────────────┘
 ```
 
 ---
 
-## 10. Known Limitations and Future Work
+## 10. Generated Datasets and Evaluation Artifacts
+
+The ClimatePulse pipeline generates two main classes of artifacts: processed datasets (used for training) and evaluation artifacts (plots and metrics used for analysis and the research paper).
+
+### 10.1 Processed Datasets (`datasets/processed/`)
+- **`ersst_v5.parquet`**: Cleaned sea surface temperature anomalies.
+- **`nino34_index.parquet` / `nino_features.parquet`**: Calculated Niño 3.4 index and engineered features for ENSO forecasting.
+- **`gistemp_features.parquet` / `gistemp_global_mean.parquet`**: Global temperature features and anomalies.
+- **`regression_dataset.parquet`**: Combined dataset for Bayesian piecewise regression modeling.
+- **`openaq/`**: Graph-structured dataset representing the spatial topology of global air quality sensors.
+- **`climate_trace/`**: Processed multi-sector greenhouse gas emissions inventories.
+
+### 10.2 Evaluation Artifacts (`runtime/eval_artifacts/`)
+Running `make gen-eval-artifacts` executes model inference and generates publication-ready plots and metrics.
+
+**El Niño Forecaster (TFT & LSTM):**
+- `elnino_forecast_vs_actual.png`: 12-month ahead SST anomaly forecasts (median and intervals) vs observations.
+- `elnino_crps_leadtime.png`: Continuous Ranked Probability Score across varying forecast horizons.
+- `elnino_calibration_diagram.png`: Reliability diagram assessing TFT 80% prediction interval coverage.
+- `elnino_predicted_vs_actual_scatter.png`: Scatter plot comparing TFT and LSTM error clusters.
+- `elnino_error_heatmap.png`: Heatmap of absolute forecast errors across lead horizons and chronological windows.
+- `elnino_quantile_coverage.png`: Probabilistic 6-month forecast trajectories vs observed anomalies.
+
+**Pollution Dispersion (A3TGCN):**
+- `pollution_dispersion_nodes.png`: Spatial map showing per-node RMSE across PM2.5 monitoring stations.
+- `pollution_confusion_matrix.png`: Exceedance classification matrix for high pollution events (AQI > 100).
+
+**Neural Weather Model (ST-GNN):**
+- `nwm_convergence_lr.png`: MSE loss convergence and ReduceLROnPlateau scheduling curves.
+- `nwm_predicted_vs_actual.png`: Visual comparison of predicted global T2m fields against ERA5 ground truth.
+- `nwm_spatial_error_map.png`: Time-averaged RMSE per spatial grid node.
+- `nwm_fibonacci_mesh.png`: 3D visualization of the bipartite graph mapping 2,048 equirectangular grid nodes to a 2,000-node Fibonacci lattice.
+
+**Climate Feedback (Bayesian Regression):**
+- `climate_changepoint_regression.png`: Posterior predictive plot of piecewise regression on temperature anomalies.
+
+**General Metrics (`run_results/`):**
+- `summary_metrics.json`: High-level aggregated performance skill scores across all models.
+- `model_training_curves.png`: Multi-panel figure of training/validation loss trajectories for all deep learning models.
+- Model-specific performance CSVs (`tft_metrics.csv`, `lstm_metrics.csv`, `nwm_metrics.csv`, `pollution_metrics.csv`).
+
+---
+
+## 11. Known Limitations and Future Work
 
 | Area | Current State | Potential Improvement |
 |:---|:---|:---|
