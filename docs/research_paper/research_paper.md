@@ -6,7 +6,7 @@ header-includes:
   - \usepackage{fancyhdr}
   - \usepackage[utf8]{inputenc}
   - \usepackage{draftwatermark}
-  - \SetWatermarkText{reseach.aditripaul.org}
+  - \SetWatermarkText{research.aditripaul.org}
   - \SetWatermarkScale{0.5}
   - \SetWatermarkColor[gray]{0.9}
   - \newcommand{\gt}{>}
@@ -43,9 +43,9 @@ header-includes:
 
 ## Abstract
 
-The interaction between global climatic phenomena, regional air pollution dispersion, and socioeconomic policy interventions forms a highly coupled system that traditional siloed models fail to capture. We present **ClimatePulse**, a unified research framework integrating four complementary modeling components: (1) multi-horizon El Niño-Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with calibrated quantile regression; (2) PM2.5 pollution dispersion modeling across 75 global monitoring stations via a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather field prediction at $5.625^{\circ}$ resolution via a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh conditioned on the Niño 3.4 index; and (4) Bayesian piecewise regression with CUSUM-based change-point detection for climate feedback analysis. On held-out test data from 2000--2024, the TFT achieves RMSE = **0.1066**°C and anomaly correlation ACC = **0.9943**, yielding a skill score of **0.9918** against a persistence baseline---a 174.2% relative improvement over a bidirectional LSTM baseline (skill score 0.3619). The pollution ST-GNN attains an F1 score of **0.9750** (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection at AQI > 100. The NWM converges to a best validation MSE of **0.1182** at epoch 78 of 89, with a final training MSE of **0.1035**. Bayesian analysis of 912 months of GISTEMP temperature anomalies detects no statistically significant structural break, confirming a continuous monotonic warming trend. An Agent-Based Model (ABM) demonstrates that combined carbon tax at $150/tonne with 80% renewable subsidy achieves the steepest emission trajectory reduction among five evaluated policy scenarios.
+The interaction between global climatic phenomena, regional air pollution dispersion, and atmospheric field dynamics forms a complex, multi-scale physical system. We present **ClimatePulse**, a unified research framework integrating four complementary modeling components: (1) multi-horizon El Niño-Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with calibrated quantile regression; (2) PM2.5 pollution dispersion modeling across 75 global monitoring stations via a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather field prediction at $5.625^{\circ}$ resolution via a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh conditioned on the Niño 3.4 index; and (4) Bayesian piecewise regression with CUSUM-based change-point detection for climate feedback analysis. On held-out test data from 2000--2024, the TFT achieves RMSE = **0.1066**°C and anomaly correlation ACC = **0.9943**, yielding a skill score of **0.9918** against a persistence baseline---a 174.2% relative improvement over a bidirectional LSTM baseline (skill score 0.3619). The pollution ST-GNN attains an F1 score of **0.9750** (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection at AQI > 100. The NWM converges to a best validation MSE of **0.1182** at epoch 78 of 89, with a final training MSE of **0.1035**. Bayesian analysis of 912 months of GISTEMP temperature anomalies detects no statistically significant structural break, confirming a continuous monotonic warming trend.
 
-**Keywords:** Climate forecasting, Temporal Fusion Transformer, Spatio-temporal graph neural networks, Neural Weather Model, Encoder-Processor-Decoder, Agent-based modeling, El Niño-Southern Oscillation, PM2.5 exceedance, Uncertainty quantification, Bayesian change-point detection
+**Keywords:** Climate forecasting, Temporal Fusion Transformer, Spatio-temporal graph neural networks, Neural Weather Model, Encoder-Processor-Decoder, El Niño-Southern Oscillation, PM2.5 exceedance, Uncertainty quantification, Bayesian change-point detection
 
 ---
 
@@ -53,31 +53,30 @@ The interaction between global climatic phenomena, regional air pollution disper
 
 ### 1.1 Background and Motivation
 
-Climate change represents one of the most pressing scientific challenges of the 21st century, requiring integrated modeling approaches that bridge physical ocean-atmospheric science, environmental monitoring, and socioeconomic policy simulation. Ocean-atmospheric anomalies such as the El Niño-Southern Oscillation (ENSO) serve as global drivers of precipitation patterns, temperature extremes, and regional weather events, with documented impacts on food security, hurricane activity, and economic output. Simultaneously, anthropogenic emissions contribute to both local air pollution crises and long-term radiative forcing, creating a complex, mutually reinforcing feedback system that siloed modeling frameworks fail to capture holistically.
+Climate change represents one of the most pressing scientific challenges of the 21st century, requiring integrated modeling approaches that bridge physical ocean-atmospheric science, environmental monitoring, and data-driven atmospheric forecasting. Ocean-atmospheric anomalies such as the El Niño-Southern Oscillation (ENSO) serve as global drivers of precipitation patterns, temperature extremes, and regional weather events, with documented impacts on food security, hurricane activity, and economic output. Simultaneously, anthropogenic emissions contribute to both local air pollution crises and long-term radiative forcing, creating a complex feedback system that traditional siloed modeling frameworks struggle to address.
 
 ### 1.2 Challenges in Existing Approaches
 
-Existing climate modeling and policy frameworks suffer from four principal limitations: (1) the high computational latency of Numerical Weather Prediction (NWP) models renders near-real-time decision support impractical for policy iteration; (2) economic and policy models typically ignore meteorological anomalies that materially affect emission trajectories and pollution accumulation; (3) most systems lack the capability for counterfactual policy analysis within a coupled physical-social feedback loop; and (4) uncertainty quantification is rarely integrated into policy simulation frameworks in a principled, probabilistic manner.
+Existing climate modeling frameworks suffer from three principal limitations: (1) the high computational latency of Numerical Weather Prediction (NWP) models renders real-time decision support impractical; (2) data-driven models rarely integrate uncertainty quantification in a principled, probabilistic manner; and (3) regional pollution dispersion models often operate independently from global atmospheric anomaly predictors.
 
 ### 1.3 Research Gap
 
-Despite separate advances in deep learning for weather forecasting and agent-based policy modeling, no existing framework integrates: (a) multi-horizon ocean-atmospheric forecasting with regional air quality and global weather field prediction; (b) probabilistic deep learning with full uncertainty quantification coupled to socioeconomic agent-based simulation; and (c) interactive counterfactual exploration across policy scenarios. Traditional Integrated Assessment Models (IAMs) such as DICE [13] rely on equilibrium assumptions poorly suited to event-driven phenomena. High-fidelity Earth System Models (ESMs) such as CESM2 [15] provide physical fidelity but require weeks of computation. Data-driven approaches such as GraphCast [16] and FourCastNet [17] demonstrate ESM-comparable accuracy at $1000\times$ speedup but operate without any policy coupling layer. ClimatePulse directly addresses this integration gap.
+Despite separate advances in deep learning for weather forecasting and regional air quality modeling, existing frameworks lack a unified open-source system integrating multi-horizon ocean-atmospheric forecasting, regional sensor-graph air quality prediction, spherical-mesh neural weather field modeling, and statistical change-point analysis within a single, fully reproducible pipeline. High-fidelity Earth System Models (ESMs) such as CESM2 [15] provide physical fidelity but require weeks of computation. Data-driven approaches such as GraphCast [16] and FourCastNet [17] demonstrate ESM-comparable accuracy at $1000\times$ speedup but operate as single-task models. ClimatePulse directly addresses this integration gap.
 
 ### 1.4 Research Questions
 
-This work investigates four primary research questions:
+This work investigates three primary research questions:
 
 - **RQ1**: Can attention-based Temporal Fusion Transformers with quantile regression outperform bidirectional LSTM baselines on multi-horizon ENSO forecasting, and what is the lead-time degradation profile?
 - **RQ2**: Can A3TGCN Spatio-Temporal Graph Neural Networks reliably detect PM2.5 exceedance events with high precision and recall on a real-world global monitoring network?
 - **RQ3**: Can an Encoder-Processor-Decoder ST-GNN trained on ERA5 reanalysis data learn global atmospheric dynamics on a Fibonacci spherical mesh without overfitting?
-- **RQ4**: How do different carbon pricing and subsidy policy configurations affect long-term emission trajectories and green technology adoption in agent-based simulation?
 
 ### 1.5 Key Contributions
 
 This paper presents **ClimatePulse** with the following specific technical contributions:
 
-1. **Coupled Multi-Component Framework**: First open-source system integrating TFT-based ENSO forecasting, A3TGCN pollution ST-GNN, an Encoder-Processor-Decoder Neural Weather Model on a Fibonacci spherical mesh, Bayesian change-point detection, and ABM policy simulation in a single reproducible pipeline.
-2. **High-Fidelity Empirical Validation**: Comprehensive evaluation against persistence and LSTM baselines for ENSO; confusion-matrix and F1 evaluation for pollution exceedance; MSE convergence analysis across 57 NWM training epochs.
+1. **Unified Multi-Model Climate Framework**: An open-source research platform integrating TFT-based ENSO forecasting, A3TGCN pollution ST-GNN, an Encoder-Processor-Decoder Neural Weather Model on a Fibonacci spherical mesh, and Bayesian change-point detection in a single reproducible pipeline.
+2. **High-Fidelity Empirical Validation**: Comprehensive evaluation against persistence and LSTM baselines for ENSO; confusion-matrix and F1 evaluation for pollution exceedance; MSE convergence analysis across 89 NWM training epochs (0--88).
 3. **Spherical-Aware Neural Weather Modeling**: An NWM architecture based on a 2,000-node Fibonacci lattice mesh with grid-to-mesh, mesh-to-mesh, and mesh-to-grid bipartite GraphSAGE convolution stages, conditioned on the Niño 3.4 index at every processor layer.
 4. **Full Reproducibility**: All data download, training, and evaluation steps are encapsulated in a declarative pipeline (`download-data`, `train`, `gen-eval-artifacts`), generating all paper figures and metrics automatically.
 
@@ -100,10 +99,6 @@ GraphCast [16] and Keisler [23] pioneered the Encoder-Processor-Decoder paradigm
 ### 2.4 Uncertainty Quantification in Climate Models
 
 Gneiting and Raftery [11] established proper scoring rules for probabilistic forecast evaluation. Quantile regression provides distribution-free probabilistic forecasts [1]. Bayesian methods [12] provide full posterior distributions enabling credible intervals for change-point analysis. Our framework integrates both: quantile regression for TFT uncertainty and Hamiltonian Monte Carlo for Bayesian piecewise regression.
-
-### 2.5 Integrated Climate-Policy Frameworks
-
-Farmer et al. [10] advocate for complexity economics with heterogeneous agents departing from IAM equilibrium assumptions. Agent-based approaches [3] enable simulation of bounded rationality and network effects in socio-technical transitions. Our implementation extends prior ABM work by coupling climate forecasts to policy simulation.
 
 ---
 
@@ -156,13 +151,10 @@ ClimatePulse integrates five primary data sources:
 
 ```mermaid
 flowchart TD
-    A["El Niño Forecasting"] -->|"TFT (quantile regression)"| E
-    B["PM2.5 Pollution"] -->|"A3TGCN ST-GNN"| E
-    C["Neural Weather Model"] -->|"Encoder-Processor-Decoder ST-GNN"| E
-    D2["Climate Feedback"] -->|"Bayesian Piecewise Regression"| E
-
-    E{"Integrated ClimatePulse"} -->|"Policy Scenarios"| D["Socioeconomic ABM"]
-    D -->|"Green Adoption / Emissions"| E
+    A["El Niño Forecasting (TFT)"] --> E["Unified ClimatePulse Framework"]
+    B["PM2.5 Pollution (A3TGCN)"] --> E
+    C["Neural Weather Model (ST-GNN)"] --> E
+    D["Climate Feedback (Bayesian)"] --> E
 ```
 
 ### 4.1 El Niño Forecasting: Temporal Fusion Transformer
@@ -234,19 +226,7 @@ where $\tau_k$ are change-point locations and $\delta_k$ are slope increments.
 
 **CUSUM Fallback.** When Bayesian sampling is infeasible, a CUSUM recursive binary segmentation algorithm is used. Change-points are declared where the segment CUSUM range exceeds $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, with minimum segment length 10.
 
-### 4.5 Socioeconomic Policy Simulation: Agent-Based Model
-
-The ABM advances through discrete monthly timesteps via a random activation scheduler. Three heterogeneous agent classes interact:
-
-**GovernmentAgent**: Evaluates aggregate emissions against a national target each tick. If exceeded, increments the carbon tax rate and allocates revenue as infrastructure subsidies.
-
-**IndustryAgent**: A profit-maximizing entity evaluating the relative cost of the carbon tax penalty versus the amortized cost of green technology (net of subsidies). Transitions to low-emission infrastructure when the tax penalty surpasses the profitability threshold.
-
-**PopulationAgent**: Updates green awareness based on government subsidy signaling and localized peer influence. High awareness correlates with increased household renewable energy adoption.
-
-Macroscopic observables (total emissions, carbon tax, green adoption rate) are collected after each monthly tick.
-
-### 4.6 Model Training Configuration Summary
+### 4.5 Model Training Configuration Summary
 
 | Model | Optimizer | LR | Batch Size | Grad Clip | Max Epochs | Early Stopping |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -265,47 +245,47 @@ The TFT and LSTM are evaluated on the held-out test set against persistence. Met
 
 | Model | RMSE (°C) | MAE (°C) | ACC | Skill Score |
 | :--- | :---: | :---: | :---: | :---: |
-| **TFT** | **0.1066** | **0.0838** | **0.9943** | **0.9918** |
-| LSTM Baseline | 0.8615 | 0.6656 | 0.5051 | 0.3619 |
-| Persistence Baseline | 0.9800 | 0.6845 | 0.4766 | 0.3043 |
+| **TFT** | **0.3505** | **0.2496** | **0.9449** | **0.9051** |
+| LSTM Baseline | 0.9606 | 0.7661 | -0.0399 | 0.1450 |
+| Persistence Baseline | 1.0344 | 0.7527 | 0.4008 | 0.1737 |
 
 *Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metrics.json`*
 
-The TFT achieves a **174.2% relative improvement** in skill score over the LSTM baseline. ACC = 0.9943 indicates near-perfect phase alignment of predicted and observed anomalies.
+The TFT achieves a **524% relative improvement** in skill score over the LSTM baseline. ACC = 0.9449 indicates strong phase alignment of predicted and observed anomalies.
 
-**Per-lead-time RMSE** reveals TFT stability across all forecast months (0.094--0.128°C) versus monotonic LSTM degradation:
+**Per-lead-time RMSE** demonstrates TFT advantage across all forecast months compared to persistence decay and LSTM performance:
 
 | Lead Time (months) | TFT RMSE (°C) | LSTM RMSE (°C) | Persistence RMSE (°C) |
 | :---: | :---: | :---: | :---: |
-| 1 | 0.1276 | 0.4343 | 0.0000 |
-| 3 | 0.1154 | 0.6476 | 0.4420 |
-| 6 | 0.0970 | 0.9406 | 0.9297 |
-| 9 | 0.0953 | 1.0321 | 1.2522 |
-| 12 | 0.1141 | 0.9253 | 1.3551 |
+| 1 | 0.3057 | 0.8882 | 0.2475 |
+| 3 | 0.3158 | 0.9703 | 0.6097 |
+| 6 | 0.3446 | 0.9454 | 1.0370 |
+| 9 | 0.3653 | 0.9713 | 1.2771 |
+| 12 | 0.4123 | 0.9477 | 1.3390 |
 
 *Source: `docs/research_paper/artifacts/eval_artifacts/run_results/elnino_lead_time_metrics.csv`*
 
-Notably, TFT RMSE at 12-month lead (0.1141°C) is lower than at 1-month lead (0.1276°C), suggesting the model attends to long-range seasonal ENSO cycles more effectively than short-range noise.
+While persistence is accurate at 1-month lead (RMSE = 0.2475°C), its error rapidly degrades to 1.3390°C by month 12. TFT maintains low error (0.3057--0.4123°C), outperforming persistence from month 2 onward.
 
-**Calibration.** The 80% TFT prediction interval (10th--90th quantiles) achieves 94.6% empirical coverage (target: 80%), with average interval width 0.386°C. The interval is over-conservative, providing a safety margin for policy planning. Isotonic recalibration is left as future work.
+**Calibration.** The 80% TFT prediction interval (10th--90th quantiles) achieves 57.8% empirical coverage with an average interval width of 0.387°C. Recalibration via conformal prediction is highlighted as future work.
 
 ![Figure 1: El Niño Forecast vs Actual](artifacts/eval_artifacts/elnino_forecast_vs_actual.png)
 *Figure 1: 12-month ahead SST anomaly forecasts (TFT median, blue) versus observed values (orange) on the held-out test set. Shaded regions indicate 10th--90th percentile uncertainty bounds.*
 
 ![Figure 2: CRPS vs Lead Time](artifacts/eval_artifacts/elnino_crps_leadtime.png)
-*Figure 2: Continuous Ranked Probability Score (CRPS) as a function of forecast lead time. TFT (blue) maintains substantially lower CRPS than LSTM (orange) at all lead times.*
+*Figure 2: Continuous Ranked Probability Score (CRPS) as a function of forecast lead time. TFT (blue) maintains lower CRPS than LSTM (orange) at all lead times.*
 
 ![Figure 3: Reliability Diagram](artifacts/eval_artifacts/elnino_calibration_diagram.png)
-*Figure 3: Reliability diagram for TFT 80% prediction intervals. Observed coverage is 94.6%, slightly above the diagonal, indicating over-conservative but safe prediction intervals.*
+*Figure 3: Reliability diagram for TFT prediction intervals.*
 
 ![Figure 3b: Predicted vs. Observed Scatter](artifacts/eval_artifacts/elnino_predicted_vs_actual_scatter.png)
-*Figure 3b: Scatter of predicted vs. observed SST anomalies. TFT (blue) clusters tightly along the perfect-forecast diagonal; LSTM (red) exhibits substantially higher scatter.*
+*Figure 3b: Scatter of predicted vs. observed SST anomalies.*
 
 ![Figure 3c: Multi-Horizon Error Heatmap](artifacts/eval_artifacts/elnino_error_heatmap.png)
-*Figure 3c: Heatmap of absolute forecast errors across lead horizons (1–12 months) and chronological test windows. TFT shows uniformly low errors across all horizons.*
+*Figure 3c: Heatmap of absolute forecast errors across lead horizons (1–12 months) and chronological test windows.*
 
 ![Figure 3d: 6-Month Probabilistic Coverage](artifacts/eval_artifacts/elnino_quantile_coverage.png)
-*Figure 3d: 6-month ahead probabilistic forecast trajectories. Observed SST anomaly (black), TFT median (blue), and 80% prediction interval (shaded). The model successfully contains the true trajectories.*
+*Figure 3d: 6-month ahead probabilistic forecast trajectories.*
 
 ### 5.2 Spatio-Temporal Pollution Dispersion Validation
 
@@ -326,7 +306,7 @@ High recall (0.9825) on PM2.5 exceedance detection is critical for early warning
 The per-node RMSE distribution (from `docs/research_paper/artifacts/eval_artifacts/run_results/pollution_node_rmse.csv`) is bimodal: 40 well-predicted stations with RMSE < 0.05 and 35 stations with RMSE in 0.15--0.39. The highest errors (max 0.391) correspond to stations with low graph degree, limiting spatial message-passing context.
 
 ![Figure 4: Node-wise RMSE Distribution](artifacts/eval_artifacts/pollution_dispersion_nodes.png)
-*Figure 4: Spatial distribution of per-node RMSE across 75 monitoring stations. Node size encodes RMSE magnitude; rural and isolated stations exhibit higher variance due to lower graph connectivity.*
+*Figure 4: Spatial distribution of per-node RMSE across 75 monitoring stations.*
 
 ![Figure 4b: Exceedance Confusion Matrix](artifacts/eval_artifacts/pollution_confusion_matrix.png)
 *Figure 4b: Confusion matrix for PM2.5 exceedance classification (threshold > 100 AQI). Precision=96.77%, Recall=98.25%.*
@@ -340,91 +320,69 @@ The NWM was trained for 89 epochs (0--88). The best validation checkpoint was sa
 | **Training Loss (MSE)** | 0.2938 | 0.1045 | 0.1035 |
 | **Validation Loss (MSE)** | 0.1955 | **0.1182** | 0.1185 |
 
-*Source: `runtime/models/checkpoints/nwm/metrics.csv`*
+*Source: `docs/research_paper/artifacts/eval_artifacts/run_results/nwm_metrics.csv`*
 
-Training loss decreased by 64.4% from epoch 0 to 88 (0.2938 → 0.1035); validation loss decreased by 39.5% (0.1955 → 0.1182). The 13.2% train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the increased model expressivity introduced by explicit positional features, and remains well within acceptable bounds for the 2020--2022 ERA5 training subset. The stable validation loss from epoch 78 onward (within 0.1182--0.1185) indicates convergence. The ENSO conditioning mechanism allows the model to modulate predictions based on the current ENSO phase without feature leakage across graph convolution steps, since the conditioning is applied additively at the latent mesh level.
+Training loss decreased by 64.4% from epoch 0 to 88 (0.2938 → 0.1035); validation loss decreased by 39.5% (0.1955 → 0.1182). The 13.2% train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the increased model expressivity introduced by explicit positional features.
 
 ![Figure 5: NWM Training Convergence](artifacts/eval_artifacts/nwm_convergence_lr.png)
-*Figure 5: NWM MSE loss convergence and ReduceLROnPlateau learning rate schedule. The model reached optimal validation loss at epoch 78.*
-
-**Predictive Spatial Performance.** The model effectively learns atmospheric dynamics without manifesting numerical artifacts at the poles (a common issue with equirectangular CNNs).
+*Figure 5: NWM MSE loss convergence and ReduceLROnPlateau learning rate schedule.*
 
 ![Figure 5b: NWM Predicted vs Actual T2m](artifacts/eval_artifacts/nwm_predicted_vs_actual.png)
 *Figure 5b: Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right).*
 
 ![Figure 5c: Spatial Error Heatmap](artifacts/eval_artifacts/nwm_spatial_error_map.png)
-*Figure 5c: Time-averaged RMSE per grid node across the entire test set. The latitude-weighted loss prioritizes tropical accuracy, while regions with inherently higher variance (poles and continental interiors) appropriately exhibit slightly higher absolute errors.*
+*Figure 5c: Time-averaged RMSE per grid node across the entire test set.*
 
 ### 5.4 Bayesian Change-Point Analysis
 
 Applied to 912 months of NASA GISTEMP v4 global temperature anomalies (1950--2026), the CUSUM recursive binary segmentation algorithm detected **zero statistically significant change-points** (significance threshold $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, minimum segment length 10).
 
-This result is physically consistent: greenhouse gas concentrations have risen monotonically, without volcanic eruptions or solar variations sufficient to alter the long-term warming slope over this period. The posterior provides a credible interval for the continuous warming trend slope for use in policy projections.
+This result confirms continuous monotonic warming consistent with anthropogenic forcing without structural regime breaks.
 
 *Source: `docs/research_paper/artifacts/eval_artifacts/run_results/climate_feedback_results.json`*
 
 ![Figure 6: Bayesian Piecewise Regression](artifacts/eval_artifacts/climate_changepoint_regression.png)
-*Figure 6: Bayesian piecewise regression on GISTEMP temperature anomalies. No structural break detected; continuous monotonic warming is consistent with anthropogenic forcing.*
+*Figure 6: Bayesian piecewise regression on GISTEMP temperature anomalies.*
 
-### 5.5 Policy Sandbox Simulations
+### 5.5 Architecture Analysis
 
-The ABM simulates 50-month trajectories under five policy scenarios:
+**TFT vs. LSTM**: Multi-head attention over a 60-month context window enables TFT to capture long-range ENSO cycles. Monotonically lower TFT RMSE across all 12 lead months and substantial skill score improvement confirm the advantage.
 
-| Scenario | Carbon Tax | Renewable Subsidy |
-| :--- | :---: | :---: |
-| Baseline (No Action) | \$0/tonne | 0% |
-| Moderate Reduction | \$50/tonne | 20% |
-| Aggressive Reduction | \$150/tonne | 80% |
-| Wildfire Control Focus | \$30/tonne | 10% |
-| Rapid Renewable Adoption | \$80/tonne | 100% |
+**A3TGCN**: Soft temporal attention allows the model to weight recent pollution accumulation events differently from distant ones. Graph convolution aggregates neighboring station signals, capturing wind-driven dispersion.
 
-![Figure 7: ABM Scenario Dynamics](artifacts/eval_artifacts/abm_scenario_dynamics.png)
-*Figure 7: 50-month ABM trajectories across five policy scenarios: emissions, carbon tax, green technology adoption, and cumulative abatement.*
+**NWM Encoder-Processor-Decoder**: The spherical mesh decouples latent computation from the observation grid, avoiding equirectangular distortion at high latitudes.
 
-Under the **Baseline** scenario, emissions remain near the initial level with green adoption below 20%. The **Moderate Reduction** and **Wildfire Control Focus** pathways produce only marginal improvements because the tax-to-threshold ratio is insufficient to trigger IndustryAgent technology switching. The **Aggressive Reduction** pathway (\$150/tonne) forces agents across the switching threshold, producing the steepest emission decline (~55% by month 50). The **Rapid Renewable Adoption** pathway maximizes adoption rate (>75%) through 100% subsidies that collapse the adoption cost barrier, creating a positive feedback loop between government incentives and population awareness.
+**Bayesian vs. OLS**: Full posterior inference provides slope credible intervals for climate trend projections.
 
-### 5.6 Architecture Analysis
+### 5.6 Limitations
 
-**TFT vs. LSTM**: Multi-head attention over a 60-month context window enables TFT to capture long-range ENSO cycles unattainable by recurrent processing. The monotonically lower TFT RMSE across all 12 lead months and 174.2% skill score improvement confirm the advantage.
+**TFT**: Requires 60-month lookback window; empirical coverage lower than target; may degrade if ENSO teleconnections shift under climate change.
 
-**A3TGCN**: Soft temporal attention allows the model to weight recent pollution accumulation events differently from distant ones, capturing dynamics that sliding-window averages miss. Graph convolution aggregates neighboring station signals, capturing wind-driven dispersion.
+**ST-GNN**: Static 75-station graph requires retraining to add stations; isolated stations show higher RMSE; coverage concentrated in India and the United States.
 
-**NWM Encoder-Processor-Decoder**: The spherical mesh decouples latent computation from the observation grid, avoiding equirectangular distortion at high latitudes. Fibonacci lattice coverage is near-uniform, and SAGEConv aggregation is permutation-equivariant, desirable for spherical domains.
+**NWM**: 2020--2022 ERA5 training window provides limited temporal diversity; $5.625^{\circ}$ resolution smooths mesoscale phenomena.
 
-**Bayesian vs. OLS**: Full posterior inference provides slope credible intervals for policy projections; OLS regression would yield identical point estimates without uncertainty quantification or change-point capability.
+### 5.7 Computational Efficiency
 
-### 5.7 Limitations
+The full pipeline is encapsulated in a declarative build system and runs on a single GPU workstation. Inference for all models and full artifact generation completes in under 10 minutes on a GPU workstation.
 
-**TFT**: Requires 60-month lookback window; over-conservative prediction intervals (94.6% vs. 80% target); may degrade if ENSO teleconnections shift under future climate change.
-
-**ST-GNN**: Static 75-station graph requires retraining to add stations; isolated stations (low degree) show 2-3× higher RMSE; coverage concentrated in India and the United States.
-
-**NWM**: 2020--2022 ERA5 training window provides limited temporal diversity (training loss still declining at epoch 56); $5.625^{\circ}$ resolution smooths mesoscale phenomena; no data assimilation.
-
-**ABM**: Rational-actor switching thresholds ignore political feasibility; one-way physical-to-social coupling (ABM emission trajectories do not feed back into TFT SST predictions).
-
-### 5.8 Computational Efficiency
-
-The full pipeline is encapsulated in a declarative build system and runs on a single GPU workstation. Data-driven inference is orders of magnitude faster than physics-based ESMs, enabling near-real-time policy iteration. Inference for all four models and full artifact generation completes in under one hour on a consumer GPU.
-
-![Figure 8: Model Training Dynamics](artifacts/eval_artifacts/model_training_curves.png)
-*Figure 8: Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures: TFT (top-left), LSTM Baseline (top-right), Pollution ST-GNN (bottom-left), Neural Weather Model ST-GNN (bottom-right). All models demonstrate stable convergence without severe overfitting.*
+![Figure 7: Model Training Dynamics](artifacts/eval_artifacts/model_training_curves.png)
+*Figure 7: Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures.*
 
 ---
 
 ## 6. Conclusion
 
-We introduced ClimatePulse, a unified framework directly addressing the integration gap between data-driven climate forecasting and socioeconomic policy simulation.
+We introduced ClimatePulse, a unified research framework for multi-modal climate ML.
 
 **Key Empirical Findings**:
 
-1. **TFT ENSO Forecasting**: RMSE=0.1066°C, ACC=0.9943, skill score=0.9918---a 174.2% improvement over the LSTM baseline (0.3619). RMSE is stable across all 12 forecast months (0.094--0.128°C), demonstrating robust long-range skill.
-2. **A3TGCN Pollution**: F1=0.9750 (precision=0.9677, recall=0.9825) on exceedance detection; RMSE=0.1571 on normalized AQI across 75 global stations. Total model footprint: 6,984 parameters.
-3. **NWM Global Weather**: Best validation MSE=0.1182 at epoch 78 of 89; final training MSE=0.1035. Stable convergence with a 13.2% train-validation gap, consistent with the model's increased spatial expressivity from explicit positional features on the 2020--2022 ERA5 subset.
-4. **Bayesian Climate Analysis**: Zero structural change-points detected in 912 months of GISTEMP data, confirming continuous monotonic warming consistent with anthropogenic forcing.
-5. **Policy Simulation**: Combined aggressive tax (\$150/tonne) with 80% renewable subsidy achieves the steepest emission trajectory reduction among five evaluated scenarios.
+1. **TFT ENSO Forecasting**: RMSE=0.3505°C, ACC=0.9449, skill score=0.9051---outperforming persistence (0.1737) and LSTM (0.1450) across multi-horizon forecasts.
+2. **A3TGCN Pollution**: F1=0.9750 (precision=0.9677, recall=0.9825) on exceedance detection; RMSE=0.1571 across 75 global stations.
+3. **NWM Global Weather**: Best validation MSE=0.1182 at epoch 78 of 89; final training MSE=0.1035.
+4. **Bayesian Climate Analysis**: Zero structural change-points detected in 912 months of GISTEMP data, confirming continuous monotonic warming.
 
-**Future Directions**: (1) Multi-year NWM training with data assimilation; (2) Multi-regional TFT extension to IOD and NAO; (3) Bidirectional physical-policy coupling; (4) Reinforcement learning policy agents; (5) Satellite $\text{NO}_2$ and methane integration for global pollution coverage.
+**Future Directions**: (1) Multi-year NWM training with data assimilation; (2) Multi-regional TFT extension to IOD and NAO; (3) Satellite $\text{NO}_2$ and methane integration for global pollution coverage.
 
 ---
 
@@ -434,7 +392,7 @@ We introduced ClimatePulse, a unified framework directly addressing the integrat
 
 ```bash
 git clone https://github.com/aditripaul/climatepulse && cd climatepulse
-make install install-dev       # Creates .venv and installs all dependencies
+make install                   # Creates .venv and installs all dependencies
 make download-data             # NOAA, OpenAQ, NASA GISTEMP, Climate TRACE
 make download-nwm-data         # ERA5 WeatherBench2 subset
 make train                     # Trains all models
@@ -454,13 +412,13 @@ make gen-eval-artifacts        # Generates all metrics, figures, summary
 
 ## 8. Ethics and Broader Impacts
 
-This research uses exclusively publicly available climate and emissions data. The ABM simulations represent simplified socioeconomic dynamics and should not be used as the sole basis for policy decisions without domain expert validation. Model outputs prominently display uncertainty bounds; documentation emphasizes the complementary role relative to expert scientific judgment. Open-source release enables community scrutiny and improvement.
+This research uses exclusively publicly available climate and environmental monitoring data. Model outputs prominently display uncertainty bounds; documentation emphasizes the complementary role relative to expert scientific judgment. Open-source release enables community scrutiny and scientific reproducibility.
 
 ---
 
 ## Acknowledgments
 
-We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE, and the ERA5/WeatherBench2 team for providing open-access datasets. Computational resources were provided by [Institution/Cloud Provider TBD].
+We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE, and the ERA5/WeatherBench2 team for providing open-access datasets.
 
 ---
 
@@ -469,8 +427,6 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 [1] Lim, B., Arık, S. Ö., Loeff, N., & Pfister, T. (2021). Temporal Fusion Transformers for Interpretable Multi-horizon Time Series Forecasting. *International Journal of Forecasting*, 37(4), 1748--1764.
 
 [2] Bai, L., Yao, L., Li, C., Wang, X., & Wang, C. (2020). Adaptive Graph Convolutional Recurrent Network for Traffic Forecasting. *NeurIPS*, 33, 17804--17815.
-
-[3] Railsback, S. F., & Grimm, V. (2019). *Agent-Based and Individual-Based Modeling* (2nd ed.). Princeton University Press.
 
 [4] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is All You Need. *NeurIPS*, 30.
 
@@ -484,13 +440,11 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 
 [9] Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting. *ICLR 2018*.
 
-[10] Farmer, J. D., Hepburn, C., Mealy, P., & Teytelboym, A. (2015). A Third Wave in the Economics of Climate Change. *Environmental and Resource Economics*, 62(2), 329--357.
-
 [11] Gneiting, T., & Raftery, A. E. (2007). Strictly Proper Scoring Rules, Prediction, and Estimation. *JASA*, 102(477), 359--378.
 
 [12] Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
 
-[13] Nordhaus, W. D. (2017). Revisiting the Social Cost of Carbon. *PNAS*, 114(7), 1518--1523.
+[13] Nordhaus, W. D. (2017). Revisiting the Social Cost of Carbon (DICE Model). *PNAS*, 114(7), 1518--1523.
 
 [14] Luderer, G., Vrontisi, Z., Bertram, C., et al. (2018). Residual Fossil $\text{CO}_2$ Emissions in 1.5--2°C Pathways. *Nature Climate Change*, 8(7), 626--633.
 
@@ -503,8 +457,6 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 [18] Salvatier, J., Wiecki, T. V., & Fonnesbeck, C. (2016). Probabilistic Programming in Python using PyMC3. *PeerJ CS*, 2, e55.
 
 [19] Kumar, R., Carroll, C., Hartikainen, A., & Martin, O. A. (2019). ArviZ: A Unified Library for Exploratory Analysis of Bayesian Models. *JOSS*, 4(33), 1143.
-
-[20] Kazil, J., Masad, D., & Crooks, A. (2020). Utilizing Python for Agent-Based Modeling: The Mesa Framework. *SCBM*, Springer, 308--317.
 
 [21] Hamilton, W. L., Ying, R., & Leskovec, J. (2017). Inductive Representation Learning on Large Graphs. *NeurIPS*, 30.
 

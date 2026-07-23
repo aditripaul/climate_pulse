@@ -114,20 +114,31 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     tft_lower = tft_res["lower"]
     tft_upper = tft_res["upper"]
 
-    # Extract actual targets from TFT dataset
+    # Extract actual targets and encoder-end persistence targets from TFT dataset
     dataloader = test_ds.to_dataloader(train=False, batch_size=128, num_workers=0)
     all_y = []
+    all_last_y = []
     for batch in dataloader:
-        _, y = batch
+        x, y = batch
         all_y.append(y[0])
+        if isinstance(x, dict) and "encoder_target" in x:
+            all_last_y.append(x["encoder_target"][:, -1:])
+        elif isinstance(x, dict) and "encoder_cont" in x:
+            all_last_y.append(x["encoder_cont"][:, -1, 0:1])
+
     tft_actuals = torch.cat(all_y, dim=0).numpy()
+    if all_last_y:
+        tft_last_y = torch.cat(all_last_y, dim=0).numpy()
+    else:
+        tft_last_y = np.roll(tft_actuals[:, 0:1], 1, axis=0)
 
     # Make sure shapes align
-    num_samples = min(len(tft_preds), len(tft_actuals))
+    num_samples = min(len(tft_preds), len(tft_actuals), len(tft_last_y))
     tft_preds = tft_preds[:num_samples]
     tft_lower = tft_lower[:num_samples]
     tft_upper = tft_upper[:num_samples]
     tft_actuals = tft_actuals[:num_samples]
+    tft_last_y = tft_last_y[:num_samples]
 
     # 2. LSTM Predictions
     lstm_dataset = LSTMDataset(lstm_test_data.reshape(-1, 1))
@@ -161,7 +172,7 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
         lstm_actuals[:comp_samples].flatten(), lstm_preds[:comp_samples].flatten(), "LSTM"
     )
 
-    persistence_preds = np.repeat(tft_actuals[:comp_samples, 0:1], tft_actuals.shape[1], axis=1)
+    persistence_preds = np.repeat(tft_last_y[:comp_samples, 0:1], tft_actuals.shape[1], axis=1)
     persistence_metrics = evaluate_forecast(
         tft_actuals[:comp_samples].flatten(), persistence_preds.flatten(), "Persistence"
     )
@@ -1126,6 +1137,30 @@ def copy_runtime_data():
     print("Runtime data copy complete.")
 
 
+def sync_paper_artifacts():
+    """Sync runtime eval artifacts to docs/research_paper/artifacts/."""
+    print("Syncing evaluation artifacts to docs/research_paper/artifacts/...")
+    paper_artifacts_dir = PROJECT_ROOT / "docs" / "research_paper" / "artifacts"
+    paper_eval_dir = paper_artifacts_dir / "eval_artifacts"
+    paper_results_dir = paper_eval_dir / "run_results"
+
+    paper_eval_dir.mkdir(parents=True, exist_ok=True)
+    paper_results_dir.mkdir(parents=True, exist_ok=True)
+
+    for item in ARTIFACTS_DIR.glob("*.png"):
+        shutil.copy2(item, paper_artifacts_dir / item.name)
+        shutil.copy2(item, paper_eval_dir / item.name)
+
+    if (ARTIFACTS_DIR / "metrics_summary.md").exists():
+        shutil.copy2(ARTIFACTS_DIR / "metrics_summary.md", paper_eval_dir / "metrics_summary.md")
+
+    for item in RESULTS_DIR.glob("*"):
+        if item.is_file():
+            shutil.copy2(item, paper_results_dir / item.name)
+
+    print(f"Synced paper artifacts to {paper_artifacts_dir}")
+
+
 def main():
     print("=" * 60)
     print("ClimatePulse Paper Artifacts Generator")
@@ -1236,8 +1271,9 @@ This document summarizes the performance metrics generated during the evaluation
 
     try:
         copy_runtime_data()
+        sync_paper_artifacts()
     except Exception as e:
-        print(f"Failed to copy runtime data: {e}")
+        print(f"Failed to copy/sync runtime data: {e}")
 
     print("=" * 60)
     print(f"Artifact generation completed! Output directory: {ARTIFACTS_DIR}")

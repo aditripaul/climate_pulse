@@ -1,4 +1,4 @@
-.PHONY: install install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts gen-research-paper-pdf help
+.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf help
 
 # Use a local temporary directory inside the virtual environment to prevent
 # "Disk quota exceeded" errors on systems with small/restricted tmpfs /tmp partitions.
@@ -43,12 +43,15 @@ install: venv
 	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
+install-dev: install
+
 # === Setup (AMD ROCm) ===
 # pytorch-lightning 2.6.5 is the safe version (2.6.2-2.6.3 had supply-chain compromise)
 install-rocm: venv
 	.venv/bin/pip install torch==2.6.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1
 	.venv/bin/python src/scripts/patch_rocm_elf.py
 	.venv/bin/python src/scripts/install_rocm_deps.py
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (Intel NPU) ===
@@ -86,7 +89,12 @@ train-nwm:
 gen-eval-artifacts:
 	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/generate_eval_artifacts.py
 
-gen-research-paper-pdf:
+sync-paper-artifacts:
+	mkdir -p docs/research_paper/artifacts/eval_artifacts/run_results
+	cp -r runtime/eval_artifacts/* docs/research_paper/artifacts/eval_artifacts/
+	cp runtime/eval_artifacts/*.png docs/research_paper/artifacts/ 2>/dev/null || true
+
+gen-research-paper-pdf: sync-paper-artifacts
 	cd docs/research_paper/ && pandoc research_paper.md -o climatepulse_research_paper.pdf \
     --pdf-engine=xelatex \
     --metadata=smart:false \

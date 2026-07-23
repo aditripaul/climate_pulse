@@ -8,9 +8,9 @@ This document summarizes the performance metrics generated during the evaluation
 
 | Model | RMSE (°C) | MAE (°C) | Anomaly Correlation (ACC) | Skill Score |
 | :--- | :---: | :---: | :---: | :---: |
-| **Temporal Fusion Transformer (TFT)** | 0.1066 | 0.0838 | 0.9943 | 0.9918 |
-| **LSTM Baseline** | 0.8615 | 0.6656 | 0.5051 | 0.3619 |
-| **Persistence Baseline** | 0.9800 | 0.6845 | 0.4766 | 0.3043 |
+| **Temporal Fusion Transformer (TFT)** | 0.3505 | 0.2496 | 0.9449 | 0.9051 |
+| **LSTM Baseline** | 0.9606 | 0.7661 | -0.0399 | 0.1450 |
+| **Persistence Baseline** | 1.0344 | 0.7527 | 0.4008 | 0.1737 |
 
 *TFT outperforms baseline forecasting architectures across all prediction lead windows.*
 
