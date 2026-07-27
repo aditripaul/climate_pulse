@@ -36,8 +36,6 @@ header-includes:
 
 # PATENT APPLICATION DRAFT
 - **Status:** Consolidated Provisional Draft — Prepared for IPINDIA / PCT Legal Review
-- **Prepared by:** ClimatePulse Research Team
-- **Date:** July 2026
 - **Subject System:** ClimatePulse — AI-Powered Global Climate Forecasting Framework
 - **Target Patent Office:** IPINDIA (Controller General of Patents, Designs and Trade Marks) / PCT
 - **Code Reference:** git:254bd2b02204349bfe1dda9548bdf55d66a8f68f
@@ -93,9 +91,9 @@ To overcome these technical limitations, the present invention provides a unifie
 
 1. **Fibonacci Spherical Latent Mesh**: A computational mesh generated via a golden-angle spiral lattice on a unit sphere, producing $N_{\text{mesh}}$ near-uniformly distributed nodes for any arbitrary integer $N_{\text{mesh}}$, unconstrained by icosahedral subdivision levels.
 2. **Tripartite GraphSAGE Architecture**: An Encoder-Processor-Decoder network featuring three distinct bipartite GraphSAGE convolution stages — Grid-to-Mesh (G2M), Mesh-to-Mesh (M2M with residual connections), and Mesh-to-Grid (M2G with skip connections) — operating on 3D Cartesian KD-Tree nearest-neighbor graph topologies.
-3. **ENSO Macro-Climatic Conditioning Mechanism**: A neural conditioning pathway wherein a scalar Niño 3.4 anomaly index is projected via a 2-layer MLP into a $d$-dimensional embedding vector, broadcast across all $N_{\text{mesh}}$ nodes, and **additively injected into the message tensor only** of each M2M processor layer before the residual connection, modulating spatial message passing without double-counting the signal through the residual path.
-4. **Hardware-Accelerated Vectorized Batch Expansion**: A method for expanding graph edge indices across batch dimensions using native tensor repeat operations, eliminating Python control-flow loops and reducing GPU kernel launch overhead from $O(B)$ to $O(1)$.
-5. **Multi-Modal Integrated Framework**: A unified framework integrating (i) an ENSO TFT forecasting module, (ii) an A3TGCN pollution dispersion module, (iii) the Fibonacci Neural Weather Model, and (iv) a Bayesian climate regime-shift module, wherein the predicted ENSO index from the first module directly conditions the latent processor of the third module.
+3. **Macro-Climatic Conditioning Mechanism**: A neural conditioning pathway wherein a scalar anomaly index (such as the Niño 3.4, IOD, or NAO) is projected via a 2-layer MLP into a $d$-dimensional embedding vector, broadcast across all $N_{\text{mesh}}$ nodes, and **additively injected into the message tensor only** of each M2M processor layer before the residual connection, modulating spatial message passing without double-counting the signal through the residual path.
+4. **Hardware-Accelerated Vectorized Batch Expansion**: A method for expanding graph edge indices across batch dimensions using native tensor repeat operations, eliminating Python control-flow loops and reducing hardware accelerator kernel launch overhead from $O(B)$ to $O(1)$.
+5. **Multi-Modal Integrated Framework**: A unified framework integrating (i) an ENSO TFT forecasting module, (ii) an A3TGCN pollution dispersion module, (iii) the Fibonacci Neural Weather Model, and (iv) a Bayesian climate regime-shift module, wherein the predicted scalar anomaly index from the first module directly conditions the latent processor of the third module.
 6. **Physically Consistent Training Objective**: A training methodology employing a latitude-cosine-weighted mean squared error loss function combined with mathematically consistent latitude-cosine-weighted normalization statistics derived across the spatial-temporal domain.
 
 ---
@@ -202,7 +200,7 @@ batched_tgt = edge_idx[1].repeat(B) + tgt_offsets
 batched_edge_idx = torch.stack([batched_src, batched_tgt], dim=0) # Shape: [2, B * E]
 ```
 
-This transforms batch edge generation into a single continuous GPU kernel execution.
+This transforms batch edge generation into a single continuous hardware accelerator execution.
 
 ### 6. Physically Weighted Objective Function and Normalization
 
@@ -234,52 +232,54 @@ When evaluated on ERA5 reanalysis data at $5.625^\circ$ resolution (2020–2022)
    (e) a decoder comprising a second bipartite GraphSAGE convolutional layer mapping processed latent mesh node representations back to said $N_{\text{grid}}$ observation grid nodes with a skip connection from said encoder; and
    (f) an output projection layer producing predicted atmospheric field values.
 
-2. The system of Claim 1, wherein the macro-climatic scalar anomaly index is the Niño 3.4 sea surface temperature anomaly index representing departures from climatological mean temperatures in the equatorial Pacific Ocean.
+2. The system of Claim 1, wherein the macro-climatic scalar anomaly index comprises the Niño 3.4 sea surface temperature anomaly index representing departures from climatological mean temperatures in the equatorial Pacific Ocean, the Indian Ocean Dipole (IOD) index, or the North Atlantic Oscillation (NAO) index.
 
 3. The system of Claim 1, wherein said neural conditioning mechanism comprises: (i) a two-layer Multi-Layer Perceptron (MLP) mapping the scalar anomaly index to a $d$-dimensional embedding vector $\mathbf{c}$; (ii) broadcasting $\mathbf{c}$ across all $N_{\text{mesh}}$ latent nodes to form a conditioning tensor $\mathbf{C} \in \mathbb{R}^{N_{\text{mesh}} \times d}$; and (iii) at each processor layer $l$, computing conditioned message $\mathbf{msg}^{(l)} = \text{GELU}(\text{LayerNorm}(\text{SAGEConv}(\mathbf{h}_m^{(l)}, \text{M2M\_edges}) + \mathbf{C}))$ and updating state $\mathbf{h}_m^{(l+1)} = \mathbf{h}_m^{(l)} + \mathbf{msg}^{(l)}$, such that macro-climatic conditioning modulates spatial message passing without being added twice through the residual path.
 
 4. The system of Claim 1, wherein static positional features concatenated to each grid node's dynamic features comprise $[\sin(\phi), \cos(\phi), \sin(\lambda), \cos(\lambda)]$, where $\phi$ and $\lambda$ represent geographic latitude and longitude respectively.
 
-5. The system of Claim 1, wherein said system is optimized using a latitude-cosine-weighted mean squared error loss function $\mathcal{L} = \frac{1}{B} \sum_{b} \frac{1}{N_{\text{grid}}} \sum_{i} w_i \sum_{c} (\hat{y}_{b,i,c} - y_{b,i,c})^2$, wherein $w_i = \cos(\phi_i) / \text{mean}_j\{\cos(\phi_j)\}$, and wherein input features are normalized using latitude-cosine-weighted mean and standard deviation statistics computed across the spatial-temporal domain.
+5. The system of Claim 1, wherein said system is optimized using a latitude-cosine-weighted mean squared error loss function $\mathcal{L} = \frac{1}{B} \sum_{b} \frac{1}{N_{\text{grid}}} \sum_{i} w_i \sum_{c} (\hat{y}_{b,i,c} - y_{b,i,c})^2$, wherein $w_i = \cos(\phi_i) / \text{mean}_j\{\cos(\phi_j)\}$.
 
-6. The system of Claim 1, wherein the Mesh-to-Mesh edge connections exclude self-loops by querying $k+1$ nearest neighbors in 3D Cartesian unit-sphere space and removing the first returned self-index.
+6. The system of Claim 1, wherein input features are normalized using mathematically consistent latitude-cosine-weighted mean and standard deviation statistics computed across the spatial-temporal domain.
 
-7. A computer-implemented method for accelerating graph neural network execution on a parallel computing device by vectorizing batch-offset expansion of graph edge indices, comprising:
+7. The system of Claim 1, wherein the Mesh-to-Mesh edge connections exclude self-loops by querying $k+1$ nearest neighbors in 3D Cartesian unit-sphere space and removing the first returned self-index.
+
+8. A computer-implemented method for accelerating graph neural network execution on a parallel computing device by vectorizing batch-offset expansion of graph edge indices, comprising:
    (a) receiving a single-graph edge index tensor `edge_idx` $\in \mathbb{Z}^{2 \times E}$ representing $E$ directed edges between source and target node sets of size $N_{\text{src}}$ and $N_{\text{tgt}}$;
    (b) computing a source offset tensor by multiplying a batch sequence `arange(B)` by $N_{\text{src}}$ and applying a hardware-native `repeat_interleave` operation;
    (c) computing a target offset tensor by multiplying `arange(B)` by $N_{\text{tgt}}$ and applying a `repeat_interleave` operation;
    (d) adding the source offset tensor to a repeated view of source indices `edge_idx[0]`;
    (e) adding the target offset tensor to a repeated view of target indices `edge_idx[1]`; and
-   (f) returning a batched edge index tensor of shape $[2, B \times E]$ mapped to a single continuous hardware GPU kernel execution without iterative control flow loops.
+   (f) returning a batched edge index tensor of shape $[2, B \times E]$ mapped to a single continuous hardware accelerator execution, including but not limited to a Graphics Processing Unit, Neural Processing Unit, or specialized tensor accelerator, without iterative control flow loops.
 
-8. The method of Claim 7, applied independently and in parallel to Grid-to-Mesh, Mesh-to-Mesh, and Mesh-to-Grid bipartite graph edge index tensors within a single forward pass of an Encoder-Processor-Decoder graph neural network.
+9. The method of Claim 8, applied independently and in parallel to Grid-to-Mesh, Mesh-to-Mesh, and Mesh-to-Grid bipartite graph edge index tensors within a single forward pass of an Encoder-Processor-Decoder graph neural network.
 
-9. An integrated multi-modal climate inference system comprising:
-   (a) a first module comprising a Temporal Fusion Transformer (TFT) configured for multi-horizon forecasting of the Niño 3.4 sea surface temperature anomaly index;
+10. An integrated multi-modal climate inference system comprising:
+   (a) a first module comprising a Temporal Fusion Transformer (TFT) configured for multi-horizon forecasting of a macro-climatic scalar anomaly index;
    (b) a second module comprising an Attention Temporal Graph Convolutional Network (A3TGCN) configured for spatiotemporal pollutant dispersion forecasting over a sensor proximity graph;
    (c) a third module comprising the neural weather forecasting system of Claim 1; and
    (d) a fourth module comprising a Bayesian hierarchical regression model configured for detecting structural changepoints in historical climate data;
-   wherein a forecasted Niño 3.4 index produced by said first module is transmitted via a cross-domain conditioning pathway to serve as the input scalar anomaly index for the processor layer conditioning mechanism of said third module.
+   wherein a forecasted scalar anomaly index produced by said first module is transmitted via a cross-domain conditioning pathway to serve as the input scalar anomaly index for the processor layer conditioning mechanism of said third module.
 
-10. The system of Claim 9, wherein said first module incorporates quantile regression prediction heads at quantiles $\tau \in \{0.1, 0.5, 0.9\}$ to generate probabilistic prediction intervals.
+11. The system of Claim 10, wherein said first module incorporates quantile regression prediction heads at quantiles $\tau \in \{0.1, 0.5, 0.9\}$ to generate probabilistic prediction intervals.
 
-11. The system of Claim 9, wherein said second module operates on a spatial graph constructed from physical monitoring station coordinates using $k$-nearest-neighbor queries over geographical distances.
+12. The system of Claim 10, wherein said second module operates on a spatial graph constructed from physical monitoring station coordinates using $k$-nearest-neighbor queries over geographical distances.
 
-12. The system of Claim 9, wherein said first, second, third, and fourth modules share a common data ingestion pipeline utilizing unified Parquet telemetry structures and standardized JSON metadata schemas.
+13. The system of Claim 10, wherein said first, second, third, and fourth modules share a common data ingestion pipeline utilizing unified Parquet telemetry structures and standardized JSON metadata schemas.
 
-13. A computer-implemented method for unified multi-modal climate forecasting, comprising:
+14. A computer-implemented method for unified multi-modal climate forecasting, comprising:
    (a) generating a probabilistic forecast of an ocean-atmosphere anomaly scalar using a Temporal Fusion Transformer;
    (b) transmitting said forecasted anomaly scalar to a neural weather forecasting model operating on a spherical Fibonacci latent mesh;
    (c) injecting an MLP projection of said anomaly scalar into message-passing layers of said neural weather forecasting model; and
    (d) generating predicted global atmospheric field maps and localized pollution dispersion maps.
 
-14. A non-transitory computer-readable storage medium comprising instructions that, when executed by one or more hardware processors, cause the processors to perform the methods of Claims 7, 8, or 13.
+15. A non-transitory computer-readable storage medium comprising instructions that, when executed by one or more hardware processors, cause the processors to perform the methods of Claims 8, 9, or 14.
 
 ---
 
 ## ABSTRACT
 
-A unified multi-modal climate inference system and method are disclosed comprising: (1) a first module utilizing a Temporal Fusion Transformer for multi-horizon prediction of the Niño 3.4 sea surface temperature anomaly index; (2) a second module utilizing an Attention Temporal Graph Convolutional Network for pollution dispersion forecasting over sensor networks; (3) a third module comprising a Neural Weather Model operating on a spherical Fibonacci golden-angle spiral latent mesh of configurable resolution $N_{\text{mesh}}$, featuring tripartite bipartite GraphSAGE convolutions and an ENSO macro-climatic conditioning mechanism that additively injects the projected Niño 3.4 index into latent message-passing steps before residual connections; and (4) a hardware-accelerated vectorized batch-offset edge expansion algorithm mapping graph execution to continuous GPU kernels without loop overhead. The system achieves a 0.1182 validation MSE on ERA5 weather forecasting, a 0.9051 skill score on ENSO forecasting, and a 0.9750 $F_1$ score on $\text{PM}_{2.5}$ exceedance detection.
+A unified multi-modal climate inference system and method are disclosed comprising: (1) a first module utilizing a Temporal Fusion Transformer for multi-horizon prediction of a macro-climatic scalar anomaly index (e.g., Niño 3.4); (2) a second module utilizing an Attention Temporal Graph Convolutional Network for pollution dispersion forecasting over sensor networks; (3) a third module comprising a Neural Weather Model operating on a spherical Fibonacci golden-angle spiral latent mesh of configurable resolution $N_{\text{mesh}}$, featuring tripartite bipartite GraphSAGE convolutions and a macro-climatic conditioning mechanism that additively injects the projected anomaly index into latent message-passing steps before residual connections; and (4) a hardware-accelerated vectorized batch-offset edge expansion algorithm mapping graph execution to continuous hardware accelerator kernels without loop overhead. The system achieves a 0.1182 validation MSE on ERA5 weather forecasting, a 0.9051 skill score on ENSO forecasting, and a 0.9750 $F_1$ score on $\text{PM}_{2.5}$ exceedance detection.
 
 ---
 
