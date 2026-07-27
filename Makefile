@@ -1,4 +1,4 @@
-.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf help
+.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf help
 
 # Use a local temporary directory inside the virtual environment to prevent
 # "Disk quota exceeded" errors on systems with small/restricted tmpfs /tmp partitions.
@@ -101,6 +101,18 @@ gen-research-paper-pdf: sync-paper-artifacts
     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
     -s
 
+sync-patent-artifacts:
+	mkdir -p docs/patent/artifacts/eval_artifacts/run_results
+	cp -r runtime/eval_artifacts/* docs/patent/artifacts/eval_artifacts/ 2>/dev/null || true
+	cp runtime/eval_artifacts/*.png docs/patent/artifacts/ 2>/dev/null || true
+
+gen-patent-application-pdf: sync-patent-artifacts
+	cd docs/patent/ && pandoc patent_application.md -o climatepulse_patent_application.pdf \
+    --pdf-engine=xelatex \
+    --metadata=smart:false \
+    -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
+    -s
+
 # === Save Run ===
 save-run:
 	@echo "Saving latest run artifacts and checkpoints for future inference..."
@@ -142,6 +154,7 @@ help:
 	@echo "  make train-nwm : Train Neural Weather Model (ST-GNN) only"
 	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
+	@echo "  make gen-patent-application-pdf : Generate publication-quality patent application pdf"
 	@echo "  make save-run : Save the latest trained checkpoints and evaluation artifacts to a timestamped folder for future inference"
 	@echo "  make clean : Remove build and test cache artifacts"
 	@echo "  make clean-checkpoints : Remove trained model checkpoints"

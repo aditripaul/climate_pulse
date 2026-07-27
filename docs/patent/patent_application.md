@@ -1,12 +1,46 @@
-# PATENT APPLICATION DRAFT
-**Status:** Consolidated Provisional Draft — Prepared for IPINDIA / PCT Legal Review  
-**Prepared by:** ClimatePulse Research Team  
-**Date:** July 2026  
-**Subject System:** ClimatePulse — AI-Powered Global Climate Forecasting Framework  
-**Target Patent Office:** IPINDIA (Controller General of Patents, Designs and Trade Marks) / PCT  
-**Code Reference:** git:81edd882785b7b3bfb8119193af6ddac2c5355ad  
+---
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage{amssymb}
+  - \usepackage{unicode-math}
+  - \usepackage{fancyhdr}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{draftwatermark}
+  - \SetWatermarkText{research.aditripaul.org}
+  - \SetWatermarkScale{0.5}
+  - \SetWatermarkColor[gray]{0.9}
+  - \newcommand{\gt}{>}
+  - \pagestyle{fancy}
+  - '\fancyhead[L]{\small ClimatePulse: Temporal Fusion Transformers and Spatio-Temporal Graph Networks in Climate Modeling}'
+  - \fancyhead[R]{\small \today}
+  - \fancyfoot[L]{pre-print DRAFT}
+  - \fancyfoot[C]{\thepage}
+  - \fancyfoot[R]{\footnotesize © 2026 research.aditripaul.org}
+  - \renewcommand{\headrulewidth}{0.4pt}
+  - \setlength{\headheight}{15pt}
+---
 
-> **IMPORTANT**: This document is a **preliminary consolidated technical draft** for attorney review. It has **not** been reviewed by a registered patent attorney or patent agent. It must not be filed as-is with any patent office. The claims herein have been structured to comply with Section 3(k) of the Indian Patents Act, 1970 (CRI Guidelines) and Section 10(5) (Unity of Invention). All numerical results cited reflect empirical measurements from the ClimatePulse evaluation pipeline (`make gen-eval-artifacts`).
+<!--
+
+        Copyright 2026 research.aditripaul.org
+
+        Licensed under the GNU GPL v3.0 License (the ''License'');
+        you may not use this file except in compliance with the License.
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an ''AS IS'' BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+-->
+
+# PATENT APPLICATION DRAFT
+- **Status:** Consolidated Provisional Draft — Prepared for IPINDIA / PCT Legal Review
+- **Prepared by:** ClimatePulse Research Team
+- **Date:** July 2026
+- **Subject System:** ClimatePulse — AI-Powered Global Climate Forecasting Framework
+- **Target Patent Office:** IPINDIA (Controller General of Patents, Designs and Trade Marks) / PCT
+- **Code Reference:** git:254bd2b02204349bfe1dda9548bdf55d66a8f68f
 
 ---
 
@@ -19,19 +53,9 @@
 3. **Section 3(k) CRI Compliance**: Framing the Neural Weather Model (NWM) and Fibonacci spherical mesh as an embedded technical sub-system within a multi-modal physical climate inference system directly protects the application against Section 3(k) exclusions ("computer program or algorithm per se").
 4. **File PCT Application (PCT/IN)** simultaneously with the Complete Specification to preserve international rights (US, EP, CN, JP, AU).
 
-### Public Disclosure & Absolute Novelty Risk Assessment
-
-| Item | Status | Risk Level |
-|:---|:---|:---|
-| GitHub repository (`climate_pulse.git`) | Public / Open Source (GPL v3) | **CRITICAL**: India enforces strict absolute novelty (Sec 29–34). File Form 2 immediately to establish priority. |
-| Research paper PDF (`climatepulse_research_paper.pdf`) | Present in repository | Verify if submitted to arXiv or journal. Any public web availability prior to provisional filing risks novelty loss. |
-| Web domain (`research.aditripaul.org`) | Referenced in docs | Verify date of first public web indexing. |
-
 ---
 
----
-
-# PATENT APPLICATION — CONSOLIDATED SPECIFICATION
+# PATENT APPLICATION
 
 ## TITLE
 
@@ -263,9 +287,9 @@ A unified multi-modal climate inference system and method are disclosed comprisi
 
 I/We declare that the above-identified specification describes my/our invention; that I/we believe myself/ourselves to be the original and sole inventor(s) of the subject matter claimed; and that I/we acknowledge the duty to disclose to the patent office all information known to me/us to be material to patentability.
 
-**Inventor Name(s):** [TO BE COMPLETED]  
-**Date:** [TO BE COMPLETED]  
-**Signature:** [TO BE COMPLETED]  
+**Inventor Name(s):** [TO BE COMPLETED]
+**Date:** [TO BE COMPLETED]
+**Signature:** [TO BE COMPLETED]
 
 ---
 
