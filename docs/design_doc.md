@@ -454,6 +454,11 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 - `model_training_curves.png`: Multi-panel figure of training/validation loss trajectories for all deep learning models.
 - Model-specific performance CSVs (`tft_metrics.csv`, `lstm_metrics.csv`, `nwm_metrics.csv`, `pollution_metrics.csv`).
 
+### 10.3 Documentation & Patent Build Pipeline
+- **`make gen-research-paper-pdf`**: Compiles `docs/research_paper/research_paper.md` to `climatepulse_research_paper.pdf` via XeLaTeX.
+- **`make gen-patent-application-pdf`**: Compiles `docs/patent/patent_application.md` to `climatepulse_patent_application.pdf` via XeLaTeX.
+- **`docs/patent/patent_application.md`**: Consolidated Single Patent Specification draft titled *"Unified Multi-Modal Climate Inference System Operating on a Fibonacci Spherical Latent Mesh with ENSO-Conditioned Neural Weather Modeling"* targeting IPINDIA / PCT filing.
+
 ---
 
 ## 11. Known Limitations and Future Work

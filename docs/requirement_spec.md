@@ -101,7 +101,9 @@ This document defines the functional, data, model, and non-functional requiremen
 | **R-01a** | The generated evaluation plots shall include: SST anomaly forecasts, CRPS vs lead time, calibration diagrams, and error heatmaps for the El Niño model; RMSE spatial distributions and exceedance confusion matrices for the Pollution model; T2m prediction maps, error maps, and mesh visualizations for the NWM; and Bayesian changepoint regression plots. |
 | **R-01b** | The generated dataset artifacts shall include processed training inputs (`ersst_v5.parquet`, `nino_features.parquet`, `gistemp_features.parquet`, etc.) and output metric summaries (`tft_metrics.csv`, `pollution_metrics.csv`, `nwm_metrics.csv`, `summary_metrics.json`). |
 | **R-02** | The `gen-research-paper-pdf` Makefile target shall compile `docs/research_paper/research_paper.md` to PDF using Pandoc + XeLaTeX. |
+| **R-02b** | The `gen-patent-application-pdf` Makefile target shall compile `docs/patent/patent_application.md` to PDF using Pandoc + XeLaTeX. |
 | **R-03** | The `save-run` Makefile target shall copy and snapshot the latest model checkpoints and evaluation artifacts to a timestamped folder under `runtime/saved/` for future reference and inference. |
+| **R-04** | The system shall maintain a consolidated single patent application draft (`docs/patent/patent_application.md`) integrating the Neural Weather Model, Fibonacci spherical mesh, ENSO message conditioning, and multi-modal climate framework for IPINDIA / PCT legal review. |
 
 ---
 
