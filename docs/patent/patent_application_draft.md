@@ -95,34 +95,32 @@ The present invention provides a neural weather forecasting system and method co
 
 ### 1. System Architecture Overview
 
-The claimed Neural Weather Model (hereinafter "the NWM") operates on global atmospheric reanalysis data formatted as regular equirectangular grids. In the preferred embodiment, the input data comprise ERA5 reanalysis at 5.625 degree spatial resolution, yielding a grid of N_grid = 32 x 64 = 2,048 nodes. Each node carries C=2 atmospheric channels (2-meter temperature T2m; total precipitation TP) over a sliding temporal window of W=2 time steps, plus 4 static positional features, giving grid_in_channels = C x W + 4 = 8 input features per node.
+The claimed Neural Weather Model (hereinafter "the NWM") operates on global atmospheric reanalysis data formatted as regular equirectangular grids. In the preferred embodiment, the input data comprise ERA5 reanalysis at 5.625 degree spatial resolution, yielding a grid of $N_{\text{grid}}$ = 32 x 64 = 2,048 nodes. Each node carries C=2 atmospheric channels (2-meter temperature T2m; total precipitation TP) over a sliding temporal window of W=2 time steps, plus 4 static positional features, giving grid_in_channels = C x W + 4 = 8 input features per node.
 
 The NWM processes a single sample through five sequential stages:
 
 ```
-Stage 1: Grid Embedding       (Linear + LayerNorm + GELU) -> [B * N_grid, d]
-Stage 2: Encoder G2M          (BipartiteGNN: Grid -> Mesh) -> [B * N_mesh, d]
-Stage 3: Processor M2M x L   (SAGEConv + ENSO cond. + residual) -> [B * N_mesh, d]
-Stage 4: Decoder M2G          (BipartiteGNN: Mesh -> Grid + skip) -> [B * N_grid, d]
-Stage 5: Output Projection    (Linear) -> [B * N_grid, grid_out_channels]
+Stage 1: Grid Embedding       (Linear + LayerNorm + GELU) -> [B * $N_{\text{grid}}$, d]
+Stage 2: Encoder G2M          (BipartiteGNN: Grid -> Mesh) -> [B * $N_{\text{mesh}}$, d]
+Stage 3: Processor M2M x L   (SAGEConv + ENSO cond. + residual) -> [B * $N_{\text{mesh}}$, d]
+Stage 4: Decoder M2G          (BipartiteGNN: Mesh -> Grid + skip) -> [B * $N_{\text{grid}}$, d]
+Stage 5: Output Projection    (Linear) -> [B * $N_{\text{grid}}$, grid_out_channels]
 ```
 
-In the preferred embodiment: d = 128, L = 4, N_mesh = 2,000, N_grid = 2,048.
+In the preferred embodiment: d = 128, L = 4, $N_{\text{mesh}}$ = 2,000, $N_{\text{grid}}$ = 2,048.
 
 ### 2. Fibonacci Spherical Mesh Generation
 
-The latent mesh is generated using the Fibonacci golden-angle spiral lattice. For a target mesh size of N_mesh points, the i-th mesh node (i = 0, ..., N_mesh - 1) is placed at:
+The latent mesh is generated using the Fibonacci golden-angle spiral lattice. For a target mesh size of $N_{\text{mesh}}$ points, the i-th mesh node (i = 0, ..., $N_{\text{mesh}}$ - 1) is placed at:
 
-```
-phi_golden = pi * (3 - sqrt(5))      [golden angle, radians]
-y_i        = 1 - (i / (N_mesh - 1)) * 2   [uniform in [-1, +1]]
-r_i        = sqrt(max(1 - y_i^2, 0))       [radius in xy-plane]
-theta_i    = phi_golden * i                 [azimuthal angle]
-x_i        = cos(theta_i) * r_i
-z_i        = sin(theta_i) * r_i
-```
+$$ \phi_{\text{golden}} = \pi (3 - \sqrt{5}) \quad [\text{golden angle, radians}] $$
+$$ y_i = 1 - \frac{2i}{N_{\text{mesh}} - 1} \quad [\text{uniform in } [-1, +1]] $$
+$$ r_i = \sqrt{\max(1 - y_i^2, 0)} \quad [\text{radius in } xy\text{-plane}] $$
+$$ \theta_i = \phi_{\text{golden}} \cdot i \quad [\text{azimuthal angle}] $$
+$$ x_i = \cos(\theta_i) \cdot r_i $$
+$$ z_i = \sin(\theta_i) \cdot r_i $$
 
-This produces a set of N_mesh 3D Cartesian unit-sphere points with provably near-uniform angular coverage. The key property exploited by the invention is that phi_golden is maximally irrational, ensuring no two lattice points lie at the same azimuthal angle within any finite prefix of the sequence. This prevents the clustering artifacts that arise in other parameterizations.
+This produces a set of $N_{\text{mesh}}$ 3D Cartesian unit-sphere points with provably near-uniform angular coverage. The key property exploited by the invention is that phi_golden is maximally irrational, ensuring no two lattice points lie at the same azimuthal angle within any finite prefix of the sequence. This prevents the clustering artifacts that arise in other parameterizations.
 
 The Fibonacci mesh construction is implemented in `src/models/nwm/graph_builder.py::generate_fibonacci_sphere()` (lines 23-32 of the reference implementation). The construction is fully vectorized using NumPy array operations with no Python-level per-point loops.
 
@@ -146,9 +144,7 @@ The edge construction is implemented in `src/models/nwm/graph_builder.py::Spheri
 
 Each grid node is assigned four static positional features derived from its geographic latitude phi and longitude lambda:
 
-```
-f_static = [sin(phi), cos(phi), sin(lambda), cos(lambda)]   in R^4
-```
+$$ \mathbf{f}_{\text{static}} = [\sin(\phi), \cos(\phi), \sin(\lambda), \cos(\lambda)] \in \mathbb{R}^4 $$
 
 These features are constant across all time steps and are concatenated to the dynamic atmospheric features at the input to Stage 1. The sine-cosine encoding provides: (a) continuity at the dateline; (b) rotational information at the poles; and (c) unambiguous separation of latitude and longitude.
 
@@ -156,21 +152,17 @@ These features are constant across all time steps and are concatenated to the dy
 
 The Grid Embedding stage applies an MLP to every grid node independently:
 
-```
-h_g = GELU(LayerNorm(Linear(x_g, d)))    in R^d
-```
+$$ \mathbf{h}_g = \text{GELU}(\text{LayerNorm}(\text{Linear}(\mathbf{x}_g, d))) \in \mathbb{R}^d $$
 
-where x_g is in R^{grid_in_channels} and d = 128 (preferred embodiment). This embedding is retained as a skip connection for the decoder stage.
+where $\mathbf{x}_g \in \mathbb{R}^{\text{grid\_in\_channels}}$ and $d = 128$ (preferred embodiment). This embedding is retained as a skip connection for the decoder stage.
 
 ### 6. Encoder: Grid-to-Mesh (G2M) Bipartite GraphSAGE
 
 The encoder propagates information from the 2,048 observation grid nodes into the 2,000 latent mesh nodes:
 
-```
-h_m = GELU(LayerNorm(SAGEConv((h_g, 0), G2M_edges)))   in R^{N_mesh x d}
-```
+$$ \mathbf{h}_m = \text{GELU}(\text{LayerNorm}(\text{SAGEConv}((\mathbf{h}_g, \mathbf{0}), \text{G2M\_edges}))) \in \mathbb{R}^{N_{\text{mesh}} \times d} $$
 
-The initial mesh node states are set to the zero vector (h_m_init = 0 in R^d). The SAGEConv bipartite formulation aggregates neighbor messages from grid nodes into each mesh node using mean aggregation, then applies a linear projection. The zero initialization ensures the encoder output is determined entirely by the aggregated grid information.
+The initial mesh node states are set to the zero vector ($\mathbf{h}_{m,\text{init}} = \mathbf{0} \in \mathbb{R}^d$). The SAGEConv bipartite formulation aggregates neighbor messages from grid nodes into each mesh node using mean aggregation, then applies a linear projection. The zero initialization ensures the encoder output is determined entirely by the aggregated grid information.
 
 ### 7. Processor: ENSO-Conditioned Mesh-to-Mesh Message Passing
 
@@ -180,28 +172,22 @@ The processor applies L=4 stacked GraphSAGE message-passing steps over the M2M e
 
 The scalar Nino 3.4 index nino_34 in R is passed through a two-layer condition MLP:
 
-```
-c = MLP_cond(nino_34) = Linear_2(GELU(Linear_1([nino_34])))   in R^d
-```
+$$ \mathbf{c} = \text{MLP}_{\text{cond}}(\text{nino\_34}) = \text{Linear}_2(\text{GELU}(\text{Linear}_1([\text{nino\_34}]))) \in \mathbb{R}^d $$
 
-where Linear_1: R^1 -> R^d and Linear_2: R^d -> R^d.
+where $\text{Linear}_1: \mathbb{R}^1 \to \mathbb{R}^d$ and $\text{Linear}_2: \mathbb{R}^d \to \mathbb{R}^d$.
 
 **Step 7.2 — Mesh-wide Injection:**
 
-The d-dimensional condition embedding c is tiled across all N_mesh mesh nodes to produce a conditioning tensor:
+The d-dimensional condition embedding c is tiled across all $N_{\text{mesh}}$ mesh nodes to produce a conditioning tensor:
 
-```
-C = c.unsqueeze(0).expand(N_mesh, d)   in R^{N_mesh x d}
-```
+$$ \mathbf{C} = \mathbf{c}\text{.unsqueeze}(0)\text{.expand}(N_{\text{mesh}}, d) \in \mathbb{R}^{N_{\text{mesh}} \times d} $$
 
 **Step 7.3 — Conditioned Message Passing (per processor layer l):**
 
-```
-msg_l      = SAGEConv(h_m^(l), M2M_edges)      [spatial message passing]
-msg_l      = LayerNorm(msg_l + C)               [condition injected into msg only]
-msg_l      = GELU(msg_l)
-h_m^(l+1) = h_m^(l) + msg_l                    [residual over unconditioned state]
-```
+$$ \mathbf{msg}^{(l)} = \text{SAGEConv}(\mathbf{h}_m^{(l)}, \text{M2M\_edges}) \quad [\text{spatial message passing}] $$
+$$ \mathbf{msg}^{(l)} = \text{LayerNorm}(\mathbf{msg}^{(l)} + \mathbf{C}) \quad [\text{condition injected into msg only}] $$
+$$ \mathbf{msg}^{(l)} = \text{GELU}(\mathbf{msg}^{(l)}) $$
+$$ \mathbf{h}_m^{(l+1)} = \mathbf{h}_m^{(l)} + \mathbf{msg}^{(l)} \quad [\text{residual over unconditioned state}] $$
 
 The critical design decision is that the condition tensor C is **added to the message only**, not to the residual connection. This prevents the Nino 3.4 signal from being added twice per layer (once explicitly in the message path, once again through the residual carrying the pre-conditioned state from the previous layer). The result is that each processor layer applies exactly one unit of ENSO conditioning, maintaining a consistent signal magnitude across all L layers regardless of depth.
 
@@ -211,9 +197,7 @@ This architecture is fundamentally distinct from prior ENSO conditioning approac
 
 The decoder propagates processed mesh representations back to the observation grid:
 
-```
-h_g_out = SAGEConv((h_m^(L), 0), M2G_edges) + h_g    in R^{N_grid x d}
-```
+$$ \mathbf{h}_{g,\text{out}} = \text{SAGEConv}((\mathbf{h}_m^{(L)}, \mathbf{0}), \text{M2G\_edges}) + \mathbf{h}_g \in \mathbb{R}^{N_{\text{grid}} \times d} $$
 
 The addition of h_g (the grid embedding from Stage 1) implements a skip connection from the encoder input to the decoder output, ensuring locally specific atmospheric information is not lost during the latent spherical mesh computation.
 
@@ -221,17 +205,15 @@ The addition of h_g (the grid embedding from Stage 1) implements a skip connecti
 
 The output projection applies a single linear layer:
 
-```
-y_hat = Linear(h_g_out)   in R^{N_grid x grid_out_channels}
-```
+$$ \hat{\mathbf{y}} = \text{Linear}(\mathbf{h}_{g,\text{out}}) \in \mathbb{R}^{N_{\text{grid}} \times \text{grid\_out\_channels}} $$
 
-where grid_out_channels = C x prediction_steps = 2 (T2m and TP for one step ahead, in the preferred embodiment).
+where $\text{grid\_out\_channels} = C \times \text{prediction\_steps} = 2$ (T2m and TP for one step ahead, in the preferred embodiment).
 
 ### 10. Vectorized Batch-Offset Edge Expansion Algorithm
 
 In standard PyTorch Geometric frameworks, applying a single graph's edge index to a batched graph of B samples requires either converting to a PyG Batch object or looping in Python over the batch dimension (O(B x E) Python overhead). The present invention employs a fully vectorized approach:
 
-Given a single-graph edge index `edge_idx` in Z^{2 x E}, the batched edge index for B samples is computed as:
+Given a single-graph edge index `edge_idx` $\in \mathbb{Z}^{2 \times E}$, the batched edge index for $B$ samples is computed as:
 
 ```python
 src_offsets = arange(B) * num_src   # [B] -> repeat_interleave(E) -> [B*E]
@@ -250,10 +232,8 @@ The algorithm is implemented in `src/models/nwm/stgnn_model.py::_batch_edges()` 
 
 The training objective weights each grid node's squared prediction error by the cosine of its geographic latitude:
 
-```
-w_i = cos(phi_i) / mean(cos(phi))   for i in {1, ..., N_grid}
-L = (1/B) * sum_b (1/N_grid) * sum_i w_i * sum_c (y_hat_{b,i,c} - y_{b,i,c})^2
-```
+$$ w_i = \frac{\cos(\phi_i)}{\frac{1}{N_{\text{grid}}} \sum_{j=1}^{N_{\text{grid}}} \cos(\phi_j)} \quad \text{for } i \in \{1, \dots, N_{\text{grid}}\} $$
+$$ \mathcal{L} = \frac{1}{B} \sum_{b=1}^{B} \frac{1}{N_{\text{grid}}} \sum_{i=1}^{N_{\text{grid}}} w_i \sum_{c} (\hat{y}_{b,i,c} - y_{b,i,c})^2 $$
 
 This weighting reflects the physical fact that a grid cell at latitude phi subtends a surface area proportional to cos(phi) relative to an equatorial cell. The normalization `w_i = cos(phi_i) / mean(cos(phi))` ensures the total weighted loss has the same scale as an unweighted MSE.
 
@@ -261,10 +241,8 @@ The implementation is in `src/models/nwm/trainer.py::NWMTrainer::_weighted_mse()
 
 Additionally, normalization statistics for T2m and TP are computed using latitude-cosine-weighted averaging across the full spatial-temporal domain:
 
-```
-t2m_mean = sum_i (w_i * t2m_spatial_mean_i) / sum_i w_i
-t2m_std  = sqrt(sum_t sum_i (w_i * (t2m[t,i] - t2m_mean)^2) / (T * sum_i w_i))
-```
+$$ \mu_{\text{t2m}} = \frac{\sum_i w_i \cdot \text{t2m\_spatial\_mean}_i}{\sum_i w_i} $$
+$$ \sigma_{\text{t2m}}  = \sqrt{\frac{\sum_t \sum_i w_i (\text{t2m}_{t,i} - \mu_{\text{t2m}})^2}{T \sum_i w_i}} $$
 
 This prevents normalization statistics from being dominated by the numerically large count of high-latitude nodes, ensuring the global mean and variance reflect physical surface area rather than raw grid-cell count. The same latitude-cosine weight vector is used for both the normalization statistics and the training loss (Section 11), providing mathematical consistency between the input feature distribution and the optimization objective.
 
@@ -315,13 +293,13 @@ To satisfy 37 C.F.R. § 1.81, the following formal drawings are incorporated by 
 
 A neural weather forecasting system comprising:
 
-(a) a spherical latent mesh comprising N_mesh nodes placed at positions generated by a Fibonacci golden-angle spiral lattice on a unit sphere, wherein each node position i is determined by a golden angle phi_golden = pi*(3 - sqrt(5)) radians and an index-parameterized y-coordinate y_i = 1 - 2*i/(N_mesh-1), and wherein N_mesh is a user-configurable integer not constrained to icosahedral subdivision levels;
+(a) a spherical latent mesh comprising $N_{\text{mesh}}$ nodes placed at positions generated by a Fibonacci golden-angle spiral lattice on a unit sphere, wherein each node position $i$ is determined by a golden angle $\phi_{\text{golden}} = \pi(3 - \sqrt{5})$ radians and an index-parameterized y-coordinate $y_i = 1 - \frac{2i}{N_{\text{mesh}}-1}$, and wherein $N_{\text{mesh}}$ is a user-configurable integer not constrained to icosahedral subdivision levels;
 
-(b) an encoder comprising a first bipartite GraphSAGE convolutional layer that propagates features from a set of N_grid observation grid nodes to said N_mesh spherical latent mesh nodes via Grid-to-Mesh edge connections determined by k-nearest-neighbor queries in three-dimensional Cartesian unit-sphere space;
+(b) an encoder comprising a first bipartite GraphSAGE convolutional layer that propagates features from a set of $N_{\text{grid}}$ observation grid nodes to said $N_{\text{mesh}}$ spherical latent mesh nodes via Grid-to-Mesh edge connections determined by k-nearest-neighbor queries in three-dimensional Cartesian unit-sphere space;
 
 (c) a processor comprising L stacked mesh-to-mesh GraphSAGE message-passing layers, each layer incorporating a conditioning mechanism that additively injects a learned projection of a macro-climatic scalar anomaly index into the computed message tensor before a residual connection, wherein said injection is applied to the message only and not to the residual state;
 
-(d) a decoder comprising a second bipartite GraphSAGE convolutional layer that propagates processed mesh-node representations back to said N_grid observation grid nodes via Mesh-to-Grid edge connections, with a skip connection from the output of (b); and
+(d) a decoder comprising a second bipartite GraphSAGE convolutional layer that propagates processed mesh-node representations back to said $N_{\text{grid}}$ observation grid nodes via Mesh-to-Grid edge connections, with a skip connection from the output of (b); and
 
 (e) an output projection layer that maps decoded grid-node representations to predicted atmospheric field values at one or more future time steps.
 
@@ -331,15 +309,15 @@ The system of Claim 1, wherein the macro-climatic scalar anomaly index is the Ni
 
 **Claim 3** (Dependent on Claim 1)
 
-The system of Claim 1, wherein the conditioning mechanism of (c) comprises: (i) a two-layer MLP with GELU activations mapping the scalar anomaly index to a d-dimensional embedding vector; (ii) broadcasting said embedding vector across all N_mesh mesh nodes to produce a conditioning tensor C in R^{N_mesh x d}; and (iii) at each processor layer l, computing: message m_l = SAGEConv(h_m^(l), M2M_edges); conditioned message m_l' = GELU(LayerNorm(m_l + C)); updated state h_m^(l+1) = h_m^(l) + m_l'; such that the macro-climatic conditioning is applied exactly once per layer at the message level, and the residual h_m^(l) retains the unconditioned representation from the previous layer.
+The system of Claim 1, wherein the conditioning mechanism of (c) comprises: (i) a two-layer MLP with GELU activations mapping the scalar anomaly index to a $d$-dimensional embedding vector; (ii) broadcasting said embedding vector across all $N_{\text{mesh}}$ mesh nodes to produce a conditioning tensor $\mathbf{C} \in \mathbb{R}^{N_{\text{mesh}} \times d}$; and (iii) at each processor layer $l$, computing: message $\mathbf{m}_l = \text{SAGEConv}(\mathbf{h}_m^{(l)}, \text{M2M\_edges})$; conditioned message $\mathbf{m}_l' = \text{GELU}(\text{LayerNorm}(\mathbf{m}_l + \mathbf{C}))$; updated state $\mathbf{h}_m^{(l+1)} = \mathbf{h}_m^{(l)} + \mathbf{m}_l'$; such that the macro-climatic conditioning is applied exactly once per layer at the message level, and the residual $\mathbf{h}_m^{(l)}$ retains the unconditioned representation from the previous layer.
 
 **Claim 4** (Dependent on Claim 1)
 
-The system of Claim 1, wherein static positional features concatenated to each grid node's dynamic atmospheric features comprise [sin(phi), cos(phi), sin(lambda), cos(lambda)], providing continuous encoding across the geographic dateline and unambiguous polar identification.
+The system of Claim 1, wherein static positional features concatenated to each grid node's dynamic atmospheric features comprise $[\sin(\phi), \cos(\phi), \sin(\lambda), \cos(\lambda)]$, providing continuous encoding across the geographic dateline and unambiguous polar identification.
 
 **Claim 5** (Dependent on Claim 1)
 
-The system of Claim 1, wherein said system is trained using a latitude-cosine-weighted mean squared error loss function: L = (1/B) * sum_b (1/N_grid) * sum_i w_i * sum_c (y_hat_{b,i,c} - y_{b,i,c})^2, wherein w_i = cos(phi_i) / mean_j{cos(phi_j)}, and phi_i is the geographic latitude of the i-th grid node.
+The system of Claim 1, wherein said system is trained using a latitude-cosine-weighted mean squared error loss function: $\mathcal{L} = \frac{1}{B} \sum_{b} \frac{1}{N_{\text{grid}}} \sum_{i} w_i \sum_{c} (\hat{y}_{b,i,c} - y_{b,i,c})^2$, wherein $w_i = \cos(\phi_i) / \text{mean}_j\{\cos(\phi_j)\}$, and $\phi_i$ is the geographic latitude of the $i$-th grid node.
 
 **Claim 6** (Dependent on Claim 5)
 
@@ -353,7 +331,7 @@ The system of Claim 1, wherein the Mesh-to-Mesh self-neighborhood edge set exclu
 
 A computer-implemented method for accelerating graph neural network execution on a parallel computing device by vectorizing batch-offset expansion of a graph edge index tensor, comprising:
 
-(a) receiving a single-graph edge index tensor edge_idx in Z^{2 x E} representing E directed edges between source and target node sets of size N_src and N_tgt respectively;
+(a) receiving a single-graph edge index tensor `edge_idx` $\in \mathbb{Z}^{2 \times E}$ representing $E$ directed edges between source and target node sets of size $N_{\text{src}}$ and $N_{\text{tgt}}$ respectively;
 
 (b) computing a source offset tensor by multiplying a batch sequence arange(B) by N_src, and repeating the result E times via a hardware-optimized repeat_interleave operation;
 
@@ -363,7 +341,7 @@ A computer-implemented method for accelerating graph neural network execution on
 
 (e) computing batched target indices by adding the target offset tensor to a repeated view of the target indices edge_idx[1]; and
 
-(f) returning a batched edge index tensor of shape [2, B*E] for parallel graph processing;
+(f) returning a batched edge index tensor of shape $[2, B \times E]$ for parallel graph processing;
 
 wherein operations (b) through (f) map the batch expansion to a single continuous hardware kernel execution without iterative control flow, thereby reducing processing latency on the parallel computing device.
 
@@ -375,15 +353,15 @@ The method of Claim 8, applied independently and in parallel to three distinct e
 
 A computer-implemented method for neural weather field prediction, comprising:
 
-(a) receiving, for each sample in a batch of B samples: (i) a grid node feature matrix X_g in R^{N_grid x F}, wherein F = C*W + 4 concatenates C atmospheric channels over W input time steps with four static positional features per grid node; and (ii) a conditioning scalar representing the Nino 3.4 sea surface temperature anomaly index at the time of the forecast;
+(a) receiving, for each sample in a batch of $B$ samples: (i) a grid node feature matrix $\mathbf{X}_g \in \mathbb{R}^{N_{\text{grid}} \times F}$, wherein $F = C \times W + 4$ concatenates $C$ atmospheric channels over $W$ input time steps with four static positional features per grid node; and (ii) a conditioning scalar representing the Nino 3.4 sea surface temperature anomaly index at the time of the forecast;
 
 (b) embedding each grid node's features into a d-dimensional latent representation using a linear projection, layer normalization, and GELU activation;
 
-(c) propagating the d-dimensional grid node representations to N_mesh spherical Fibonacci lattice mesh nodes via a first bipartite GraphSAGE convolution over Grid-to-Mesh edges, initializing mesh node states to zero;
+(c) propagating the $d$-dimensional grid node representations to $N_{\text{mesh}}$ spherical Fibonacci lattice mesh nodes via a first bipartite GraphSAGE convolution over Grid-to-Mesh edges, initializing mesh node states to zero;
 
 (d) for each of L processor layers, injecting the conditioning scalar's MLP-projected d-dimensional embedding additively into the GraphSAGE message at each Mesh-to-Mesh message-passing step, maintaining a residual connection over the unconditioned mesh state;
 
-(e) propagating the processed mesh-node representations back to the N_grid observation grid nodes via a second bipartite GraphSAGE convolution over Mesh-to-Grid edges, adding a skip connection from step (b)'s output;
+(e) propagating the processed mesh-node representations back to the $N_{\text{grid}}$ observation grid nodes via a second bipartite GraphSAGE convolution over Mesh-to-Grid edges, adding a skip connection from step (b)'s output;
 
 (f) projecting the resulting grid-node representations through a linear layer to produce predicted atmospheric field values; and
 
@@ -493,19 +471,19 @@ Similarly, computing normalization statistics with uniform node weight produces 
 
 A computer-implemented method for training a machine learning model on Earth observation data comprising:
 
-(a) providing a dataset of atmospheric field measurements organized as a regular equirectangular latitude-longitude grid with N_lat latitude values and N_lon longitude values, yielding N_grid = N_lat x N_lon grid nodes;
+(a) providing a dataset of atmospheric field measurements organized as a regular equirectangular latitude-longitude grid with $N_{\text{lat}}$ latitude values and $N_{\text{lon}}$ longitude values, yielding $N_{\text{grid}} = N_{\text{lat}} \times N_{\text{lon}}$ grid nodes;
 
-(b) assigning to each grid node i at latitude phi_i a normalized latitude weight: w_i = cos(phi_i) / (1/N_grid * sum_j cos(phi_j));
+(b) assigning to each grid node $i$ at latitude $\phi_i$ a normalized latitude weight: $w_i = \cos(\phi_i) / (\frac{1}{N_{\text{grid}}} \sum_j \cos(\phi_j))$;
 
 (c) computing per-channel normalization statistics using the same latitude-cosine-weighted averaging from step (b) across the full spatial-temporal domain of the dataset;
 
 (d) normalizing all data splits using the weighted statistics from step (c); and
 
-(e) computing a training loss as a latitude-cosine-weighted mean squared error: L = (1/B) * sum_b (1/N_grid) * sum_i w_i * sum_c (y_hat_{b,i,c} - y_{b,i,c})^2.
+(e) computing a training loss as a latitude-cosine-weighted mean squared error: $\mathcal{L} = \frac{1}{B} \sum_{b} \frac{1}{N_{\text{grid}}} \sum_{i} w_i \sum_{c} (\hat{y}_{b,i,c} - y_{b,i,c})^2$.
 
 **Claim 17** (Dependent on Claim 16)
 
-The method of Claim 16, wherein the normalized latitude weight vector w in R^{N_grid} is precomputed once as a fixed floating-point tensor stored in the dataset object and broadcast to shape [1, N_grid, 1] at training time, such that no per-batch latitude weight computation is required.
+The method of Claim 16, wherein the normalized latitude weight vector $\mathbf{w} \in \mathbb{R}^{N_{\text{grid}}}$ is precomputed once as a fixed floating-point tensor stored in the dataset object and broadcast to shape $[1, N_{\text{grid}}, 1]$ at training time, such that no per-batch latitude weight computation is required.
 
 **Claim 18** (Dependent on Claim 16)
 
