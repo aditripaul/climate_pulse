@@ -1,11 +1,11 @@
 ---
 name: climate-pulse-paper-generation
-description: Generate publication-ready artifacts, metrics tables, and the final PDF research paper for Climate Pulse.
+description: Generate publication-ready artifacts, metrics tables, research paper PDF, and patent specification PDF for Climate Pulse.
 ---
 
-# Climate Pulse Paper Generation
+# Climate Pulse Paper & Patent Document Generation
 
-This skill guides the generation of the final academic paper and all supporting artifacts (plots, metrics tables, comparison figures).
+This skill guides the generation of academic research papers, patent specifications, and supporting evaluation artifacts (plots, metrics tables, comparison figures).
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ All models must be trained before generating paper artifacts. Checkpoints must e
 
 ## Workflow
 
-### 1. Generate paper artifacts (figures, metrics, LaTeX tables)
+### 1. Generate paper & patent artifacts (figures, metrics, LaTeX tables)
 ```bash
 make gen-eval-artifacts
 ```
@@ -23,17 +23,21 @@ Outputs are saved to `runtime/eval_artifacts/`.
 Artifacts include:
 - Evaluation metrics for all models (RMSE, MAE, skill scores)
 - Comparison plots (TFT vs LSTM for El Niño, ST-GNN loss curves, etc.)
-- LaTeX-ready tables for the research paper
+- LaTeX-ready tables for research publications and patent documentation
 
 ### 2. Compile the PDF research paper
 ```bash
 make gen-research-paper-pdf
 ```
-This runs Pandoc + XeLaTeX on `docs/research_paper/research_paper.md` and saves `climatepulse_research_paper.pdf` to the same directory.
+Runs Pandoc + XeLaTeX on `docs/research_paper/research_paper.md` and compiles `climatepulse_research_paper.pdf`.
 
-Requirements: `pandoc` and `xelatex` (TeX Live or MikTeX) must be installed on the system.
+### 3. Compile the PDF patent specification
+```bash
+make gen-patent-application-pdf
+```
+Runs Pandoc + XeLaTeX on `docs/patent/patent_application.md` and compiles `climatepulse_patent_application.pdf`.
 
-### 3. Clean generated artifacts
+### 4. Clean generated artifacts
 ```bash
 make clean-eval-artifacts   # Removes runtime/eval_artifacts/
 ```
@@ -45,7 +49,6 @@ make clean-eval-artifacts   # Removes runtime/eval_artifacts/
 | `src/scripts/generate_eval_artifacts.py` | Main artifact generation entry point |
 | `src/visualization/charts.py` | Plot generation helpers |
 | `src/visualization/themes.py` | Matplotlib/Plotly theme configuration |
-| `src/models/el_nino/evaluate.py` | TFT / LSTM evaluation metrics |
-| `src/models/pollution/evaluate.py` | ST-GNN evaluation metrics |
-| `src/models/climate_feedback/evaluate.py` | Bayesian model evaluation |
-| `docs/research_paper/research_paper.md` | Paper source (Markdown + LaTeX) |
+| `docs/research_paper/research_paper.md` | Research paper source (Markdown + LaTeX) |
+| `docs/patent/patent_application.md` | Consolidated patent specification source |
+| `docs/project_proposal.md` | High-level project proposal |
