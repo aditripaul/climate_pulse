@@ -11,7 +11,7 @@ header-includes:
   - \SetWatermarkColor[gray]{0.95}
   - \newcommand{\gt}{>}
   - \pagestyle{fancy}
-  - '\fancyhead[L]{\small ClimatePulse: AI-Powered Global Climate Forecasting and Environmental Telemetry Framework}'
+  - '\fancyhead[L]{\small ClimatePulse Project Proposal}'
   - \fancyhead[R]{\small \today}
   - \fancyfoot[L]{pre-print DRAFT}
   - \fancyfoot[C]{\thepage}
