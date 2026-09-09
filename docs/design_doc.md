@@ -11,23 +11,23 @@
 ClimatePulse is a modular, Python-only research platform for integrated global climate forecasting. It is structured as four independent model subsystems sharing a common data pipeline, configuration layer, and storage backend.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         ClimatePulse                            │
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  ┌───────┐  │
-│  │  El Niño     │  │  Pollution   │  │    NWM    │  │ Bayes │  │
-│  │  TFT / LSTM  │  │   A3TGCN    │  │  ST-GNN   │  │ Regr. │  │
-│  └──────┬───────┘  └──────┬───────┘  └─────┬─────┘  └───┬───┘  │
-│         │                 │                │             │      │
-│  ┌──────┴─────────────────┴────────────────┴─────────────┴────┐  │
-│  │               Unified Data Pipeline (pipeline.py)          │  │
-│  └──────┬─────────────────────────────────────────────────────┘  │
-│         │                                                        │
-│  ┌──────┴──────────────────────────────────────────────────────┐  │
-│  │  Data Sources: NOAA ERSST · OpenAQ · NASA GISTEMP ·         │  │
-│  │                Climate TRACE · Google Cloud ERA5 Zarr        │  │
-│  └─────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
++-----------------------------------------------------------------+
+|                         ClimatePulse                            |
+|                                                                 |
+|  +--------------+  +--------------+  +-----------+  +-------+  |
+|  |  El Niño     |  |  Pollution   |  |    NWM    |  | Bayes |  |
+|  |  TFT / LSTM  |  |   A3TGCN    |  |  ST-GNN   |  | Regr. |  |
+|  +------+-------+  +------+-------+  +-----+-----+  +---+---+  |
+|         |                 |                |             |      |
+|  +------+-----------------+----------------+-------------+----+  |
+|  |               Unified Data Pipeline (pipeline.py)          |  |
+|  +------+-----------------------------------------------------+  |
+|         |                                                        |
+|  +------+------------------------------------------------------+  |
+|  |  Data Sources: NOAA ERSST · OpenAQ · NASA GISTEMP ·         |  |
+|  |                Climate TRACE · Google Cloud ERA5 Zarr        |  |
+|  +-------------------------------------------------------------+  |
++-----------------------------------------------------------------+
 ```
 
 ---
@@ -36,43 +36,43 @@ ClimatePulse is a modular, Python-only research platform for integrated global c
 
 ```
 src/                  # PYTHONPATH root
-├── config.py         # Pydantic-Settings: DataSettings, ModelSettings, LogSettings, …
-├── utils.py          # Device detection, ISO code conversion maps + helpers
-├── data/
-│   ├── pipeline.py           # DataPipeline orchestrator
-│   ├── sources/              # One class per external data source
-│   │   ├── noaa_ersst.py     # NOAAERSSTSource
-│   │   ├── openaq.py         # OpenAQSource
-│   │   ├── nasa_gistemp.py   # NASAGISTEMPSource
-│   │   └── climate_trace.py  # ClimateTraceSource
-│   ├── processing/           # Feature engineering functions
-│   └── storage/
-│       └── db.py             # Database: JSON metadata + Parquet bulk store
-├── models/
-│   ├── el_nino/
-│   │   ├── tft_model.py      # TemporalFusionTransformer (pytorch-forecasting)
-│   │   ├── lstm_baseline.py  # LSTMForecaster (native PyTorch)
-│   │   ├── dataset.py        # LSTMDataset, TFT TimeSeriesDataSet builder
-│   │   ├── trainer.py        # train_tft(), train_lstm()
-│   │   └── evaluate.py       # Metrics: RMSE, MAE, skill score
-│   ├── pollution/
-│   │   ├── stgnn_model.py    # A3TGCN wrapper
-│   │   ├── graph_dataset.py  # Sensor graph construction
-│   │   ├── trainer.py        # Native PyTorch loop
-│   │   └── evaluate.py
-│   ├── nwm/
-│   │   ├── stgnn_model.py    # NWMModel (Encoder–Processor–Decoder)
-│   │   ├── graph_builder.py  # SphericalGraphBuilder (Fibonacci mesh, KD-tree)
-│   │   ├── dataset.py        # NWMDataset (ERA5 NetCDF + Niño conditioning)
-│   │   └── trainer.py        # NWMTrainer (native PyTorch, no lightning)
-│   └── climate_feedback/
-│       ├── bayesian_regression.py  # build_bayesian_model(), fit_bayesian_model()
-│       └── evaluate.py
-└── scripts/
-    ├── download_data.py           # CLI: ingest pipeline
-    ├── download_nwm_data.py       # CLI: ERA5 Zarr download
-    ├── train_models.py            # CLI: train all / individual models
-    └── generate_eval_artifacts.py
++-- config.py         # Pydantic-Settings: DataSettings, ModelSettings, LogSettings, …
++-- utils.py          # Device detection, ISO code conversion maps + helpers
++-- data/
+|   +-- pipeline.py           # DataPipeline orchestrator
+|   +-- sources/              # One class per external data source
+|   |   +-- noaa_ersst.py     # NOAAERSSTSource
+|   |   +-- openaq.py         # OpenAQSource
+|   |   +-- nasa_gistemp.py   # NASAGISTEMPSource
+|   |   +-- climate_trace.py  # ClimateTraceSource
+|   +-- processing/           # Feature engineering functions
+|   +-- storage/
+|       +-- db.py             # Database: JSON metadata + Parquet bulk store
++-- models/
+|   +-- el_nino/
+|   |   +-- tft_model.py      # TemporalFusionTransformer (pytorch-forecasting)
+|   |   +-- lstm_baseline.py  # LSTMForecaster (native PyTorch)
+|   |   +-- dataset.py        # LSTMDataset, TFT TimeSeriesDataSet builder
+|   |   +-- trainer.py        # train_tft(), train_lstm()
+|   |   +-- evaluate.py       # Metrics: RMSE, MAE, skill score
+|   +-- pollution/
+|   |   +-- stgnn_model.py    # A3TGCN wrapper
+|   |   +-- graph_dataset.py  # Sensor graph construction
+|   |   +-- trainer.py        # Native PyTorch loop
+|   |   +-- evaluate.py
+|   +-- nwm/
+|   |   +-- stgnn_model.py    # NWMModel (Encoder–Processor–Decoder)
+|   |   +-- graph_builder.py  # SphericalGraphBuilder (Fibonacci mesh, KD-tree)
+|   |   +-- dataset.py        # NWMDataset (ERA5 NetCDF + Niño conditioning)
+|   |   +-- trainer.py        # NWMTrainer (native PyTorch, no lightning)
+|   +-- climate_feedback/
+|       +-- bayesian_regression.py  # build_bayesian_model(), fit_bayesian_model()
+|       +-- evaluate.py
++-- scripts/
+    +-- download_data.py           # CLI: ingest pipeline
+    +-- download_nwm_data.py       # CLI: ERA5 Zarr download
+    +-- train_models.py            # CLI: train all / individual models
+    +-- generate_eval_artifacts.py
 ```
 
 ---
@@ -83,11 +83,11 @@ src/                  # PYTHONPATH root
 
 ```
 get_settings()  →  Settings (singleton, lru_cache)
-                    ├── DataSettings      (prefix: DATA_)
-                    ├── ModelSettings     (prefix: MODEL_)
-                    ├── LogSettings       (prefix: LOG_)
-                    ├── TFTModelSettings  (prefix: TFT_)
-                    └── GRPCSettings      (prefix: GRPC_)
+                    +-- DataSettings      (prefix: DATA_)
+                    +-- ModelSettings     (prefix: MODEL_)
+                    +-- LogSettings       (prefix: LOG_)
+                    +-- TFTModelSettings  (prefix: TFT_)
+                    +-- GRPCSettings      (prefix: GRPC_)
 ```
 
 Each `BaseSettings` subclass reads from three sources in increasing priority:
@@ -157,18 +157,18 @@ OpenAQ accepts ISO-2 codes; user config uses ISO-3. The conversion happens insid
 
 ### 5.1 El Niño — Temporal Fusion Transformer (TFT)
 
-**Library:** `pytorch-forecasting ≥ 1.8.0`  
+**Library:** `pytorch-forecasting $\ge$ 1.8.0`  
 **Training driver:** `pytorch-lightning` (transitive dep; `L.Trainer`)  
 
 ```
 Input: Niño 3.4 time-series (monthly, encoder_length months)
        + static covariates (month-of-year encoding)
-  │
-  ├─ Variable Selection Networks
-  ├─ LSTM Encoder (seq2seq)
-  ├─ Static Enrichment
-  ├─ Temporal Self-Attention (multi-head)
-  └─ Output: predictions for next [1, prediction_months] steps
+  |
+  +- Variable Selection Networks
+  +- LSTM Encoder (seq2seq)
+  +- Static Enrichment
+  +- Temporal Self-Attention (multi-head)
+  +- Output: predictions for next [1, prediction_months] steps
 
 Loss: QuantileLoss (0.1, 0.5, 0.9)
 ```
@@ -220,22 +220,22 @@ Training: Native PyTorch loop
 
 ```
 Grid nodes (lat × lon ERA5 grid)
-  │  StaticFeatures: [sin(lat), cos(lat), sin(lon), cos(lon)]
-  │  DynamicFeatures: z-normalised T2m, Precip (window_size steps)
-  │
-  ▼ Encoder (BipartiteGNN: Grid → Mesh)
+  |  StaticFeatures: [sin(lat), cos(lat), sin(lon), cos(lon)]
+  |  DynamicFeatures: z-normalised T2m, Precip (window_size steps)
+  |
+  v Encoder (BipartiteGNN: Grid → Mesh)
     SAGEConv((hidden, hidden), hidden) + LayerNorm + GELU
 
 Mesh nodes (2,000 Fibonacci lattice points on unit sphere)
-  ▼ Processor (N × SAGEConv Mesh → Mesh)
+  v Processor (N × SAGEConv Mesh → Mesh)
     At each layer: mesh_feat += condition_embed(Niño3.4)
                    mesh_feat += SAGEConv(mesh_feat) + residual
 
-  ▼ Decoder (BipartiteGNN: Mesh → Grid)
+  v Decoder (BipartiteGNN: Mesh → Grid)
     SAGEConv((hidden, hidden), hidden) + LayerNorm + GELU
     + residual from grid_embed
 
-  ▼ Output Projection
+  v Output Projection
     Linear(hidden, grid_out_channels)
 
 Output: (batch, N_grid_nodes, prediction_steps × 2)
@@ -246,7 +246,7 @@ Loss: MSELoss  |  Optimizer: AdamW + ReduceLROnPlateau
 
 1. Project all (lat, lon) grid points to 3D Cartesian: `(cos(lat)cos(lon), cos(lat)sin(lon), sin(lat))`
 2. Generate 2,000 uniform mesh points using the Fibonacci lattice
-3. Build KD-trees over both sets; query k nearest neighbours (k=4 for G↔M, k=8 for M↔M)
+3. Build KD-trees over both sets; query k nearest neighbours (k=4 for G<->M, k=8 for M<->M)
 4. Edges are stored as `[2, E]` LongTensor in COO format
 
 #### Batched Edge Expansion
@@ -262,19 +262,19 @@ tgt = edge_idx[1].repeat(B) + tgt_offsets
 
 ### 5.5 Climate Feedback — Bayesian Regression
 
-**Library:** `pymc ≥ 6`, `arviz ≥ 1.2`
+**Library:** `pymc $\ge$ 6`, `arviz $\ge$ 1.2`
 
 ```
 Predictors X: [CO2_anomaly, CH4_anomaly, N2O_anomaly] (z-normalised)
 Response y: Global temperature anomaly (NASA GISTEMP)
 
 Priors:
-  α ~ Normal(0, 1)       # intercept
-  β_i ~ Normal(0, 1)     # coefficients
-  σ ~ HalfNormal(1)      # observation noise
+  alpha ~ Normal(0, 1)       # intercept
+  beta_i ~ Normal(0, 1)     # coefficients
+  sigma ~ HalfNormal(1)      # observation noise
 
 Likelihood:
-  y ~ Normal(α + X @ β, σ)
+  y ~ Normal(alpha + X @ beta, sigma)
 
 Sampling: NUTS (default 1000 draws, 2 chains)
 ```
@@ -370,45 +370,45 @@ TFT requires a `pytorch-lightning` `Trainer` because `TemporalFusionTransformer`
 
 ```
 External APIs / Files
-        │
-        ▼
-┌───────────────────┐     ┌──────────────────────────────┐
-│ Data Sources      │────▶│  DataPipeline.run_*()        │
-│ NOAA / OpenAQ /   │     │  fetch → clean → engineer    │
-│ NASA / TRACE /    │     └──────────────┬───────────────┘
-│ ERA5 Zarr         │                    │
-└───────────────────┘                    ▼
-                              ┌──────────────────────┐
-                              │  Database (db.py)     │
-                              │  ├─ metadata.json     │
-                              │  └─ *.parquet files   │
-                              └──────────┬────────────┘
-                                         │
-          ┌──────────────────────────────┼──────────────────────────────┐
-          ▼                              ▼                              ▼
-  ┌──────────────┐              ┌──────────────────┐           ┌──────────────┐
-  │  El Niño     │              │  Pollution       │           │  NWM         │
-  │  Dataset     │              │  GraphDataset    │           │  NWMDataset  │
-  │  (Niño 3.4)  │              │  (PM2.5 sensor)  │           │  (ERA5 .nc)  │
-  └──────┬───────┘              └───────┬──────────┘           └──────┬───────┘
-         │                             │                              │
-         ▼                             ▼                              ▼
-  ┌──────────────┐              ┌──────────────────┐           ┌──────────────┐
-  │  TFT / LSTM  │              │  A3TGCN Trainer  │           │  NWMTrainer  │
-  │  Trainer     │              │  (native PyTorch)│           │  (native     │
-  │  (Lightning) │              └──────────────────┘           │   PyTorch)   │
-  └──────────────┘                                             └──────────────┘
-         │                             │                              │
-         └─────────────────────────────┴──────────────────────────────┘
-                                       │
-                                       ▼
-                               ┌──────────────────────┐
-                               │  runtime/             │
-                               │  ├─ models/           │
-                               │  ├─ eval_artifacts/   │
-                               │  ├─ saved/            │
-                               │  └─ logs/             │
-                               └──────────────────────┘
+        |
+        v
++-------------------+     +------------------------------+
+| Data Sources      |----->|  DataPipeline.run_*()        |
+| NOAA / OpenAQ /   |     |  fetch → clean → engineer    |
+| NASA / TRACE /    |     +--------------+---------------+
+| ERA5 Zarr         |                    |
++-------------------+                    v
+                              +----------------------+
+                              |  Database (db.py)     |
+                              |  +- metadata.json     |
+                              |  +- *.parquet files   |
+                              +----------+------------+
+                                         |
+          +------------------------------+------------------------------+
+          v                              v                              v
+  +--------------+              +------------------+           +--------------+
+  |  El Niño     |              |  Pollution       |           |  NWM         |
+  |  Dataset     |              |  GraphDataset    |           |  NWMDataset  |
+  |  (Niño 3.4)  |              |  (PM2.5 sensor)  |           |  (ERA5 .nc)  |
+  +------+-------+              +-------+----------+           +------+-------+
+         |                             |                              |
+         v                             v                              v
+  +--------------+              +------------------+           +--------------+
+  |  TFT / LSTM  |              |  A3TGCN Trainer  |           |  NWMTrainer  |
+  |  Trainer     |              |  (native PyTorch)|           |  (native     |
+  |  (Lightning) |              +------------------+           |   PyTorch)   |
+  +--------------+                                             +--------------+
+         |                             |                              |
+         +-----------------------------+------------------------------+
+                                       |
+                                       v
+                               +----------------------+
+                               |  runtime/             |
+                               |  +- models/           |
+                               |  +- eval_artifacts/   |
+                               |  +- saved/            |
+                               |  +- logs/             |
+                               +----------------------+
 ```
 
 ---
@@ -468,7 +468,7 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 | NWM mesh resolution | 2,000 Fibonacci nodes | Hierarchical icosahedral mesh (GraphCast-style) |
 | NWM variables | T2m, Precip only | Add wind, humidity, pressure level data |
 | Pollution graph | Static k-NN graph | Dynamic graph with time-varying edge weights |
-| TFT covariates | Niño 3.4 only | Add CO₂ ppm, solar index as global covariates |
+| TFT covariates | Niño 3.4 only | Add $\text{CO}_2$ ppm, solar index as global covariates |
 | Bayesian model | Single-level regression | Hierarchical by region/country |
 | Evaluation | RMSE/MAE | Add CRPS (probabilistic), anomaly correlation coefficient |
 | Artifact generator | Monolithic 27 KB script | Split into per-model artifact modules |

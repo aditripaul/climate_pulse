@@ -18,11 +18,11 @@ ClimatePulse is an academic deep learning research project exploring the interco
 | Model | Task | Architecture |
 |:---|:---|:---|
 | **El Niño Forecaster** | Predict ENSO phase 3–60 months ahead | Temporal Fusion Transformer (TFT) + BiLSTM baseline |
-| **Pollution Dispersion** | Spatiotemporal PM2.5 / NO₂ across sensor networks | Attention-based Temporal Graph Conv (A3TGCN) |
+| **Pollution Dispersion** | Spatiotemporal PM2.5 / NO$_2$ across sensor networks | Attention-based Temporal Graph Conv (A3TGCN) |
 | **Climate Feedback** | Detect warming regime changepoints | Bayesian Hierarchical Regression (PyMC) |
 | **Neural Weather Model** | Global T2m & precipitation conditioned on ENSO | Spherical Mesh Encoder–Processor–Decoder (ST-GNN) |
 
-The full stack is Python-only, using efficient data formats (Parquet + JSON) and mixed-precision PyTorch pipelines designed to run on consumer hardware (≥15 GB VRAM) as well as cloud environments.
+The full stack is Python-only, using efficient data formats (Parquet + JSON) and mixed-precision PyTorch pipelines designed to run on consumer hardware (>= 15 GB VRAM) as well as cloud environments.
 
 ---
 
@@ -68,9 +68,9 @@ Data ingestion is constrained to the **1950–present** window for high-fidelity
 | Source | Content | Access |
 |:---|:---|:---|
 | [NOAA ERSST v5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html) | Sea surface temperature anomalies & Niño 3.4 Index | OPeNDAP |
-| [OpenAQ v3](https://openaq.org/) | Global PM2.5, NO₂, O₃ measurements | REST API (key required) |
+| [OpenAQ v3](https://openaq.org/) | Global PM2.5, NO$_2$, $O$_3$$ measurements | REST API (key required) |
 | [NASA GISTEMP v4](https://data.giss.nasa.gov/gistemp/) | Long-term global surface temperature anomalies | Direct download |
-| [Climate TRACE v7](https://climatetrace.org/) | CO₂, CH₄, N₂O emission inventories by sector | REST API |
+| [Climate TRACE v7](https://climatetrace.org/) | CO$_2$, CH$_4$, N$_2$O emission inventories by sector | REST API |
 | [WeatherBench 2 / ERA5](https://weatherbench2.readthedocs.io/) | 2m temperature & total precipitation (5.625° grid, 6-hourly) | Google Cloud Zarr |
 
 ---
@@ -181,43 +181,43 @@ This project follows a modular architecture designed to separate data ingestion,
 
 ```text
 climate_pulse/
-├── src/                          # All source code (PYTHONPATH=src)
-│   ├── config.py                 # Pydantic-Settings configuration
-│   ├── utils.py                  # ISO helpers, device detection
-│   ├── data/
-│   │   ├── pipeline.py           # Orchestrates fetch -> clean -> store
-│   │   ├── sources/              # Data connectors (NOAA, OpenAQ, NASA, TRACE)
-│   │   ├── processing/           # Feature engineering (Nino 3.4, AQI, ...)
-│   │   └── storage/db.py         # JSON metadata + Parquet data store
-│   ├── models/
-│   │   ├── el_nino/              # TFT (pytorch-forecasting) + BiLSTM
-│   │   ├── pollution/            # A3TGCN over OpenAQ sensor graph
-│   │   ├── nwm/                  # Neural Weather Model (native PyTorch ST-GNN)
-│   │   └── climate_feedback/     # Bayesian hierarchical regression (PyMC)
-│   └── scripts/
-│       ├── download_data.py
-│       ├── download_nwm_data.py
-│       ├── train_models.py       # CLI entry point for all training
-│       └── generate_eval_artifacts.py
-├── configs/
-│   ├── runtime_conf.yaml         # Default runtime configuration
-│   └── dataset_conf.yaml         # Dataset-specific metadata
-├── datasets/                     # Data root (gitignored)
-│   ├── raw/                      # Raw downloads
-│   └── processed/                # Cleaned Parquet files
-├── runtime/                      # Execution artifacts (gitignored)
-│   ├── models/checkpoints/       # Trained model weights
-│   ├── eval_artifacts/           # Figures, CSVs for paper
-│   ├── saved/                    # Snapshot runs saved for future inference
-│   └── logs/                     # Training logs
-├── docs/
-│   ├── research_paper/           # Research paper source
-│   ├── requirement_spec.md       # Formal requirements specification
-│   └── design_doc.md             # Architecture and design decisions
-├── pyproject.toml                # Package metadata and dependencies
-├── requirements.txt              # Flat dependency list
-├── Makefile                      # Developer workflow commands
-└── .env.example                  # Template for environment variables
+|-- src/                          # All source code (PYTHONPATH=src)
+|   |-- config.py                 # Pydantic-Settings configuration
+|   |-- utils.py                  # ISO helpers, device detection
+|   |-- data/
+|   |   |-- pipeline.py           # Orchestrates fetch -> clean -> store
+|   |   |-- sources/              # Data connectors (NOAA, OpenAQ, NASA, TRACE)
+|   |   |-- processing/           # Feature engineering (Nino 3.4, AQI, ...)
+|   |   +-- storage/db.py         # JSON metadata + Parquet data store
+|   |-- models/
+|   |   |-- el_nino/              # TFT (pytorch-forecasting) + BiLSTM
+|   |   |-- pollution/            # A3TGCN over OpenAQ sensor graph
+|   |   |-- nwm/                  # Neural Weather Model (native PyTorch ST-GNN)
+|   |   +-- climate_feedback/     # Bayesian hierarchical regression (PyMC)
+|   +-- scripts/
+|       |-- download_data.py
+|       |-- download_nwm_data.py
+|       |-- train_models.py       # CLI entry point for all training
+|       +-- generate_eval_artifacts.py
+|-- configs/
+|   |-- runtime_conf.yaml         # Default runtime configuration
+|   +-- dataset_conf.yaml         # Dataset-specific metadata
+|-- datasets/                     # Data root (gitignored)
+|   |-- raw/                      # Raw downloads
+|   +-- processed/                # Cleaned Parquet files
+|-- runtime/                      # Execution artifacts (gitignored)
+|   |-- models/checkpoints/       # Trained model weights
+|   |-- eval_artifacts/           # Figures, CSVs for paper
+|   |-- saved/                    # Snapshot runs saved for future inference
+|   +-- logs/                     # Training logs
+|-- docs/
+|   |-- research_paper/           # Research paper source
+|   |-- requirement_spec.md       # Formal requirements specification
+|   +-- design_doc.md             # Architecture and design decisions
+|-- pyproject.toml                # Package metadata and dependencies
+|-- requirements.txt              # Flat dependency list
+|-- Makefile                      # Developer workflow commands
++-- .env.example                  # Template for environment variables
 ```
 
 ---

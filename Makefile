@@ -97,11 +97,18 @@ sync-paper-artifacts:
 	cp runtime/eval_artifacts/*.png docs/research_paper/artifacts/ 2>/dev/null || true
 
 gen-research-paper-pdf: sync-paper-artifacts
-	cd docs/research_paper/ && pandoc research_paper.md -o climatepulse_research_paper.pdf \
+	cd docs/research_paper/ && sed '/^```mermaid$/,/^```$/d' research_paper.md | pandoc research_paper.md -o climatepulse_research_paper.pdf \
     --pdf-engine=xelatex \
     --metadata=smart:false \
     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
     -s
+
+gen-research-paper_2-pdf: sync-paper-artifacts
+	cd docs/research_paper/ && sed '/^```mermaid$/,/^```$/d' research_paper_2.md | pandoc research_paper_2.md -o climatepulse_research_paper_2.pdf \
+     --pdf-engine=xelatex \
+     --metadata=smart:false \
+     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
+     -s
 
 sync-patent-artifacts:
 	mkdir -p docs/patent/artifacts/eval_artifacts/run_results

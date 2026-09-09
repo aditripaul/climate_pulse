@@ -1,3 +1,25 @@
+---
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage{amssymb}
+  - \usepackage{unicode-math}
+  - \usepackage{fancyhdr}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{draftwatermark}
+  - \SetWatermarkText{research.aditripaul.org}
+  - \SetWatermarkScale{0.25}
+  - \SetWatermarkColor[gray]{0.95}
+  - \newcommand{\gt}{>}
+  - \pagestyle{fancy}
+  - '\fancyhead[L]{\small ClimatePulse: AI-Powered Global Climate Forecasting and Environmental Telemetry Framework}'
+  - \fancyhead[R]{\small \today}
+  - \fancyfoot[L]{pre-print DRAFT}
+  - \fancyfoot[C]{\thepage}
+  - \fancyfoot[R]{\footnotesize © 2026 research.aditripaul.org}
+  - \renewcommand{\headrulewidth}{0.4pt}
+  - \setlength{\headheight}{15pt}
+---
+
 # PROJECT PROPOSAL
 
 # ClimatePulse: AI-Powered Global Climate Forecasting and Environmental Telemetry Framework
@@ -47,30 +69,30 @@ ClimatePulse connects four specialized AI modeling components through a single d
 | **Neural Weather Model** | Global $T_{2\text{m}}$ & precipitation conditioned on ENSO | Spherical Fibonacci Mesh Graph Neural Network (ST-GNN) | WeatherBench 2 / ERA5 |
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
++----------------------------------------------------------------------------------+
 |                           CLIMATEPULSE DATA PIPELINE                             |
-|               Ingests: NOAA Ocean SST · OpenAQ Telemetry · ERA5 Reanalysis       |
-└────────────────────────────────────────┬─────────────────────────────────────────┘
+|               Ingests: NOAA Ocean SST * OpenAQ Telemetry * ERA5 Reanalysis       |
++----------------------------------------+-----------------------------------------+
                                          |
-     ┌───────────────────────────────────┼───────────────────────────────────┐
-     │                                   │                                   │
-     ▼                                   ▼                                   ▼
-┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
+     +-----------------------------------+-----------------------------------+
+     |                                   |                                   |
+     v                                   v                                   v
++------------------------+   +------------------------+   +------------------------+
 |  1. EL NIÑO FORECASTER  |   | 2. POLLUTION DISPERSION|   |  4. CLIMATE FEEDBACK   |
 |  Models macro ocean    |   | Models local sensor    |   | Models long-term global|
 |  oscillations (ENSO)   |   | network air quality    |   | temperature trends     |
 |                        |   |                        |   |                        |
 | Output: Niño 3.4 Index |   | Output: PM2.5 & AQI    |   | Output: Changepoints   |
-└───────────┬────────────┘   └────────────────────────┘   └────────────────────────┘
-            │
-            │ (Macro-Climate Background Conditioning)
-            ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
++-----------+------------+   +------------------------+   +------------------------+
+            |
+            | (Macro-Climate Background Conditioning)
+            v
++----------------------------------------------------------------------------------+
 |                         3. NEURAL WEATHER MODEL (NWM)                            |
-| Maps observation grid → Uniform 3D Spherical Mesh → Conditioned Latent Processor |
+| Maps observation grid -> Uniform 3D Spherical Mesh -> Conditioned Latent Processor |
 |                                                                                  |
 | Output: Predicted Global Temperature (T2m) and Precipitation Fields             |
-└──────────────────────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------------------------+
 ```
 
 ### 2.2 Subsystem Details

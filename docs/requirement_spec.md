@@ -25,9 +25,9 @@ This document defines the functional, data, model, and non-functional requiremen
 | ID | Requirement |
 |:---|:---|
 | **D-01** | The system shall fetch NOAA ERSST v5 SST anomaly grids via OPeNDAP for the period 1950–present. |
-| **D-02** | The system shall fetch OpenAQ v3 PM2.5 (and optionally NO₂, O₃) measurements for configurable country sets via the REST API. |
+| **D-02** | The system shall fetch OpenAQ v3 PM2.5 (and optionally NO$_2$, O$_3$) measurements for configurable country sets via the REST API. |
 | **D-03** | The system shall fetch NASA GISTEMP v4 global surface temperature anomaly records. |
-| **D-04** | The system shall fetch Climate TRACE v7 emission inventories (CO₂, CH₄, N₂O). |
+| **D-04** | The system shall fetch Climate TRACE v7 emission inventories (CO$_2$, CH$_4$, N$_2$O). |
 | **D-05** | The system shall download ERA5 6-hourly T2m and total precipitation at 5.625° resolution from Google Cloud Zarr (WeatherBench 2). |
 | **D-06** | All raw data shall be stored in `datasets/raw/` and processed artefacts in `datasets/processed/` as Parquet files, with metadata tracked in a JSON store (`db.py`). |
 | **D-07** | OpenAQ locations discovered during ingestion shall be persisted to `datasets/processed/openaq/locations.parquet` for reuse by the ST-GNN graph builder. |
@@ -80,7 +80,7 @@ This document defines the functional, data, model, and non-functional requiremen
 
 | ID | Requirement |
 |:---|:---|
-| **B-01** | The system shall fit a Bayesian hierarchical regression (PyMC) on CO₂, CH₄ emissions and NASA GISTEMP temperature anomalies to estimate climate sensitivity. |
+| **B-01** | The system shall fit a Bayesian hierarchical regression (PyMC) on CO$_2$, CH$_4$ emissions and NASA GISTEMP temperature anomalies to estimate climate sensitivity. |
 | **B-02** | The model fitting results shall include posterior trace, summary statistics, and posterior predictive samples. |
 | **B-03** | Normalisation parameters (`X_mean`, `X_std`, `predictor_cols`) shall be returned alongside the model object rather than monkey-patched onto `pm.Model`. |
 
@@ -114,7 +114,7 @@ This document defines the functional, data, model, and non-functional requiremen
 | ID | Requirement |
 |:---|:---|
 | **NF-01** | All models shall support mixed-precision training (FP16/BF16) where hardware allows. |
-| **NF-02** | The system shall run end-to-end (data ingestion + all model training) on a single workstation with ≥15 GB VRAM. |
+| **NF-02** | The system shall run end-to-end (data ingestion + all model training) on a single workstation with >= 15 GB VRAM. |
 | **NF-03** | NWM batch edge expansion shall be O(E) in tensor operations, not O(batch × E) via Python loops. |
 
 ### 4.2 Hardware Compatibility
@@ -185,4 +185,4 @@ This document defines the functional, data, model, and non-functional requiremen
 - Data ingestion is constrained to **1950–2030**.
 - OpenAQ coverage begins in **2015**.
 - The NWM model requires ERA5 data to be downloaded separately (`download_nwm_data.py`) before training.
-- The TFT trainer requires `pytorch-forecasting ≥ 1.8.0` which pulls in `pytorch-lightning` as a transitive dependency.
+- The TFT trainer requires `pytorch-forecasting >= 1.8.0` which pulls in `pytorch-lightning` as a transitive dependency.
