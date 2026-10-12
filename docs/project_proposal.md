@@ -24,6 +24,9 @@ header-includes:
 
 # ClimatePulse: AI-Powered Global Climate Forecasting and Environmental Telemetry Framework
 
+### Aditri Paul (2428010209)
+### Manipal University Jaipur
+
 ---
 
 ## EXECUTIVE SUMMARY
@@ -109,7 +112,7 @@ ClimatePulse connects four specialized AI modeling components through a single d
 
 #### 2.2.3 Neural Weather Model (Global Weather Module)
 - **Role:** Predicts global surface temperatures ($T_{2\text{m}}$) and total precipitation fields.
-- **How it Works:** 
+- **How it Works:**
   1. **Uniform 3D Spherical Mesh:** Converts flat latitude-longitude maps into a 2,000-node 3D spherical mesh (using a golden-angle spiral) to eliminate polar surface distortion.
   2. **Macro-Climate Conditioning:** Injects the predicted El Niño state directly into the neural network's internal processor layers so that the global forecast is dynamically shaped by the active climate phase.
   3. **Physical Area Weighting:** Weights the learning objective by the physical surface area of each grid cell to ensure fair global prediction accuracy.

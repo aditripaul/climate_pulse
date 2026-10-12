@@ -1,4 +1,4 @@
-.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf help
+.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
 
 .DEFAULT_GOAL := help
 
@@ -122,6 +122,13 @@ gen-patent-application-pdf: sync-patent-artifacts
     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
     -s
 
+project_proposal_pdf:
+	cd docs/ && pandoc project_proposal.md -o project_proposal.pdf \
+    --pdf-engine=xelatex \
+    --metadata=smart:false \
+    -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
+    -s
+
 # === Save Run ===
 save-run:
 	@echo "Saving latest run artifacts and checkpoints for future inference..."
@@ -166,6 +173,7 @@ help:
 	@echo "  make sync-patent-artifacts : Sync evaluation artifacts to patent docs"
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
 	@echo "  make gen-patent-application-pdf : Generate publication-quality patent application pdf"
+	@echo "  make project_proposal_pdf : Generate project proposal pdf"
 	@echo "  make save-run : Save the latest trained checkpoints and evaluation artifacts to a timestamped folder for future inference"
 	@echo "  make clean : Remove build and test cache artifacts"
 	@echo "  make clean-checkpoints : Remove trained model checkpoints"
