@@ -22,12 +22,15 @@ header-includes:
 
 # ClimatePulse: Temporal Fusion Transformers and Spatio-Temporal Graph Networks in Climate Modeling
 
+### Authors: Aditri Paul, Dr. Hema Shekhawat
+### Manipal University Jaipur
+
 
 ## Abstract
 
 Global climatic phenomena, regional pollution dispersion, and atmospheric field mechanics do not operate in isolation. They form a coupled, multi-scale physical system that no single modelling tradition has adequately captured. ClimatePulse binds four complementary components into one reproducible pipeline: (1) multi-horizon El Niño–Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with calibrated quantile regression; (2) PM2.5 dispersion modelling across 75 global monitoring stations through a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather-field prediction at $5.625^{\circ}$ resolution using a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh, conditioned on the Niño 3.4 index; and (4) Bayesian piecewise regression paired with CUSUM-based change-point detection for climate-feedback analysis.
 
-On held-out test data, evaluation yields RMSE = 0.3505 °C and anomaly correlation ACC = 0.9449 for the TFT, translating to a skill score of 0.9051 against a persistence baseline of 0.1737, a 524.2 % relative improvement over the bidirectional LSTM baseline (skill score 0.1450). For PM2.5 exceedance detection at AQI > 100, the pollution ST-GNN records F1 = 0.9750 (precision 0.9677, recall 0.9825). NWM training converges to a best validation MSE of 0.1182 at epoch 78 of 89, with final training MSE of 0.1035. Across 912 months of GISTEMP temperature anomalies, Bayesian analysis detects no statistically reliable structural break; within the resolution of the data, the warming trend appears continuous and monotonic.
+On held-out test data, evaluation yields RMSE = 0.3505 °C and anomaly correlation ACC = 0.9449 for the TFT, translating to a skill score of 0.9051 against a persistence baseline of 0.1737, a 524.2 % relative improvement over the bidirectional LSTM baseline (skill score 0.1450). For PM2.5 exceedance detection at AQI > 100, the pollution ST-GNN records F1 = 0.9750 (precision 0.9677, recall 0.9825). NWM training converges to a best validation MSE of 0.1182 at epoch 78 of 89, with final training MSE of 0.1035. Across 918 months of GISTEMP temperature anomalies, Bayesian analysis detects no statistically reliable structural break; within the resolution of the data, the warming trend appears continuous and monotonic.
 
 **Keywords:** Climate forecasting, Temporal Fusion Transformer, Spatio-temporal graph neural networks, Neural Weather Model, Encoder-Processor-Decoder, El Niño–Southern Oscillation, PM2.5 exceedance, Uncertainty quantification, Bayesian change-point detection
 
@@ -42,7 +45,7 @@ Few scientific problems carry the practical urgency of climate change, and fewer
 
 ### 1.2 Challenges in Existing Approaches
 
-There are three structural limitations recur across the literature.
+Three structural limitations recur across the literature.
 
 - Numerical Weather Prediction (NWP) models, while physically grounded, carry computational latencies that render real-time decision support impractical.
 
@@ -74,7 +77,7 @@ B) **Rigorous empirical validation.** Evaluation proceeds against persistence an
 
 C) **Spherical-aware neural weather modelling.** The NWM relies on a 2,000-node Fibonacci lattice mesh with grid-to-mesh, mesh-to-mesh, and mesh-to-grid bipartite GraphSAGE convolution stages. The architecture conditions on the Niño 3.4 index at every processor layer. Spherical-awareness is structural, not post-hoc.
 
-**Reproducibility.** All data download, training, and evaluation steps are encapsulated in a declarative pipeline (`download-data`, `train`, `gen-eval-artifacts`), producing all paper figures and metrics without manual intervention.
+D) **Reproducibility.** All data download, training, and evaluation steps are encapsulated in a declarative pipeline (`download-data`, `train`, `gen-eval-artifacts`), producing all paper figures and metrics without manual intervention.
 
 ---
 
@@ -118,19 +121,19 @@ C) **NASA GISTEMP v4** contributes the global land-ocean surface temperature ano
 
 D) **Climate TRACE v7** delivers sectoral greenhouse-gas emissions ($\text{CO}_2$, $\text{CH}_4$, $\text{N}_2\text{O}$) across 196 countries and 11 sectors.
 
-E) **ERA5 (WeatherBench2)** supplies 6-hourly global reanalysis at $5.625^{\circ}$ resolution. Two variables are extracted — 2 m air temperature and total precipitation — over a 2020–2022 training window.
+E) **ERA5 (WeatherBench2)** supplies 6-hourly global reanalysis at $5.625^{\circ}$ resolution. Two variables are extracted — 2 m air temperature and total precipitation — over 2020–2021 (2,924 six-hourly steps).
 
 **Table 1: Dataset Statistics and Coverage**
 
 | Dataset | Temporal Range | Spatial Coverage | Processed Frequency |
 |---|---|---|---|
-| NOAA ERSST v5 | 1854–2024 | Global $2^{\circ} \times 2^{\circ}$ | Monthly |
-| OpenAQ v3 | 2015–2024 | 75 stations (IN, US) | Monthly aggregates |
-| NASA GISTEMP v4 | 1880–2024 | Global land-ocean | Monthly |
-| Climate TRACE v7 | 2015–2023 | 196 countries, 11 sectors | Annual (interpolated) |
-| ERA5 (WeatherBench2) | 2020–2022 | Global $5.625^{\circ}$ | 6-hourly |
+| NOAA ERSST v5 | 1950–2026 (record from 1854) | Global $2^{\circ} \times 2^{\circ}$ | Monthly |
+| OpenAQ v3 | 2016–2025 | 75 stations (IN, US) | Daily aggregates |
+| NASA GISTEMP v4 | 1950–2026 (record from 1880) | Global land-ocean | Monthly |
+| Climate TRACE v7 | 2021–2026 | 93 countries, 7 sectors (as ingested) | Annual |
+| ERA5 (WeatherBench2) | 2020–2021 | Global $5.625^{\circ}$ | 6-hourly |
 
-<!-- ![](figure-1.png) -->
+![](figure-1.png)
 
 ```mermaid
 flowchart LR
@@ -146,15 +149,17 @@ flowchart LR
 
 ### 3.2 Feature Engineering
 
-A) **El Niño module.** The TFT training set is formatted in long form: integer time index, a single series identifier, and time-varying covariates. Known reals include cyclic month encodings ($\sin(2\pi m/12)$, $\cos(2\pi m/12)$) alongside raw month and year. Unknown reals comprise the Niño 3.4 target, lag features at 1, 3, 6, and 12 months, and rolling statistics. Missing values (fewer than 2 % of entries) are handled by backward-fill followed by zero-imputation. The resulting feature matrix contains 918 timesteps and 15 features, split 70/15/15 by time index.
+A) **El Niño module.** The TFT training set is formatted in long form: integer time index, a single series identifier, and time-varying covariates. Known reals include cyclic month encodings ($\sin(2\pi m/12)$, $\cos(2\pi m/12)$) alongside raw month and year. Unknown reals comprise the Niño 3.4 target, the Niño 1+2, Niño 3, and Niño 4 indices, and rolling mean and standard deviation of Niño 3.4 over 3-, 6-, and 12-month windows. Missing values (fewer than 2 % of entries) are handled by backward-fill followed by zero-imputation. The resulting feature matrix contains 918 timesteps and 15 features, split 70/15/15 by time index.
 
-B) **Pollution module.** OpenAQ coordinates define a proximity graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, W)$ with $|\mathcal{V}|=75$ nodes and $|\mathcal{E}|=705$ edges (average degree 9.4), constructed via $k$-nearest neighbours ($k=10$) under Haversine great-circle distance. Edge weights $w_{ij} = 1/d_{ij}$ are inverse-distance normalised per node. PM2.5 measurements are aggregated into 180 daily temporal snapshots with window size $P=7$, yielding 20 windowed samples. Z-score normalisation follows (mean = 112.99, std = 85.72 AQI units).
+B) **Pollution module.** OpenAQ coordinates define a proximity graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, W)$ with $|\mathcal{V}|=75$ nodes and $|\mathcal{E}|=705$ edges (average degree 9.4), constructed via $k$-nearest neighbours ($k=10$) under Haversine great-circle distance. Edge weights $w_{ij} = 1/(d_{ij}+1)$ ($d_{ij}$ in km, edges capped at 500 km) are scaled by the global maximum weight. PM2.5 measurements are aggregated into 180 daily temporal snapshots with window size $P=7$, yielding 118 training, 21 validation, and 20 test windows. Z-score normalisation follows (mean = 112.99, std = 85.72 AQI units).
 
 C) **NWM module.** ERA5 fields are extracted as $[\text{Time}, \text{Lat}, \text{Lon}]$ arrays and independently z-score normalised. Input tensors are formed by transposing a temporal window of size $W=2$ into $[\text{Lat}\times\text{Lon},\, 2C]$ (2 channels × 2 time steps); the target is the next single step in the same flattened format. The Niño 3.4 scalar for each sample timestamp is retrieved via nearest-index lookup on a monthly parquet file. Splits follow 70/15/15 by temporal index.
 
 ---
 
 ## 4. Methodology
+
+![](figure-2.png)
 
 ```mermaid
 flowchart TD
@@ -176,9 +181,9 @@ where $Q$, $K$, $V$ are linear projections of LSTM encoder hidden states, hidden
 
 $$\mathcal{L}_{\text{TFT}} = \sum_{\tau \in \{0.1, 0.5, 0.9\}} \mathbb{E}\bigl[\rho_\tau(y - \hat{q}_\tau)\bigr], \quad \rho_\tau(u) = u(\tau - \mathbf{1}[u < 0])$$
 
-**Configuration.** Encoder length 60 months; prediction horizon 12 months; hidden size 32; hidden continuous size 16; attention heads 4; dropout 0.1. Adam ($\beta_1=0.9$, $\beta_2=0.999$, lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5, min_lr = $10^{-5}$), batch size 64, max 100 epochs, early-stopping patience 10.
+**Configuration.** Encoder length 60 months; prediction horizon 12 months; hidden size 32; hidden continuous size 16; attention heads 4; dropout 0.1. Adam ($\beta_1=0.9$, $\beta_2=0.999$, lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5, min_lr = $10^{-5}$), batch size 32, gradient-clip value 0.1, max 100 epochs, early-stopping patience 10.
 
-**LSTM baseline.** Two-layer bidirectional LSTM, hidden size 64 per direction, 144,228 total parameters, dropout rate 0.1. The final hidden state passes through a two-layer MLP ($[128 \to 64 \to 12]$) to produce 12-month forecasts. Adam (lr = 0.001, weight_decay = $10^{-5}$), batch size 32, gradient-clip norm = 1.0, max 150 epochs, patience 15.
+**LSTM baseline.** Two-layer bidirectional LSTM, hidden size 64 per direction, 142,668 total parameters, dropout rate 0.1. The final hidden state passes through a two-layer MLP ($[128 \to 64 \to 12]$) to produce 12-month forecasts. Adam (lr = 0.001), batch size 32, gradient-clip norm = 1.0, max 100 epochs, patience 15.
 
 **Persistence baseline.** $\hat{y}_{t+k} = y_t \; \forall k = 1,\ldots,12$ (last observed anomaly held constant).
 
@@ -186,16 +191,19 @@ $$\mathcal{L}_{\text{TFT}} = \sum_{\tau \in \{0.1, 0.5, 0.9\}} \mathbb{E}\bigl[\
 
 **Architecture.** Operating on the 75-node monitoring graph, the A3TGCN layer [2] processes $X \in \mathbb{R}^{N \times C \times P}$ (nodes, channels, periods $P=7$) through three stages: (1) spectral graph convolution over $\hat{A} = D^{-1/2}(A+I)D^{-1/2}$ for spatial message passing; (2) GRU cells evolving hidden state across $P$ snapshots; (3) soft attention over temporal states $\alpha_p = \text{Softmax}(\mathbf{W}_\alpha \mathbf{h}_p)$. The context-weighted representation $\mathbf{h} \in \mathbb{R}^{N \times 32}$ feeds a two-stage MLP ($[32 \to 16 \to 1]$, ReLU, dropout 0.1). Total parameters: 6,984.
 
-**Training objective.** A multi-objective loss couples MSE regression with Binary Cross-Entropy for exceedance classification at AQI threshold 100:
+**Training objective.** Mean-squared error on z-score-normalised PM2.5 values:
 
-$$\mathcal{L}_{\text{STGNN}} = \mathcal{L}_{\text{MSE}}(\hat{y}, y) + 0.5 \cdot \mathcal{L}_{\text{BCE}}(\mathbf{1}[\hat{y} > 100], \mathbf{1}[y > 100])$$
+$$\mathcal{L}_{\text{STGNN}} = \mathcal{L}_{\text{MSE}}(\hat{y}, y)$$
 
-**Configuration.** Hidden channels 32; temporal periods $P$ = 7; Adam (lr = 0.0005), graph batch size 8, max 200 epochs, patience 20.
+Exceedance labels are obtained at evaluation time by thresholding predictions and targets; no classification term enters the loss.
+
+**Configuration.** Hidden channels 32; temporal periods $P$ = 7; Adam (lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5), one graph window per step, gradient-clip norm = 1.0, 100 epochs with the best-validation checkpoint retained (no early stopping).
 
 ### 4.3 Neural Weather Model: Encoder-Processor-Decoder ST-GNN
 
 **Spherical graph construction.** The ERA5 $5.625^{\circ}$ grid yields $N_\text{grid} = 32 \times 64 = 2{,}048$ grid nodes. Each node's position projects to 3-D Cartesian unit-sphere coordinates: $[x, y, z] = [\cos\phi\cos\lambda,\, \cos\phi\sin\lambda,\, \sin\phi]$. A latent mesh of $N_\text{mesh} = 2{,}000$ nodes follows the Fibonacci lattice (golden-angle spiral $\phi_\text{golden} = \pi(3 - \sqrt{5})$), giving near-uniform spherical coverage. Three bipartite edge sets arise from KD-Tree nearest-neighbour lookup: grid-to-mesh ($k=4$ mesh neighbours per grid node), mesh-to-mesh ($k=8$ per mesh node, self-loops excluded), and mesh-to-grid ($k=4$ grid neighbours per mesh node). Per-grid-node static positional features are $[\sin\phi,\, \cos\phi,\, \sin\lambda,\, \cos\lambda]$.
 
+![](artifacts/eval_artifacts/nwm_fibonacci_mesh.png)\
 **Figure 4c:** The NWM operates on a bipartite graph structure mapping the 2,048 equirectangular ERA5 grid nodes (light coral) to a 2,000-node Fibonacci lattice spherical mesh (royal blue) for isotropic message passing.
 
 **Model architecture.** Five stages compose the NWM pipeline.
@@ -220,7 +228,7 @@ $$\mathbf{h}_g^\text{out} = \text{SAGEConv}(\mathbf{h}_m,\, \mathbf{0},\, \mathc
 
 All bipartite convolutions are vectorised across the batch dimension via edge-index offset expansion.
 
-**Training.** AdamW (lr = $10^{-3}$, weight_decay = $10^{-5}$); MSE loss on normalised outputs; `ReduceLROnPlateau` (factor = 0.5, patience = 3); gradient clipping (max norm = 1.0); early-stopping patience = 10; best checkpoint saved by minimum validation loss.
+**Training.** AdamW (lr = $10^{-3}$, weight_decay = $10^{-4}$); cosine-latitude-weighted MSE loss on normalised outputs; `ReduceLROnPlateau` (factor = 0.5, patience = 3); gradient clipping (max norm = 1.0); early-stopping patience = 10; best checkpoint saved by minimum validation loss.
 
 ### 4.4 Bayesian Climate Feedback & Change-Point Detection
 
@@ -234,16 +242,16 @@ where $\tau_k$ are change-point locations and $\delta_k$ are slope increments.
 
 **Posterior inference.** NUTS (No-U-Turn Sampler) [25] draws the full posterior: 2 chains, 2,000 draws per chain, 1,000 burn-in steps, random seed 42. Convergence is assessed via $\hat{R} < 1.01$.
 
-**CUSUM fallback.** When Bayesian sampling is infeasible, a CUSUM recursive binary-segmentation algorithm takes over. Change-points are declared where the segment CUSUM range exceeds $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, with minimum segment length 10.
+**CUSUM fallback.** When Bayesian sampling is infeasible, a CUSUM recursive binary-segmentation algorithm takes over. Change-points are declared where the segment CUSUM range exceeds $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, with minimum segment length 24.
 
 ### 4.5 Model Training Configuration Summary
 
 | Model | Optimizer | LR | Batch Size | Grad Clip | Max Epochs | Early Stopping |
 |---|---|---|---|---|---|---|
-| TFT | Adam | 0.001 | 64 | — | 100 | 10 (val CRPS) |
-| LSTM Baseline | Adam | 0.001 | 32 | 1.0 | 150 | 15 (val MSE) |
-| A3TGCN | Adam | 0.0005 | 8 (graphs) | — | 200 | 20 (val MSE) |
-| NWM ST-GNN | AdamW | 0.001 | config | 1.0 | 100 | 10 (val MSE) |
+| TFT | Adam | 0.001 | 32 | 0.1 | 100 | 10 (val quantile loss) |
+| LSTM Baseline | Adam | 0.001 | 32 | 1.0 | 100 | 15 (val MSE) |
+| A3TGCN | Adam | 0.001 | 1 (graph window) | 1.0 | 100 | — |
+| NWM ST-GNN | AdamW | 0.001 | 32 | 1.0 | 100 | 10 (val MSE) |
 
 ---
 
@@ -279,17 +287,20 @@ At 1-month lead, persistence is hard to beat (RMSE = 0.2475 °C). By month 12 it
 
 **Calibration.** The 80 % TFT prediction interval (10th–90th quantiles) achieves 57.8 % empirical coverage with an average interval width of 0.387 °C. Under-dispersion is apparent. Recalibration via conformal prediction is flagged as future work (§5.6).
 
-**Figure 1:** 12-month ahead SST anomaly forecasts (TFT median, blue) versus observed values (orange) on the held-out test set. Shaded regions indicate 10th–90th percentile uncertainty bounds.
+![](artifacts/eval_artifacts/elnino_forecast_vs_actual.png)\
+**Figure 1:** 12-month SST anomaly forecast for a single held-out test sequence: TFT median (blue) and LSTM baseline (red, dashed) versus observed Niño 3.4 values (black). The shaded region is the TFT 10th–90th percentile interval; the observations fall below it for most of this sequence, consistent with the under-coverage reported above.
 
-**Figure 2:** Continuous Ranked Probability Score (CRPS) as a function of forecast lead time. TFT (blue) maintains lower CRPS than LSTM (orange) at all lead times.
+![](artifacts/eval_artifacts/elnino_crps_leadtime.png)\
+**Figure 2:** RMSE as a function of forecast lead time. TFT (blue) stays below the LSTM (red) at all 12 lead times and below persistence (green, dashed) from month 2 onward; persistence is lower only at 1-month lead.
 
-**Figure 3:** Reliability diagram for TFT prediction intervals.
+![](artifacts/eval_artifacts/elnino_predicted_vs_actual_scatter.png)\
+**Figure 3:** Scatter of predicted vs. observed SST anomalies for the TFT (blue) and LSTM (red); the dashed line marks a perfect forecast.
 
-**Figure 3b:** Scatter of predicted vs. observed SST anomalies.
+![](artifacts/eval_artifacts/elnino_error_heatmap.png)\
+**Figure 3b:** Heatmap of absolute forecast errors across lead horizons (1–12 months) and chronological test windows.
 
-**Figure 3c:** Heatmap of absolute forecast errors across lead horizons (1–12 months) and chronological test windows.
-
-**Figure 3d:** 6-month ahead probabilistic forecast trajectories.
+![](artifacts/eval_artifacts/elnino_quantile_coverage.png)\
+**Figure 3c:** 6-month ahead TFT median forecast (blue) and 10th–90th percentile interval (shaded) versus observed values (black) across the chronological test set.
 
 ### 5.2 Spatio-Temporal Pollution Dispersion Validation
 
@@ -307,11 +318,13 @@ Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metric
 
 Recall of 0.9825 on PM2.5 exceedance matters most in an early-warning context: a missed exceedance event carries greater public-health cost than a false alarm. Precision of 0.9677 keeps false alarms tolerably low, and F1 = 0.9750 reflects the balance.
 
-Per-node RMSE (from `docs/research_paper/artifacts/eval_artifacts/run_results/pollution_node_rmse.csv`) is bimodal. Forty stations sit below RMSE 0.05; the remaining 35 scatter between 0.15 and 0.39. The worst errors (max 0.391) cluster at low-degree stations where spatial message-passing has fewer neighbours from which to aggregate context.
+Per-node RMSE (from `docs/research_paper/artifacts/eval_artifacts/run_results/pollution_node_rmse.csv`) is bimodal. Forty stations sit below RMSE 0.05; nine fall between 0.05 and 0.15, and the remaining 26 scatter between 0.15 and 0.39. The worst errors (max 0.391) cluster at low-degree stations where spatial message-passing has fewer neighbours from which to aggregate context.
 
-**Figure 4:** Spatial distribution of per-node RMSE across 75 monitoring stations.
+![](artifacts/eval_artifacts/pollution_dispersion_nodes.png)\
+**Figure 4:** Distribution of per-node RMSE across the 75 monitoring stations.
 
-**Figure 4b:** Confusion matrix for PM2.5 exceedance classification (threshold > 100 AQI). Precision=96.77%, Recall=98.25%.
+![](artifacts/eval_artifacts/pollution_confusion_matrix.png)\
+**Figure 4b:** Confusion matrix for PM2.5 exceedance classification (threshold > 100 AQI): 1,406 true positives, 47 false positives, 25 false negatives, 22 true negatives. Precision=96.77%, Recall=98.25%.
 
 ### 5.3 Neural Weather Model Performance & Convergence
 
@@ -324,27 +337,31 @@ Training ran for 89 epochs (0–88). The best validation checkpoint landed at ep
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/nwm_metrics.csv`
 
-From epoch 0 to 88, training loss fell 64.4 % (0.2938 → 0.1035); validation loss dropped 39.5 % (0.1955 → 0.1182). The 13.2 % train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the added expressivity of explicit positional features — a mild overfitting signal, not a pathological one.
+From epoch 0 to 88, training loss fell 64.8 % (0.2938 → 0.1035); validation loss dropped 39.5 % (0.1955 → 0.1182). The 13.2 % train-validation gap at the best checkpoint (0.1045 vs. 0.1182) is consistent with the added expressivity of explicit positional features — a mild overfitting signal, not a pathological one.
 
+![](artifacts/eval_artifacts/nwm_convergence_lr.png)\
 **Figure 5:** NWM MSE loss convergence and ReduceLROnPlateau learning rate schedule.
 
-**Figure 5b:** Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right).
+![](artifacts/eval_artifacts/nwm_predicted_vs_actual.png)\
+**Figure 5b:** Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right). Sample RMSE = 1.14 K.
 
-**Figure 5c:** Time-averaged RMSE per grid node across the entire test set.
+![](artifacts/eval_artifacts/nwm_spatial_error_map.png)\
+**Figure 5c:** Time-averaged 2m temperature RMSE per grid node across the entire test set (global 1.28 K, tropical 0.82 K, polar 1.43 K).
 
 ### 5.4 Bayesian Change-Point Analysis
 
-Applied to 912 months of NASA GISTEMP v4 global temperature anomalies (1950–2026), CUSUM recursive binary segmentation detected zero statistically reliable change-points (significance threshold $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, minimum segment length 10).
+Applied to 918 months of NASA GISTEMP v4 global temperature anomalies (1950–2026), CUSUM recursive binary segmentation detected zero statistically reliable change-points (significance threshold $\theta = 2\sigma_{[a,b]}\sqrt{b-a}$, minimum segment length 24).
 
 The implication is straightforward. Within the resolution of the record, warming has proceeded without a structural regime break — a continuous monotonic trend consistent with sustained anthropogenic forcing.
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/climate_feedback_results.json`
 
-**Figure 6:** Bayesian piecewise regression on GISTEMP temperature anomalies.
+![](artifacts/eval_artifacts/climate_changepoint_regression.png)\
+**Figure 6:** Observed GISTEMP global temperature anomalies (grey) with the fitted linear warming trend (red). No change-points were detected, so the piecewise fit reduces to a single segment.
 
 ### 5.5 Architecture Analysis
 
-Why does the TFT outperform the LSTM so decisively? Multi-head attention over a 60-month context window lets the model isolate long-range ENSO periodicities that a fixed-size recurrent state compresses. Monotonically lower RMSE across all 12 lead months, paired with the skill-score gap, corroborates the mechanism.
+Why does the TFT outperform the LSTM so decisively? Multi-head attention over a 60-month context window lets the model isolate long-range ENSO periodicities that a fixed-size recurrent state compresses. Lower RMSE than the LSTM at every one of the 12 lead months, paired with the skill-score gap, corroborates the mechanism.
 
 In the pollution module, soft temporal attention weights recent accumulation events differently from distant ones. Graph convolution aggregates neighbouring-station signals, capturing wind-driven dispersion that a purely temporal model would miss.
 
@@ -358,12 +375,13 @@ Against ordinary least squares, the Bayesian module provides full posterior slop
 
 **ST-GNN.** The 75-station graph is static; adding stations requires retraining. Isolated, low-degree stations show elevated RMSE. Geographic coverage concentrates in India and the United States.
 
-**NWM.** The 2020–2022 ERA5 training window offers limited temporal diversity. At $5.625^{\circ}$ resolution, mesoscale phenomena are smoothed beyond recovery.
+**NWM.** The 2020–2021 ERA5 window offers limited temporal diversity. At $5.625^{\circ}$ resolution, mesoscale phenomena are smoothed beyond recovery.
 
 ### 5.7 Computational Efficiency
 
 The full pipeline runs on a single GPU workstation. Inference across all four models, plus complete artifact generation, finishes in under 10 minutes.
 
+![](artifacts/eval_artifacts/model_training_curves.png)\
 **Figure 7:** Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures.
 
 ---
@@ -372,9 +390,9 @@ The full pipeline runs on a single GPU workstation. Inference across all four mo
 
 ClimatePulse began as an integration problem: four modelling tasks, each well-studied in isolation, none previously coupled in a single reproducible pipeline. The empirical record from this work speaks to whether that coupling is productive.
 
-For ENSO forecasting, the TFT posts RMSE = 0.3505 °C, ACC = 0.9449, and a skill score of 0.9051 — clearing persistence (0.1737) and the LSTM baseline (0.1450) across all 12 forecast horizons. The pollution ST-GNN reaches F1 = 0.9750 (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection across 75 stations, with RMSE = 0.1571. The NWM converges to a best validation MSE of 0.1182 at epoch 78 of 89, final training MSE 0.1035. And across 912 months of GISTEMP data, no structural change-point emerges; the warming trend, within measurement resolution, is continuous and monotonic.
+For ENSO forecasting, the TFT posts RMSE = 0.3505 °C, ACC = 0.9449, and a skill score of 0.9051 — clearing persistence (0.1737) and the LSTM baseline (0.1450), with lower RMSE than the LSTM at all 12 forecast horizons and than persistence from month 2 onward. The pollution ST-GNN reaches F1 = 0.9750 (precision 0.9677, recall 0.9825) on PM2.5 exceedance detection across 75 stations, with RMSE = 0.1571. The NWM converges to a best validation MSE of 0.1182 at epoch 78 of 89, final training MSE 0.1035. And across 918 months of GISTEMP data, no structural change-point emerges; the warming trend, within measurement resolution, is continuous and monotonic.
 
-Three directions follow naturally. Multi-year NWM training with data assimilation would extend the temporal window beyond 2020–2022. Multi-regional TFT extensions to the Indian Ocean Dipole and North Atlantic Oscillation would test whether the architecture generalises beyond ENSO. Satellite $\text{NO}_2$ and methane integration would broaden pollution coverage beyond the current 75-station footprint.
+Three directions follow naturally. Multi-year NWM training with data assimilation would extend the temporal window beyond 2020–2021. Multi-regional TFT extensions to the Indian Ocean Dipole and North Atlantic Oscillation would test whether the architecture generalises beyond ENSO. Satellite $\text{NO}_2$ and methane integration would broaden pollution coverage beyond the current 75-station footprint.
 
 ---
 
@@ -419,7 +437,7 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 
 [1] Lim, B., Arık, S. Ö., Loeff, N., & Pfister, T. (2021). Temporal Fusion Transformers for Interpretable Multi-horizon Time Series Forecasting. *International Journal of Forecasting*, 37(4), 1748–1764.
 
-[2] Bai, L., Yao, L., Li, C., Wang, X., & Wang, C. (2020). Adaptive Graph Convolutional Recurrent Network for Traffic Forecasting. *NeurIPS*, 33, 17804–17815.
+[2] Bai, J., Zhu, J., Song, Y., Zhao, L., Hou, Z., Du, R., & Li, H. (2021). A3T-GCN: Attention Temporal Graph Convolutional Network for Traffic Forecasting. *ISPRS International Journal of Geo-Information*, 10(7), 485.
 
 [4] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). Attention is All You Need. *NeurIPS*, 30.
 
