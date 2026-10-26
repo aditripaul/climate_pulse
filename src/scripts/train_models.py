@@ -2,7 +2,8 @@
 Train all ClimatePulse models.
 
 Usage:
-    python -m scripts.train_models [--model tft|lstm|stgnn|bayesian|all]
+    python -m scripts.train_models [--model tft|lstm|stgnn|bayesian|nwm|all]
+                                   [--epochs N] [--seed N]
 """
 
 import argparse
@@ -40,9 +41,12 @@ def train_tft():
     from models.el_nino.tft_model import create_tft_model
     from models.el_nino.trainer import train_tft as _train
 
+    from utils import set_seed
+
     df = prepare_tft_dataframe()
     dataset = create_tft_dataset(df)
     train_ds, val_ds, _ = split_tft_dataset(dataset, df)
+    set_seed()
     model = create_tft_model(train_ds)
     result = _train(model, train_ds, val_ds)
 
@@ -70,6 +74,9 @@ def train_lstm():
     train_ds = LSTMDataset(data[:train_end].reshape(-1, 1))
     val_ds = LSTMDataset(data[train_end - enc_len : val_end].reshape(-1, 1))
 
+    from utils import set_seed
+
+    set_seed()
     model = create_lstm_model(input_size=1)
     result = _train(model, train_ds, val_ds)
 
@@ -106,72 +113,25 @@ def train_stgnn():
     """Train the Spatio-Temporal Graph Neural Network for Pollution."""
     logger.info("Training Pollution ST-GNN...")
 
-    from config import settings
-    from data.processing.graph_builder import (
-        build_station_graph,
-        build_temporal_snapshots,
-        filter_locations_to_measurements,
-        normalize_snapshot_features,
-    )
-    from data.sources.openaq import OpenAQSource
-    from models.pollution.graph_dataset import (
-        create_windowed_signal,
-    )
-    from models.pollution.stgnn_model import create_pollution_model
-    from models.pollution.trainer import train_pollution_model
-
-    openaq = OpenAQSource()
-    locations_df = openaq.fetch_locations(
-        countries=settings.data.focus_countries,
-        limit=settings.data.openaq_max_locations,
-    )
-    pm25_df = openaq.fetch_measurements(
-        parameter="pm25",
-        countries=settings.data.focus_countries,
-        date_from=f"{settings.data.start_year}-01-01",
-        date_to=f"{settings.data.end_year}-12-31",
-        limit=settings.data.openaq_limit,
-        max_locations=settings.data.openaq_max_locations,
-        use_cache=True,
-    )
-
-    # Filter to only stations present in measurements (reduces sparsity)
-    locations_df = filter_locations_to_measurements(locations_df, pm25_df)
-
-    # Build Graph
-    graph = build_station_graph(locations_df)
-
-    # Build Time-Series Snapshots
-    snapshots = build_temporal_snapshots(pm25_df, graph, feature_cols=["pm25"], time_freq="D")
-
-    # Normalize features for stable training (z-score on non-zero values)
     import json
 
-    snapshots, norm_stats = normalize_snapshot_features(snapshots)
+    from models.pollution.graph_dataset import build_pollution_splits
+    from models.pollution.stgnn_model import create_pollution_model
+    from models.pollution.trainer import train_pollution_model
+    from utils import set_seed
 
-    # Save normalization stats for inference
+    splits = build_pollution_splits(window_size=settings.model.gnn_num_periods)
+
+    # Save normalization stats (computed on the training split) for evaluation/inference
     stats_path = settings.model.checkpoint_dir / "pollution" / "norm_stats.json"
     stats_path.parent.mkdir(parents=True, exist_ok=True)
     with open(stats_path, "w") as f:
-        json.dump(norm_stats, f, indent=2)
+        json.dump(splits["norm_stats"], f, indent=2)
     logger.info(f"Saved normalization stats to {stats_path}")
 
-    # Split & Window Dataset
-    n = len(snapshots)
-    train_end = int(n * 0.7)
-    val_end = int(n * 0.85)
-
-    train_windowed = create_windowed_signal(
-        snapshots[:train_end], window_size=settings.model.gnn_num_periods
-    )
-    val_windowed = create_windowed_signal(
-        snapshots[train_end:val_end], window_size=settings.model.gnn_num_periods
-    )
-
-    model = create_pollution_model(
-        in_channels=1,
-    )
-    result = train_pollution_model(model, train_windowed, val_windowed)
+    set_seed()
+    model = create_pollution_model(in_channels=1)
+    result = train_pollution_model(model, splits["train"], splits["val"])
 
     logger.info(f"ST-GNN result: {result}")
     return result
@@ -189,17 +149,24 @@ def train_nwm():
     from models.nwm.trainer import NWMTrainer
     from config import settings
 
-    nc_path = settings.data.raw_dir / "nwm_era5" / "era5_5deg_6hr_2020_2022.nc"
-    nino_path = settings.data.processed_dir / "nino_features.parquet"
+    from models.nwm.dataset import ERA5_PATH, nino_conditioning_path
+    from utils import set_seed
 
-    if not nc_path.exists():
+    nwm = settings.nwm
+    if not ERA5_PATH.exists():
         logger.error(
             "ERA5 data missing. Please run `python src/scripts/download_nwm_data.py` first."
         )
         return
 
-    train_ds = NWMDataset(nc_path, nino_path, mode="train")
-    val_ds = NWMDataset(nc_path, nino_path, mode="val")
+    nino_path = nino_conditioning_path(nwm.conditioning)
+    logger.info(
+        f"NWM conditioning={nwm.conditioning} ({nino_path.name}), "
+        f"area_weighted_loss={nwm.area_weighted_loss}"
+    )
+    train_ds = NWMDataset(ERA5_PATH, nino_path, mode="train", conditioning=nwm.conditioning)
+    val_ds = NWMDataset(ERA5_PATH, nino_path, mode="val", conditioning=nwm.conditioning)
+    set_seed()
 
     train_loader = DataLoader(
         train_ds, batch_size=settings.model.batch_size, shuffle=True, num_workers=0
@@ -209,7 +176,9 @@ def train_nwm():
     )
 
     # Build the spherical graph topology once
-    graph_builder = SphericalGraphBuilder(train_ds.lat, train_ds.lon, num_mesh_nodes=2000)
+    graph_builder = SphericalGraphBuilder(
+        train_ds.lat, train_ds.lon, num_mesh_nodes=nwm.num_mesh_nodes
+    )
     e_g2m = graph_builder.build_grid_to_mesh()
     e_m2m = graph_builder.build_mesh_to_mesh()
     e_m2g = graph_builder.build_mesh_to_grid()
@@ -222,16 +191,16 @@ def train_nwm():
     trainer = NWMTrainer(
         grid_in_channels=grid_in_channels,
         grid_out_channels=grid_out_channels,
-        hidden_dim=128,
-        num_processor_layers=4,
-        learning_rate=settings.model.learning_rate,
-        weight_decay=1e-4,
+        hidden_dim=nwm.hidden_dim,
+        num_processor_layers=nwm.num_processor_layers,
+        learning_rate=nwm.learning_rate,
+        weight_decay=nwm.weight_decay,
         edge_grid_to_mesh=e_g2m,
         edge_mesh_to_mesh=e_m2m,
         edge_mesh_to_grid=e_m2g,
-        num_mesh_nodes=2000,
-        # C3: pass cosine-latitude weights for area-correct loss computation
-        lat_weights=torch.tensor(train_ds.lat_weights),
+        num_mesh_nodes=nwm.num_mesh_nodes,
+        # C3: cosine-latitude weights for area-correct loss (disabled for the ablation)
+        lat_weights=torch.tensor(train_ds.lat_weights) if nwm.area_weighted_loss else None,
     )
 
     result = trainer.fit(
@@ -253,16 +222,18 @@ def main():
         help="Which model to train",
     )
     parser.add_argument("--epochs", type=int, help="Override max epochs")
+    parser.add_argument("--seed", type=int, help="Override the random seed")
     args = parser.parse_args()
 
-    if args.epochs:
-        # Re-build the settings singleton with the epoch override applied.
-        # Pydantic v2 BaseSettings instances are immutable; we clear the
-        # lru_cache so get_settings() re-reads everything from scratch and
-        # the overridden value is picked up via the env variable mechanism.
-        import os
+    # CLI overrides go through environment variables, which take precedence over the
+    # YAML config; clearing the cache makes get_settings() pick them up.
+    overrides = {"MODEL_MAX_EPOCHS": args.epochs, "MODEL_SEED": args.seed}
+    if any(v is not None for v in overrides.values()):
         from config import get_settings
-        os.environ["MODEL_MAX_EPOCHS"] = str(args.epochs)
+
+        for key, value in overrides.items():
+            if value is not None:
+                os.environ[key] = str(value)
         get_settings.cache_clear()
 
     if args.model in ("tft", "all"):

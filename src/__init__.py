@@ -1,8 +1,8 @@
 """
-ClimatePulse — AI-Powered Simulation of El Niño, Pollution, and Global Warming.
+ClimatePulse — AI-Powered Global Climate Forecasting and Analysis.
 
-A unified platform integrating climate forecasting, pollution dispersion modeling,
-and global warming simulation with an interactive dashboard.
+A unified research platform integrating El Niño forecasting, pollution dispersion
+modeling, a spherical-mesh neural weather model, and warming-rate change-point analysis.
 """
 
 __version__ = "0.1.0"

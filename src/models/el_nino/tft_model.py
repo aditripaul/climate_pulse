@@ -166,3 +166,45 @@ def get_variable_importance(model: Any, dataset: Any) -> pd.DataFrame:
     if not df.empty:
         df = df.sort_values("importance", ascending=False)
     return df
+
+
+def find_best_tft_checkpoint(checkpoint_dir: str | Path) -> Path:
+    """
+    Best checkpoint of the most recent TFT run in `checkpoint_dir`.
+
+    ModelCheckpoint(save_top_k=1) keeps one "tft-*" file per run (that run's best).
+    Take the newest such file rather than the lowest score, which may come from an
+    older run, or the newest file overall (usually last.ckpt).
+    """
+    checkpoint_dir = Path(checkpoint_dir)
+    ckpts = list(checkpoint_dir.glob("*.ckpt"))
+    if not ckpts:
+        raise FileNotFoundError(f"No TFT checkpoints in {checkpoint_dir}")
+    best = [p for p in ckpts if p.name.startswith("tft-")]
+    return max(best or ckpts, key=lambda p: p.stat().st_mtime)
+
+
+def export_lead1_forecasts(model: Any, dataset: Any, df: pd.DataFrame, path: str | Path) -> pd.DataFrame:
+    """
+    Save the TFT median lead-1 forecast for each target month to Parquet.
+
+    For target month m, the forecast uses only data up to month m-1, so it is what
+    would have been available when conditioning a weather forecast during month m.
+    Written as [time, nino34] for use as Neural Weather Model conditioning.
+    """
+    preds = predict_tft(model, dataset)["predictions"][:, 0]
+    loader = dataset.to_dataloader(train=False, batch_size=128, num_workers=0)
+    first_idx = torch.cat([x["decoder_time_idx"][:, 0] for x, _ in loader]).numpy()
+
+    times = df.set_index("time_idx").loc[first_idx, "time"].to_numpy()
+    out = pd.DataFrame({"time": pd.to_datetime(times), "nino34": preds[: len(times)]})
+    out = out.sort_values("time").reset_index(drop=True)
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(path, index=False)
+    logger.info(
+        f"Exported {len(out)} TFT lead-1 forecasts ({out['time'].min():%Y-%m} to "
+        f"{out['time'].max():%Y-%m}) to {path}"
+    )
+    return out

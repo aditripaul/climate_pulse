@@ -90,7 +90,9 @@ def create_tft_dataset(
     pred_len = prediction_length or settings.model.tft_prediction_months
 
     # Determine available feature columns
-    time_varying_known = ["month_sin", "month_cos", "month", "year"]
+    time_varying_known = ["month_sin", "month_cos", "month"]
+    if settings.model.tft_use_year:
+        time_varying_known.append("year")
     time_varying_unknown = [
         c
         for c in df.columns
@@ -216,3 +218,16 @@ class LSTMDataset(Dataset):
 
         data = df[cols].values.astype(np.float32)
         return cls(data)
+
+
+def lstm_test_series(nino_features_path: str | None = None) -> np.ndarray:
+    """
+    Nino 3.4 series covering the LSTM test windows.
+
+    Starts `lstm_encoder_length` months before the test split so that the first
+    window's targets begin exactly at the test start, aligned with the TFT.
+    """
+    path = nino_features_path or str(settings.data.processed_dir / "nino_features.parquet")
+    data = pd.read_parquet(path)["nino34"].to_numpy(dtype=np.float32)
+    _, test_start = chronological_split_bounds(len(data))
+    return data[test_start - settings.model.lstm_encoder_length :]

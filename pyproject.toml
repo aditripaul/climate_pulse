@@ -48,7 +48,12 @@ dependencies = [
     "matplotlib>=3.10.0",
     "seaborn>=0.13.2",
     "scikit-learn>=1.9.0",
+    # Statistics (OLS baseline for the climate feedback module)
+    "statsmodels>=0.14.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
 
 
 [tool.setuptools.packages.find]

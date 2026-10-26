@@ -163,3 +163,105 @@ def reliability_diagram(
         "avg_interval_width": avg_width,
         "is_calibrated": abs(coverage - 0.8) < 0.1,
     }
+
+
+def quantile_calibration(
+    y_true: np.ndarray,
+    quantile_preds: dict[float, np.ndarray],
+) -> pd.DataFrame:
+    """
+    Observed frequency of outcomes falling below each predicted quantile.
+
+    A calibrated forecast has observed frequency equal to the quantile level.
+    """
+    rows = [
+        {"quantile": q, "observed_frequency": float(np.mean(y_true <= pred))}
+        for q, pred in sorted(quantile_preds.items())
+    ]
+    return pd.DataFrame(rows)
+
+
+def elnino_test_predictions(tft_model, test_ds, lstm_model, lstm_test_data: np.ndarray) -> dict:
+    """
+    Run the TFT and LSTM over the test period and align them window by window.
+
+    Returns a dict of [n_windows, n_leads] arrays: 'actual', 'tft', 'tft_lower',
+    'tft_upper', 'lstm', 'persistence', plus 'first_target_time_idx' [n_windows].
+    """
+    import torch
+
+    from models.el_nino.dataset import LSTMDataset
+    from models.el_nino.tft_model import predict_tft
+
+    tft_res = predict_tft(tft_model, test_ds)
+
+    dataloader = test_ds.to_dataloader(train=False, batch_size=128, num_workers=0)
+    actuals, last_obs, first_idx = [], [], []
+    for x, y in dataloader:
+        actuals.append(y[0])
+        last_obs.append(x["encoder_target"][:, -1:])
+        first_idx.append(x["decoder_time_idx"][:, 0])
+    actual = torch.cat(actuals).numpy()
+    last_y = torch.cat(last_obs).numpy()
+    first_target = torch.cat(first_idx).numpy()
+
+    lstm_loader = torch.utils.data.DataLoader(
+        LSTMDataset(lstm_test_data.reshape(-1, 1)), batch_size=128, shuffle=False
+    )
+    lstm_model.eval()
+    lstm_preds, lstm_actuals = [], []
+    with torch.no_grad():
+        for x_lstm, y_lstm in lstm_loader:
+            lstm_preds.append(lstm_model(x_lstm))
+            lstm_actuals.append(y_lstm)
+    lstm_pred = torch.cat(lstm_preds).numpy()
+    lstm_actual = torch.cat(lstm_actuals).squeeze(-1).numpy()
+
+    n = min(len(actual), len(tft_res["predictions"]), len(lstm_pred))
+    n_leads = actual.shape[1]
+    if not np.allclose(lstm_actual[:n, :n_leads], actual[:n], atol=1e-4):
+        raise ValueError("TFT and LSTM test windows are misaligned; skill comparison invalid")
+
+    return {
+        "actual": actual[:n],
+        "tft": tft_res["predictions"][:n],
+        "tft_lower": tft_res["lower"][:n],
+        "tft_upper": tft_res["upper"][:n],
+        "lstm": lstm_pred[:n, :n_leads],
+        "persistence": np.repeat(last_y[:n, 0:1], n_leads, axis=1),
+        "first_target_time_idx": first_target[:n],
+    }
+
+
+def elnino_metrics(p: dict) -> dict:
+    """Pooled and per-lead metrics for aligned El Nino test predictions."""
+    actual = p["actual"].ravel()
+    baseline = p["persistence"].ravel()
+
+    def _model(name: str, pred: np.ndarray) -> dict:
+        m = evaluate_forecast(actual, pred.ravel(), name, baseline_pred=baseline)
+        m["bias"] = float(np.mean(pred.ravel() - actual))
+        return m
+
+    calib = quantile_calibration(
+        actual, {0.1: p["tft_lower"].ravel(), 0.5: p["tft"].ravel(), 0.9: p["tft_upper"].ravel()}
+    )
+    coverage = reliability_diagram(actual, p["tft_lower"].ravel(), p["tft_upper"].ravel())
+    coverage["frac_above_upper"] = float(np.mean(actual > p["tft_upper"].ravel()))
+    coverage["frac_below_lower"] = float(np.mean(actual < p["tft_lower"].ravel()))
+
+    def _lead_rmse(pred: np.ndarray) -> list[float]:
+        return np.sqrt(np.mean((p["actual"] - pred) ** 2, axis=0)).tolist()
+
+    return {
+        "tft": _model("TFT", p["tft"]),
+        "lstm": _model("LSTM", p["lstm"]),
+        "persistence": _model("Persistence", p["persistence"]),
+        "calibration": coverage,
+        "quantile_calibration": calib.to_dict(orient="records"),
+        "lead_rmse": {
+            "tft": _lead_rmse(p["tft"]),
+            "lstm": _lead_rmse(p["lstm"]),
+            "persistence": _lead_rmse(p["persistence"]),
+        },
+    }

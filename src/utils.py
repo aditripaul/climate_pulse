@@ -31,6 +31,19 @@ def get_device() -> torch.device:
     return torch.device(device_str)
 
 
+def set_seed(seed: int | None = None) -> int:
+    """Seed Python, NumPy and PyTorch RNGs (defaults to ``settings.model.seed``)."""
+    import random
+
+    import numpy as np
+
+    seed = settings.model.seed if seed is None else seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    return seed
+
+
 _ISO2_TO_ISO3 = {
     "AF": "AFG",
     "AX": "ALA",

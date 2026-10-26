@@ -126,7 +126,8 @@ def build_temporal_snapshots(
     Returns:
         List of dicts, each with:
         - 'time': timestamp
-        - 'x': np.ndarray of shape (num_nodes, num_features)
+        - 'x': np.ndarray of shape (num_nodes, num_features); NaN where a station
+          has no reading for that period
         - 'edge_index': shared graph topology
         - 'edge_weight': shared edge weights
     """
@@ -151,7 +152,7 @@ def build_temporal_snapshots(
 
     snapshots = []
     for time_step, group in df.groupby("time"):
-        x = np.zeros((n_nodes, n_features), dtype=np.float32)
+        x = np.full((n_nodes, n_features), np.nan, dtype=np.float32)
 
         for _, row in group.iterrows():
             loc_id = row["location_id"]
@@ -160,9 +161,6 @@ def build_temporal_snapshots(
                 node_idx = node_id_to_idx[loc_id]
                 feat_idx = feature_cols.index(param)
                 x[node_idx, feat_idx] = row["value"]
-
-        # Safety net: replace any remaining NaN with 0 (missing sensor readings)
-        x = np.nan_to_num(x, nan=0.0)
 
         snapshots.append(
             {
@@ -201,37 +199,29 @@ def normalize_snapshot_features(
     stats: dict | None = None,
 ) -> tuple[list[dict], dict]:
     """
-    Normalize node features across all snapshots using z-score normalization.
+    Z-score normalize node features across snapshots.
 
-    Only non-zero values are used for computing statistics, since zeros
-    represent missing sensor data in sparse pollution monitoring grids.
+    Missing readings are NaN and are excluded from the statistics and left as NaN.
+    To avoid leaking test data, compute `stats` on the training snapshots only and
+    pass them in when normalizing validation and test snapshots.
 
     Args:
         snapshots: List of temporal snapshot dicts with 'x' arrays.
         stats: Pre-computed {"mean": float, "std": float}. If None, computed from data.
 
     Returns:
-        (snapshots, stats) \u2014 snapshots are modified in-place.
+        (snapshots, stats) — snapshots are modified in-place.
     """
     if stats is None:
-        all_nonzero = []
-        for s in snapshots:
-            vals = s["x"].flatten()
-            all_nonzero.append(vals[vals != 0])
-
-        if all_nonzero:
-            nonzero = np.concatenate(all_nonzero)
-            mean = float(nonzero.mean()) if len(nonzero) > 0 else 0.0
-            std = float(nonzero.std()) if len(nonzero) > 0 else 1.0
-        else:
-            mean, std = 0.0, 1.0
-
+        values = np.concatenate([s["x"].ravel() for s in snapshots]) if snapshots else np.array([])
+        values = values[np.isfinite(values)]
+        mean = float(values.mean()) if len(values) > 0 else 0.0
+        std = float(values.std()) if len(values) > 0 else 1.0
         stats = {"mean": mean, "std": max(std, 1e-8)}
 
     mean_val, std_val = stats["mean"], stats["std"]
     for s in snapshots:
-        mask = s["x"] != 0
-        s["x"][mask] = (s["x"][mask] - mean_val) / std_val
+        s["x"] = (s["x"] - mean_val) / std_val
 
     logger.info(f"Normalized snapshot features: mean={mean_val:.2f}, std={std_val:.2f}")
     return snapshots, stats

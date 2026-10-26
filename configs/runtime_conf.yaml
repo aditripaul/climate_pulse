@@ -7,13 +7,6 @@ data:
   openaq_limit: 10000
   historical_stream_limit: 0
 
-tft:
-  hidden_size: 32
-  lstm_layers: 1
-  num_attention_heads: 4
-  dropout: 0.1
-  hidden_continuous_size: 16
-
 model:
   checkpoint_dir: "./runtime/models/checkpoints"
   device: "auto"
@@ -21,12 +14,14 @@ model:
   batch_size: 32
   learning_rate: 0.001
   log_frequency: 1
+  seed: 42
   # TFT hyperparameters
   tft_hidden_size: 32
   tft_attention_head_size: 4
   tft_dropout: 0.1
   tft_encoder_length: 60
   tft_prediction_months: 12
+  tft_use_year: false
   # LSTM hyperparameters
   lstm_hidden_size: 64
   lstm_num_layers: 2
@@ -36,6 +31,15 @@ model:
   # ST-GNN hyperparameters
   gnn_num_periods: 7
   gnn_hidden_channels: 32
+
+nwm:
+  num_mesh_nodes: 2000
+  hidden_dim: 128
+  num_processor_layers: 4
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  conditioning: "observed"   # observed | forecast | none
+  area_weighted_loss: true
 
 log:
   level: "INFO"

@@ -1,4 +1,4 @@
-.PHONY: venv install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
+.PHONY: venv install install-dev test install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate train-elnino-seeds export-tft-forecasts nwm-ablation clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
 
 .DEFAULT_GOAL := help
 
@@ -46,6 +46,10 @@ install: venv
 	.venv/bin/pip install -e . --no-build-isolation
 
 install-dev: install
+	.venv/bin/pip install -e ".[dev]" --no-build-isolation
+
+test:
+	PYTHONPATH=src .venv/bin/python -m pytest tests -q
 
 # === Setup (AMD ROCm) ===
 # pytorch-lightning 2.6.5 is the safe version (2.6.2-2.6.3 had supply-chain compromise)
@@ -89,6 +93,19 @@ train-climate:
 
 train-nwm:
 	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/train_models.py --model nwm
+
+# Multi-seed TFT/LSTM training and evaluation (TFT with and without the year covariate)
+train-elnino-seeds:
+	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/run_elnino_seeds.py
+
+# TFT lead-1 Nino 3.4 forecasts, used when nwm.conditioning is "forecast"
+export-tft-forecasts:
+	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/export_tft_forecasts.py
+
+# Train and score NWM variants (forecast-conditioned, unconditioned, unweighted loss)
+# against the main model; needs train-nwm and export-tft-forecasts first
+nwm-ablation:
+	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/run_nwm_ablation.py --train
 
 # === Evaluation Artifacts ===
 gen-eval-artifacts:
@@ -171,6 +188,10 @@ help:
 	@echo "  make train-pollution : Train pollution model only"
 	@echo "  make train-climate : Train climate feedback model only"
 	@echo "  make train-nwm : Train Neural Weather Model (ST-GNN) only"
+	@echo "  make train-elnino-seeds : Multi-seed TFT/LSTM training and evaluation"
+	@echo "  make export-tft-forecasts : Export TFT lead-1 forecasts for NWM conditioning"
+	@echo "  make nwm-ablation : Train and score NWM ablation variants"
+	@echo "  make test : Run the test suite (needs make install-dev)"
 	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
 	@echo "  make sync-paper-artifacts : Point research paper artifacts at the newest saved run (after save-run)"
 	@echo "  make sync-patent-artifacts : Sync evaluation artifacts to patent docs"

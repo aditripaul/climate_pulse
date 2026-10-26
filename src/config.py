@@ -37,7 +37,23 @@ def _load_dataset_defaults() -> dict[str, Any]:
 _DEFAULTS = _load_dataset_defaults()
 
 
-class DataSettings(BaseSettings):
+class _YamlDefaultSettings(BaseSettings):
+    """
+    Settings section whose YAML values act as defaults.
+
+    get_settings() passes the YAML values as init kwargs, which pydantic-settings
+    would otherwise rank above environment variables. Reordering the sources lets
+    environment variables and .env entries override the YAML file.
+    """
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        return env_settings, dotenv_settings, init_settings, file_secret_settings
+
+
+class DataSettings(_YamlDefaultSettings):
     """Configuration for data sources and storage."""
 
     model_config = SettingsConfigDict(
@@ -133,7 +149,7 @@ class DataSettings(BaseSettings):
         return v
 
 
-class MetadataSettings(BaseSettings):
+class MetadataSettings(_YamlDefaultSettings):
     """Configuration for metadata storage."""
 
     model_config = SettingsConfigDict(
@@ -150,23 +166,29 @@ class MetadataSettings(BaseSettings):
 
 
 
-class TFTModelSettings(BaseSettings):
-    hidden_size: int = 32
-    lstm_layers: int = 1
-    num_attention_heads: int = 4
-    dropout: float = 0.1
-    hidden_continuous_size: int = 16
+class NWMModelSettings(_YamlDefaultSettings):
+    """Configuration for the Neural Weather Model (NWM)."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="NWM_",
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    num_mesh_nodes: int = Field(default=2000, ge=1, description="Fibonacci mesh size")
+    hidden_dim: int = Field(default=128, ge=1)
+    num_processor_layers: int = Field(default=4, ge=1)
+    learning_rate: float = Field(default=1e-3, gt=0)
+    weight_decay: float = Field(default=1e-4, ge=0)
+    conditioning: Literal["observed", "forecast", "none"] = Field(
+        default="observed",
+        description="Nino 3.4 input: observed index, TFT lead-1 forecast, or none (zeros)",
+    )
+    area_weighted_loss: bool = Field(default=True, description="Cosine-latitude loss weights")
 
 
-class NWMModelSettings(BaseSettings):
-    mesh_resolution: int = 5  # Icosahedron subdivision level (e.g. 5 is roughly 5.625 deg equivalent)
-    hidden_dim: int = 128
-    num_processor_layers: int = 4
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-5
-
-
-class ModelSettings(BaseSettings):
+class ModelSettings(_YamlDefaultSettings):
     """Configuration for ML/DL model training."""
 
     model_config = SettingsConfigDict(
@@ -184,6 +206,7 @@ class ModelSettings(BaseSettings):
     log_frequency: int = Field(
         default=1, ge=1, description="Interval of training epochs to log progress"
     )
+    seed: int = Field(default=42, description="Random seed for model initialisation and sampling")
 
     # TFT (Temporal Fusion Transformer) hyperparameters
     tft_hidden_size: int = Field(default=32)
@@ -191,6 +214,10 @@ class ModelSettings(BaseSettings):
     tft_dropout: float = Field(default=0.1, ge=0.0, le=1.0)
     tft_encoder_length: int = Field(default=60, ge=1)
     tft_prediction_months: int = Field(default=12, ge=1)
+    tft_use_year: bool = Field(
+        default=True,
+        description="Include calendar year as a known covariate (extrapolates beyond training years)",
+    )
 
     # LSTM baseline hyperparameters
     lstm_hidden_size: int = Field(default=64)
@@ -212,7 +239,7 @@ class ModelSettings(BaseSettings):
         return p
 
 
-class LogSettings(BaseSettings):
+class LogSettings(_YamlDefaultSettings):
     """Configuration for logging."""
 
     model_config = SettingsConfigDict(
@@ -244,7 +271,6 @@ class Settings(BaseSettings):
 
     data: DataSettings = Field(default_factory=DataSettings)
     metadata: MetadataSettings = Field(default_factory=MetadataSettings)
-    tft: TFTModelSettings = Field(default_factory=TFTModelSettings)
     nwm: NWMModelSettings = Field(default_factory=NWMModelSettings)
     model: ModelSettings = Field(default_factory=ModelSettings)
     log: LogSettings = Field(default_factory=LogSettings)
@@ -282,7 +308,6 @@ def get_settings() -> Settings:
     s = Settings(
         data=DataSettings(**config_dict.get("data", {})),
         metadata=MetadataSettings(**config_dict.get("metadata", {})),
-        tft=TFTModelSettings(**config_dict.get("tft", {})),
         nwm=NWMModelSettings(**config_dict.get("nwm", {})),
         model=ModelSettings(**config_dict.get("model", {})),
         log=LogSettings(**config_dict.get("log", {})),

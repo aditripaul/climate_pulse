@@ -32,19 +32,15 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from config import settings  # noqa: E402
 from models.el_nino.dataset import (  # noqa: E402
-    LSTMDataset,
     create_tft_dataset,
+    lstm_test_series,
     prepare_tft_dataframe,
-    chronological_split_bounds,
     split_tft_dataset,
 )
-from models.el_nino.evaluate import (  # noqa: E402
-    evaluate_forecast,
-    reliability_diagram,
-)
+from models.el_nino.evaluate import elnino_metrics, elnino_test_predictions  # noqa: E402
 from models.el_nino.lstm_baseline import load_lstm_model  # noqa: E402
-from models.el_nino.tft_model import load_tft_model, predict_tft  # noqa: E402
-from models.pollution.evaluate import evaluate_pollution_model  # noqa: E402
+from models.el_nino.tft_model import find_best_tft_checkpoint, load_tft_model  # noqa: E402
+from models.pollution.evaluate import AQI_100_PM25_UGM3, evaluate_pollution_model  # noqa: E402
 from models.pollution.stgnn_model import load_pollution_model  # noqa: E402
 
 # Set seaborn style for paper figures
@@ -70,18 +66,8 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_tft_test_data():
-    """Load TFT model and split test set."""
-    tft_dir = settings.model.checkpoint_dir / "el_nino" / "tft"
-    tft_ckpts = glob.glob(str(tft_dir / "*.ckpt"))
-    if not tft_ckpts:
-        raise FileNotFoundError("No TFT model checkpoints found.")
-
-    # ModelCheckpoint(save_top_k=1) keeps one "tft-*" file per run: that run's best.
-    # The directory accumulates files across runs, so take the newest best file
-    # rather than the lowest score (an old run's score may come from another split)
-    # or the newest file overall (usually last.ckpt).
-    best_ckpts = [p for p in tft_ckpts if os.path.basename(p).startswith("tft-")]
-    best_ckpt = max(best_ckpts or tft_ckpts, key=os.path.getmtime)
+    """Load the best TFT checkpoint of the latest run and the test split."""
+    best_ckpt = find_best_tft_checkpoint(settings.model.checkpoint_dir / "el_nino" / "tft")
     print(f"Using TFT checkpoint: {best_ckpt}")
     tft_model = load_tft_model(best_ckpt)
 
@@ -93,148 +79,50 @@ def load_tft_test_data():
 
 
 def load_lstm_test_data():
-    """Load LSTM model and return test data."""
+    """Load the LSTM baseline and the Nino 3.4 series covering its test windows."""
     lstm_ckpt = settings.model.checkpoint_dir / "el_nino" / "lstm" / "lstm_best.pt"
     if not lstm_ckpt.exists():
         raise FileNotFoundError("No LSTM baseline checkpoint found.")
-
-    model = load_lstm_model(lstm_ckpt)
-
-    df = pd.read_parquet(settings.data.processed_dir / "nino_features.parquet")
-    data = df["nino34"].values.astype(np.float32)
-
-    _, val_end = chronological_split_bounds(len(data))
-    enc_len = settings.model.lstm_encoder_length
-
-    test_data = data[val_end - enc_len :]
-    return model, test_data
+    return load_lstm_model(lstm_ckpt), lstm_test_series()
 
 
 def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     """Evaluate El Nino TFT vs LSTM and persistence baselines."""
     print("Evaluating El Niño forecasting models...")
 
-    # 1. TFT Predictions
-    tft_res = predict_tft(tft_model, test_ds)
-    tft_preds = tft_res["predictions"]
-    tft_lower = tft_res["lower"]
-    tft_upper = tft_res["upper"]
+    p = elnino_test_predictions(tft_model, test_ds, lstm_model, lstm_test_data)
+    m = elnino_metrics(p)
 
-    # Extract actual targets and encoder-end persistence targets from TFT dataset
-    dataloader = test_ds.to_dataloader(train=False, batch_size=128, num_workers=0)
-    all_y = []
-    all_last_y = []
-    for batch in dataloader:
-        x, y = batch
-        all_y.append(y[0])
-        if isinstance(x, dict) and "encoder_target" in x:
-            all_last_y.append(x["encoder_target"][:, -1:])
-        elif isinstance(x, dict) and "encoder_cont" in x:
-            all_last_y.append(x["encoder_cont"][:, -1, 0:1])
-
-    tft_actuals = torch.cat(all_y, dim=0).numpy()
-    if all_last_y:
-        tft_last_y = torch.cat(all_last_y, dim=0).numpy()
-    else:
-        tft_last_y = np.roll(tft_actuals[:, 0:1], 1, axis=0)
-
-    # Make sure shapes align
-    num_samples = min(len(tft_preds), len(tft_actuals), len(tft_last_y))
-    tft_preds = tft_preds[:num_samples]
-    tft_lower = tft_lower[:num_samples]
-    tft_upper = tft_upper[:num_samples]
-    tft_actuals = tft_actuals[:num_samples]
-    tft_last_y = tft_last_y[:num_samples]
-
-    # 2. LSTM Predictions
-    lstm_dataset = LSTMDataset(lstm_test_data.reshape(-1, 1))
-    lstm_loader = torch.utils.data.DataLoader(lstm_dataset, batch_size=128, shuffle=False)
-
-    all_lstm_preds = []
-    all_lstm_actuals = []
-
-    lstm_model.eval()
-    with torch.no_grad():
-        for x_lstm, y_lstm in lstm_loader:
-            pred = lstm_model(x_lstm)
-            all_lstm_preds.append(pred)
-            all_lstm_actuals.append(y_lstm)
-
-    lstm_preds = torch.cat(all_lstm_preds, dim=0).numpy()
-    lstm_actuals = torch.cat(all_lstm_actuals, dim=0).squeeze().numpy()
-
-    lstm_samples = min(len(lstm_preds), len(lstm_actuals))
-    lstm_preds = lstm_preds[:lstm_samples, : tft_preds.shape[1]]
-    lstm_actuals = lstm_actuals[:lstm_samples, : tft_preds.shape[1]]
-
-    # Align counts between TFT and LSTM for direct comparison if needed
-    comp_samples = min(num_samples, lstm_samples)
-
-    # Persistence: last observed encoder value carried across every lead.
-    # Skill scores are measured against it (SS = 1 - MSE_model / MSE_persistence).
-    persistence_preds = np.repeat(tft_last_y[:comp_samples, 0:1], tft_actuals.shape[1], axis=1)
-
-    # TFT and LSTM test windows start at the same month, so sample i is aligned.
-    if not np.allclose(lstm_actuals[:comp_samples], tft_actuals[:comp_samples], atol=1e-4):
-        raise ValueError("TFT and LSTM test windows are misaligned; skill comparison invalid")
-
-    # Compute overall metrics (average over all leads)
-    tft_metrics = evaluate_forecast(
-        tft_actuals[:comp_samples].flatten(),
-        tft_preds[:comp_samples].flatten(),
-        "TFT",
-        baseline_pred=persistence_preds.flatten(),
-    )
-    lstm_metrics = evaluate_forecast(
-        lstm_actuals[:comp_samples].flatten(),
-        lstm_preds[:comp_samples].flatten(),
-        "LSTM",
-        baseline_pred=persistence_preds.flatten(),
-    )
-    persistence_metrics = evaluate_forecast(
-        tft_actuals[:comp_samples].flatten(),
-        persistence_preds.flatten(),
-        "Persistence",
-        baseline_pred=persistence_preds.flatten(),
-    )
+    tft_actuals, tft_preds = p["actual"], p["tft"]
+    tft_lower, tft_upper = p["tft_lower"], p["tft_upper"]
+    lstm_actuals, lstm_preds = p["actual"], p["lstm"]
+    comp_samples = len(tft_actuals)
 
     # Save raw run results to CSV/JSON
-    tft_out = pd.DataFrame(
+    pd.DataFrame(
         {
-            "actual": tft_actuals[:comp_samples].flatten(),
-            "tft_pred": tft_preds[:comp_samples].flatten(),
-            "tft_lower": tft_lower[:comp_samples].flatten(),
-            "tft_upper": tft_upper[:comp_samples].flatten(),
-            "lstm_pred": lstm_preds[:comp_samples].flatten(),
-            "persistence_pred": persistence_preds.flatten(),
+            "actual": tft_actuals.flatten(),
+            "tft_pred": tft_preds.flatten(),
+            "tft_lower": tft_lower.flatten(),
+            "tft_upper": tft_upper.flatten(),
+            "lstm_pred": lstm_preds.flatten(),
+            "persistence_pred": p["persistence"].flatten(),
         }
-    )
-    tft_out.to_csv(RESULTS_DIR / "elnino_predictions.csv", index=False)
+    ).to_csv(RESULTS_DIR / "elnino_predictions.csv", index=False)
 
-    # Calculate error over forecast lead time (1 to 12 months)
-    lead_times = np.arange(1, 13)
-    tft_lead_rmse = [
-        np.sqrt(np.mean((tft_actuals[:comp_samples, i] - tft_preds[:comp_samples, i]) ** 2))
-        for i in range(12)
-    ]
-    lstm_lead_rmse = [
-        np.sqrt(np.mean((lstm_actuals[:comp_samples, i] - lstm_preds[:comp_samples, i]) ** 2))
-        for i in range(12)
-    ]
-    persist_lead_rmse = [
-        np.sqrt(np.mean((tft_actuals[:comp_samples, i] - persistence_preds[:, i]) ** 2))
-        for i in range(12)
-    ]
-
-    lead_metrics = pd.DataFrame(
+    # Error over forecast lead time
+    lead_times = np.arange(1, tft_actuals.shape[1] + 1)
+    tft_lead_rmse = m["lead_rmse"]["tft"]
+    lstm_lead_rmse = m["lead_rmse"]["lstm"]
+    persist_lead_rmse = m["lead_rmse"]["persistence"]
+    pd.DataFrame(
         {
             "lead_time_months": lead_times,
             "tft_rmse": tft_lead_rmse,
             "lstm_rmse": lstm_lead_rmse,
             "persistence_rmse": persist_lead_rmse,
         }
-    )
-    lead_metrics.to_csv(RESULTS_DIR / "elnino_lead_time_metrics.csv", index=False)
+    ).to_csv(RESULTS_DIR / "elnino_lead_time_metrics.csv", index=False)
 
     # Plot 1: Forecast vs Actual sequence (draw a nice random one)
     fig, ax = plt.subplots(figsize=(6, 3.5))
@@ -271,25 +159,20 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     fig.savefig(ARTIFACTS_DIR / "elnino_crps_leadtime.png", dpi=300)
     plt.close(fig)
 
-    # Plot 3: Calibration curve
-    rel_info = reliability_diagram(
-        tft_actuals[:comp_samples].flatten(),
-        tft_lower[:comp_samples].flatten(),
-        tft_upper[:comp_samples].flatten(),
-    )
-    # Generate mock calibration curve points matching evaluated accuracy
-    pred_probabilities = np.linspace(0.1, 0.9, 9)
-    # Calibrate observed coverage slightly noisy around ideal diagonal
-    np.random.seed(42)
-    observed_coverage = pred_probabilities + np.random.normal(0, 0.03, len(pred_probabilities))
-    observed_coverage = np.clip(observed_coverage, 0, 1)
+    # Plot 3: Quantile calibration (observed frequency below each predicted quantile)
+    calib = pd.DataFrame(m["quantile_calibration"])
+    calib.to_csv(RESULTS_DIR / "elnino_quantile_calibration.csv", index=False)
 
     fig, ax = plt.subplots(figsize=(4.5, 4.5))
     ax.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")
-    ax.plot(pred_probabilities, observed_coverage, "b-s", label="TFT Calibration")
-    ax.set_xlabel("Predicted Quantile")
-    ax.set_ylabel("Observed Frequency")
-    ax.set_title("TFT Probabilistic Calibration Curve")
+    ax.plot(calib["quantile"], calib["observed_frequency"], "b-s", label="TFT (test set)")
+    for q, f in zip(calib["quantile"], calib["observed_frequency"], strict=True):
+        ax.annotate(f"{f:.2f}", (q, f), textcoords="offset points", xytext=(-24, 6), fontsize=8)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel("Predicted Quantile Level")
+    ax.set_ylabel("Observed Frequency Below Quantile")
+    ax.set_title("TFT Quantile Calibration")
     ax.legend()
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "elnino_calibration_diagram.png", dpi=300)
@@ -371,114 +254,71 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     print("Saved El Nino quantile coverage to runtime/eval_artifacts/elnino_quantile_coverage.png")
 
     return {
-        "tft": tft_metrics,
-        "lstm": lstm_metrics,
-        "persistence": persistence_metrics,
-        "calibration": rel_info,
+        "tft": m["tft"],
+        "lstm": m["lstm"],
+        "persistence": m["persistence"],
+        "calibration": m["calibration"],
+        "quantile_calibration": m["quantile_calibration"],
     }
 
 
 def evaluate_pollution():
-    """Evaluate Pollution ST-GNN on the test split."""
+    """Evaluate the Pollution ST-GNN on the test split, in physical units."""
     print("Evaluating Pollution ST-GNN model...")
 
-    ckpt_path = settings.model.checkpoint_dir / "pollution" / "stgnn_best.pt"
+    ckpt_dir = settings.model.checkpoint_dir / "pollution"
+    ckpt_path = ckpt_dir / "stgnn_best.pt"
     if not ckpt_path.exists():
         raise FileNotFoundError("No ST-GNN pollution model checkpoint found.")
-
     model = load_pollution_model(ckpt_path, in_channels=1)
 
-    # Load dataset
-    from data.processing.graph_builder import (
-        build_station_graph,
-        build_temporal_snapshots,
-        filter_locations_to_measurements,
-        normalize_snapshot_features,
-    )
-    from data.sources.openaq import OpenAQSource
-    from models.pollution.graph_dataset import create_windowed_signal
+    from models.pollution.graph_dataset import build_pollution_splits
 
-    openaq = OpenAQSource()
-    locations_df = openaq.fetch_locations(
-        countries=settings.data.focus_countries, limit=settings.data.openaq_max_locations
-    )
-    pm25_df = openaq.fetch_measurements(
-        parameter="pm25",
-        countries=settings.data.focus_countries,
-        date_from=f"{settings.data.start_year}-01-01",
-        date_to=f"{settings.data.end_year}-12-31",
-        limit=settings.data.openaq_limit,
-        max_locations=settings.data.openaq_max_locations,
-        use_cache=True,
-    )
+    splits = build_pollution_splits(window_size=settings.model.gnn_num_periods)
+    norm_stats = splits["norm_stats"]
 
-    locations_df = filter_locations_to_measurements(locations_df, pm25_df)
-    graph = build_station_graph(locations_df)
-    snapshots = build_temporal_snapshots(pm25_df, graph, feature_cols=["pm25"], time_freq="D")
+    # The model was trained with the stats saved at training time; they must match
+    saved_stats = json.loads((ckpt_dir / "norm_stats.json").read_text())
+    if not np.allclose([saved_stats["mean"], saved_stats["std"]], [norm_stats["mean"], norm_stats["std"]]):
+        raise ValueError(f"Pollution data changed since training: {saved_stats} vs {norm_stats}")
 
-    # Normalize
-    snapshots, _ = normalize_snapshot_features(snapshots)
+    metrics = evaluate_pollution_model(model, splits["test"], norm_stats, AQI_100_PM25_UGM3)
 
-    n = len(snapshots)
-    val_end = int(n * 0.85)
-    test_windowed = create_windowed_signal(
-        snapshots[val_end:], window_size=settings.model.gnn_num_periods
-    )
-
-    metrics = evaluate_pollution_model(
-        model, test_windowed, threshold=-0.35
-    )  # threshold -0.35 because features normalized and test values range from -0.73 to -0.19
-
-    # Save node errors as CSV
     node_rmse_df = pd.DataFrame(
-        {
-            "node_id": range(len(metrics["node_rmse"])),
-            "rmse": metrics["node_rmse"],
-        }
+        {"node_id": range(len(metrics["node_rmse"])), "rmse_ugm3": metrics["node_rmse"]}
     )
     node_rmse_df.to_csv(RESULTS_DIR / "pollution_node_rmse.csv", index=False)
 
-    # Plot node error distribution
+    # Plot node error distribution (stations with at least one test reading)
     fig, ax = plt.subplots(figsize=(6, 3.5))
-    sns.histplot(metrics["node_rmse"], kde=True, bins=10, ax=ax, color="purple")
-    ax.set_xlabel("Root Mean Square Error (RMSE)")
+    sns.histplot(node_rmse_df["rmse_ugm3"].dropna(), kde=True, bins=10, ax=ax, color="purple")
+    ax.set_xlabel("RMSE (µg/m³)")
     ax.set_ylabel("Station Count")
-    ax.set_title("Node-wise Pollution Prediction Error Distribution")
+    ax.set_title("Node-wise PM2.5 Prediction Error Distribution")
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "pollution_dispersion_nodes.png", dpi=300)
     plt.close(fig)
 
-    # Plot Confusion Matrix
-    preds = metrics["predictions"]
-    trues = metrics["targets"]
-    pred_exceed = preds > -0.35
-    true_exceed = trues > -0.35
-    tp = int(np.sum(pred_exceed & true_exceed))
-    fp = int(np.sum(pred_exceed & ~true_exceed))
-    fn = int(np.sum(~pred_exceed & true_exceed))
-    tn = int(np.sum(~pred_exceed & ~true_exceed))
-
-    cm = np.array([[tn, fp], [fn, tp]])
+    # Plot confusion matrix for the AQI 100 exceedance threshold
+    c = metrics["confusion"]
+    cm = np.array([[c["tn"], c["fp"]], [c["fn"], c["tp"]]])
+    labels = [f"< {AQI_100_PM25_UGM3} µg/m³\n(AQI ≤ 100)", f"≥ {AQI_100_PM25_UGM3} µg/m³\n(AQI > 100)"]
 
     fig, ax = plt.subplots(figsize=(4.5, 4))
     sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cmap="Purples",
-        xticklabels=["Clean (<100 AQI)", "Alert (>100 AQI)"],
-        yticklabels=["Clean (<100 AQI)", "Alert (>100 AQI)"],
-        ax=ax,
-        cbar=False,
+        cm, annot=True, fmt="d", cmap="Purples",
+        xticklabels=labels, yticklabels=labels, ax=ax, cbar=False,
     )
-    ax.set_ylabel("True Category")
-    ax.set_xlabel("Predicted Category")
-    ax.set_title("PM2.5 Exceedance Alert Confusion Matrix")
+    ax.set_ylabel("Observed")
+    ax.set_xlabel("Predicted")
+    ax.set_title("Next-Day PM2.5 Exceedance (Observed Station-Days)")
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "pollution_confusion_matrix.png", dpi=300)
     plt.close(fig)
     print("Saved pollution confusion matrix to runtime/eval_artifacts/pollution_confusion_matrix.png")
 
+    metrics["norm_stats"] = norm_stats
+    metrics["snapshot_counts"] = splits["snapshot_counts"]
     return metrics
 
 
@@ -608,13 +448,6 @@ def generate_training_loss_curves():
         except Exception:
             pass
 
-    if not tft_epochs or len(tft_epochs) < 2:
-        # Generate representative decay curve
-        np.random.seed(42)
-        epochs = np.arange(50)
-        tft_train = 0.25 + 0.25 * np.exp(-epochs / 12.0) + np.random.normal(0, 0.005, 50)
-        tft_val = 0.26 + 0.24 * np.exp(-epochs / 12.0) + np.random.normal(0, 0.005, 50)
-        tft_epochs = epochs.tolist()
 
     # 2. LSTM loss
     lstm_epochs, lstm_train, lstm_val = [], [], []
@@ -628,12 +461,6 @@ def generate_training_loss_curves():
         except Exception:
             pass
 
-    if not lstm_epochs or len(lstm_epochs) < 2:
-        np.random.seed(43)
-        epochs = np.arange(50)
-        lstm_train = 0.38 + 0.42 * np.exp(-epochs / 15.0) + np.random.normal(0, 0.008, 50)
-        lstm_val = 0.40 + 0.40 * np.exp(-epochs / 15.0) + np.random.normal(0, 0.008, 50)
-        lstm_epochs = epochs.tolist()
 
     # 3. ST-GNN loss
     gnn_epochs, gnn_train, gnn_val = [], [], []
@@ -647,12 +474,6 @@ def generate_training_loss_curves():
         except Exception:
             pass
 
-    if not gnn_epochs or len(gnn_epochs) < 2:
-        np.random.seed(44)
-        epochs = np.arange(50)
-        gnn_train = 0.18 + 0.42 * np.exp(-epochs / 10.0) + np.random.normal(0, 0.006, 50)
-        gnn_val = 0.20 + 0.40 * np.exp(-epochs / 10.0) + np.random.normal(0, 0.006, 50)
-        gnn_epochs = epochs.tolist()
 
     # 4. NWM loss
     nwm_epochs, nwm_train, nwm_val = [], [], []
@@ -666,16 +487,15 @@ def generate_training_loss_curves():
         except Exception:
             pass
 
-    if not nwm_epochs or len(nwm_epochs) < 2:
-        np.random.seed(45)
-        epochs = np.arange(50)
-        nwm_train = 0.22 + 0.35 * np.exp(-epochs / 12.0) + np.random.normal(0, 0.005, 50)
-        nwm_val = 0.24 + 0.33 * np.exp(-epochs / 12.0) + np.random.normal(0, 0.005, 50)
-        nwm_epochs = epochs.tolist()
 
-    # Plot four subplots (2x2 panel)
+    # Plot four subplots (2x2 panel). A missing training log leaves its panel empty
+    # with a note; never substitute invented curves.
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharey=False)
     axes = axes.flatten()
+    for ax, epochs in zip(axes, [tft_epochs, lstm_epochs, gnn_epochs, nwm_epochs], strict=True):
+        if len(epochs) < 2:
+            ax.text(0.5, 0.5, "No training log found", ha="center", va="center",
+                    transform=ax.transAxes, color="gray")
 
     # TFT subplot
     axes[0].plot(tft_epochs, tft_train, "b-", label="Train Loss")
@@ -983,7 +803,9 @@ def _plot_spatial_error_map(preds, targets, test_ds, num_lat, num_lon):
 
     cbar = plt.colorbar(im, ax=ax, shrink=0.85, label="RMSE (K)")
 
-    global_rmse = float(np.sqrt(sq_err.mean()) * test_ds.t2m_std)
+    # Area-weighted (cos latitude) global RMSE, matching the NWM evaluation metric
+    weights = test_ds.lat_weights / test_ds.lat_weights.mean()
+    global_rmse = float(np.sqrt((sq_err * weights[None, :]).mean()) * test_ds.t2m_std)
     equatorial = rmse_map_K[num_lat // 3 : 2 * num_lat // 3, :].mean()
     polar = np.concatenate([rmse_map_K[:num_lat // 6, :].flatten(),
                             rmse_map_K[-num_lat // 6:, :].flatten()]).mean()
@@ -1001,72 +823,31 @@ def _plot_spatial_error_map(preds, targets, test_ds, num_lat, num_lon):
 
 
 def generate_nwm_plots():
-    """Orchestrate generation of all four NWM-specific publication figures."""
+    """Generate the NWM figures and return test-set metrics of the main model."""
     print("Generating NWM-specific plots...")
 
     # Plot 4 (convergence) only needs the metrics CSV
     _plot_nwm_convergence()
 
-    nc_path = settings.data.raw_dir / "nwm_era5" / "era5_5deg_6hr_2020_2022.nc"
-    nino_path = settings.data.processed_dir / "nino_features.parquet"
-    ckpt_path = settings.model.checkpoint_dir / "nwm" / "nwm_best.pt"
-
-    if not nc_path.exists():
-        print("  SKIP: ERA5 NetCDF not found — skipping spatial NWM plots.")
-        return
-
-    from models.nwm.dataset import NWMDataset
+    from models.nwm.dataset import ERA5_PATH
+    from models.nwm.evaluate import evaluate_nwm_checkpoint
     from models.nwm.graph_builder import SphericalGraphBuilder
-    from models.nwm.trainer import NWMTrainer
-    from torch.utils.data import DataLoader
 
-    test_ds = NWMDataset(nc_path, nino_path, mode="test")
-    graph_builder = SphericalGraphBuilder(test_ds.lat, test_ds.lon, num_mesh_nodes=2000)
-
-    # Plot 3: Fibonacci mesh topology (does not need model checkpoint)
-    _plot_fibonacci_mesh(graph_builder)
-
-    # Plots 1 & 2 need the trained model
+    ckpt_path = settings.model.checkpoint_dir / "nwm" / "nwm_best.pt"
+    if not ERA5_PATH.exists():
+        print("  SKIP: ERA5 NetCDF not found — skipping spatial NWM plots.")
+        return {}
     if not ckpt_path.exists():
         print("  SKIP: nwm_best.pt not found — skipping prediction plots.")
-        return
+        return {}
 
-    e_g2m = graph_builder.build_grid_to_mesh()
-    e_m2m = graph_builder.build_mesh_to_mesh()
-    e_m2g = graph_builder.build_mesh_to_grid()
+    m = evaluate_nwm_checkpoint(ckpt_path, settings.nwm.conditioning)
+    test_ds, preds, targets = m["dataset"], m["preds"], m["targets"]
 
-    grid_in = test_ds.window_size * 2 + 4   # A1: temporal channels + static features
-    grid_out = test_ds.prediction_steps * 2  # T2m + Precip per prediction step
-
-    trainer = NWMTrainer(
-        grid_in_channels=grid_in,
-        grid_out_channels=grid_out,
-        hidden_dim=128,
-        num_processor_layers=4,
-        learning_rate=1e-3,
-        weight_decay=1e-4,
-        edge_grid_to_mesh=e_g2m,
-        edge_mesh_to_mesh=e_m2m,
-        edge_mesh_to_grid=e_m2g,
-        num_mesh_nodes=2000,
+    # Plot 3: Fibonacci mesh topology
+    _plot_fibonacci_mesh(
+        SphericalGraphBuilder(test_ds.lat, test_ds.lon, num_mesh_nodes=settings.nwm.num_mesh_nodes)
     )
-    trainer.load_checkpoint(ckpt_path)
-    trainer.model.eval()
-
-    # Run inference on full test set
-    test_loader = DataLoader(test_ds, batch_size=16, shuffle=False, num_workers=0)
-    all_preds, all_targets = [], []
-
-    with torch.no_grad():
-        for x, cond, y in test_loader:
-            x = x.to(trainer.device)
-            cond = cond.to(trainer.device)
-            y_hat = trainer._forward(x, cond)
-            all_preds.append(y_hat.cpu().numpy())
-            all_targets.append(y.numpy())
-
-    preds = np.concatenate(all_preds, axis=0)      # [N_test, num_grid, out_channels]
-    targets = np.concatenate(all_targets, axis=0)
 
     num_lat = len(test_ds.lat)
     num_lon = len(test_ds.lon)
@@ -1079,6 +860,7 @@ def generate_nwm_plots():
     _plot_spatial_error_map(preds, targets, test_ds, num_lat, num_lon)
 
     print("NWM plot generation complete.")
+    return {k: v for k, v in m.items() if isinstance(v, (int, float, str))}
 
 
 def copy_runtime_data():
@@ -1148,6 +930,61 @@ def copy_runtime_data():
     print("Runtime data copy complete.")
 
 
+def _fmt(summary: dict, *keys, digits: int = 4) -> str:
+    """Format a nested summary value, or 'n/a' if missing. Never substitutes numbers."""
+    value = summary
+    for key in keys:
+        if not isinstance(value, dict) or key not in value:
+            return "n/a"
+        value = value[key]
+    if isinstance(value, float):
+        return f"{value:.{digits}f}"
+    return str(value)
+
+
+def _seed_summary_md() -> str:
+    path = RESULTS_DIR / "elnino_seeds.csv"
+    if not path.exists():
+        return "*Multi-seed results not available (run `make train-elnino-seeds`).*\n"
+    df = pd.read_csv(path)
+    lines = [
+        f"Mean ± standard deviation over {df['seed'].nunique()} seeds "
+        "(TFT variant selected by mean validation loss).\n",
+        "| Model | Variant | Val loss | RMSE (°C) | ACC | Skill Score | Bias (°C) |",
+        "| :--- | :--- | :---: | :---: | :---: | :---: | :---: |",
+    ]
+    order = {"tft": 0, "lstm": 1, "persistence": 2}
+    df = df.sort_values(["model", "variant"], key=lambda c: c.map(order) if c.name == "model" else c)
+    for (model, variant), g in df.groupby(["model", "variant"], sort=False):
+        cells = [
+            "n/a" if g[c].isna().all() else f"{g[c].mean():.3f} ± {g[c].std():.3f}"
+            for c in ["val_loss", "rmse", "acc", "skill_score", "bias"]
+        ]
+        lines.append(f"| {model} | {variant} | " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def _ablation_md() -> str:
+    path = RESULTS_DIR / "nwm_ablation.csv"
+    if not path.exists():
+        return "*Ablation results not available (run `make nwm-ablation`).*\n"
+    df = pd.read_csv(path)
+    lines = [
+        "| Variant | Conditioning | Area-weighted loss | Epochs | Test T2m RMSE (K) | Test precip RMSE |",
+        "| :--- | :--- | :---: | :---: | :---: | :---: |",
+    ]
+    for r in df.itertuples():
+        lines.append(
+            f"| {r.variant} | {r.conditioning} | {r.area_weighted_loss} | {r.epochs} | "
+            f"{r.t2m_rmse_K:.3f} | {r.tp_rmse:.3e} |"
+        )
+    p = df.iloc[0]
+    lines.append(
+        f"| persistence | — | — | — | {p.persistence_t2m_rmse_K:.3f} | {p.persistence_tp_rmse:.3e} |"
+    )
+    return "\n".join(lines) + "\n"
+
+
 def main():
     print("=" * 60)
     print("ClimatePulse Paper Artifacts Generator")
@@ -1158,29 +995,25 @@ def main():
     try:
         tft_model, test_ds, df = load_tft_test_data()
         lstm_model, lstm_test_data = load_lstm_test_data()
-        elnino_results = evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data)
-        summary["elnino"] = elnino_results
+        summary["elnino"] = evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data)
     except Exception as e:
         print(f"Failed to generate El Nino artifacts: {e}")
         summary["elnino"] = {"status": "failed", "error": str(e)}
 
     try:
-        pollution_results = evaluate_pollution()
-        summary["pollution"] = pollution_results
+        summary["pollution"] = evaluate_pollution()
     except Exception as e:
         print(f"Failed to generate Pollution artifacts: {e}")
         summary["pollution"] = {"status": "failed", "error": str(e)}
 
     try:
-        climate_results = evaluate_climate_feedback()
-        summary["climate_feedback"] = climate_results
+        summary["climate_feedback"] = evaluate_climate_feedback()
     except Exception as e:
         print(f"Failed to generate Climate Feedback artifacts: {e}")
         summary["climate_feedback"] = {"status": "failed", "error": str(e)}
 
     try:
-        nwm_results = evaluate_nwm()
-        summary["nwm"] = nwm_results
+        summary["nwm"] = evaluate_nwm()
     except Exception as e:
         print(f"Failed to generate NWM artifacts: {e}")
         summary["nwm"] = {"status": "failed", "error": str(e)}
@@ -1191,69 +1024,84 @@ def main():
         print(f"Failed to generate training loss curves: {e}")
 
     try:
-        generate_nwm_plots()
+        summary["nwm"].update(generate_nwm_plots())
     except Exception as e:
         print(f"Failed to generate NWM-specific plots: {e}")
 
-    # Save overall summary metrics to JSON
-    # Filter non-serializable elements
-    clean_summary = {}
-    for domain, res in summary.items():
-        clean_summary[domain] = {}
-        for k, v in res.items():
-            if isinstance(v, int | float | str | bool | list | dict):
-                clean_summary[domain][k] = v
-
+    # Save overall summary metrics to JSON (scalars, lists and dicts only)
+    clean_summary = {
+        domain: {k: v for k, v in res.items() if isinstance(v, int | float | str | bool | list | dict)}
+        for domain, res in summary.items()
+    }
     with open(RESULTS_DIR / "summary_metrics.json", "w") as f:
         json.dump(clean_summary, f, indent=2)
 
-    # Write runtime/eval_artifacts/metrics_summary.md
     print("Writing markdown summary metrics table...")
+    cs = clean_summary
+    rows = "\n".join(
+        f"| **{label}** | {_fmt(cs, 'elnino', key, 'rmse')} | {_fmt(cs, 'elnino', key, 'mae')} | "
+        f"{_fmt(cs, 'elnino', key, 'acc')} | {_fmt(cs, 'elnino', key, 'skill_score')} | "
+        f"{_fmt(cs, 'elnino', key, 'bias')} |"
+        for label, key in [
+            ("Temporal Fusion Transformer (TFT)", "tft"),
+            ("LSTM Baseline", "lstm"),
+            ("Persistence Baseline", "persistence"),
+        ]
+    )
+    slopes = cs.get("climate_feedback", {}).get("segment_slopes_c_per_decade", [])
     md_content = f"""# ClimatePulse Model Evaluation Metrics
 
-This document summarizes the performance metrics generated during the evaluation phase of the trained forecasting and regression models.
+This document summarizes the performance metrics generated during the evaluation phase of the trained forecasting and regression models. "n/a" marks a result that could not be computed.
 
 ---
 
 ## 1. El Niño Forecasting (SST Anomaly)
 
-| Model | RMSE (°C) | MAE (°C) | Anomaly Correlation (ACC) | Skill Score |
-| :--- | :---: | :---: | :---: | :---: |
-| **Temporal Fusion Transformer (TFT)** | {clean_summary.get('elnino', {}).get('tft', {}).get('rmse', 0.32):.4f} | {clean_summary.get('elnino', {}).get('tft', {}).get('mae', 0.24):.4f} | {clean_summary.get('elnino', {}).get('tft', {}).get('acc', 0.91):.4f} | {clean_summary.get('elnino', {}).get('tft', {}).get('skill_score', 0.74):.4f} |
-| **LSTM Baseline** | {clean_summary.get('elnino', {}).get('lstm', {}).get('rmse', 0.39):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('mae', 0.30):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('acc', 0.84):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('skill_score', 0.65):.4f} |
-| **Persistence Baseline** | {clean_summary.get('elnino', {}).get('persistence', {}).get('rmse', 0.51):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('mae', 0.42):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('acc', 0.62):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('skill_score', 0.0):.4f} |
+### Main run (figures)
 
-*Skill Score = 1 − MSE(model) / MSE(persistence), where persistence carries the last observed value across all 12 leads.*
+| Model | RMSE (°C) | MAE (°C) | Anomaly Correlation (ACC) | Skill Score | Bias (°C) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+{rows}
 
+*Skill Score = 1 − MSE(model) / MSE(persistence), where persistence carries the last observed value across all 12 leads. TFT 80 % interval coverage: {_fmt(cs, 'elnino', 'calibration', 'actual_coverage', digits=3)}.*
+
+### Across seeds
+
+{_seed_summary_md()}
 ---
 
-## 2. Spatio-Temporal Pollution Dispersion
+## 2. Spatio-Temporal Pollution Dispersion (next-day PM2.5)
 
-| Metric | Value (Normalized PM2.5 AQI) |
-| :--- | :---: |
-| **Root Mean Square Error (RMSE)** | {clean_summary.get('pollution', {}).get('rmse', 0.0285):.4f} |
-| **Mean Absolute Error (MAE)** | {clean_summary.get('pollution', {}).get('mae', 0.0195):.4f} |
-| **F1 Exceedance Rate (AQI > 100)** | {clean_summary.get('pollution', {}).get('f1', 0.82):.4f} |
-| **Precision** | {clean_summary.get('pollution', {}).get('precision', 0.85):.4f} |
-| **Recall** | {clean_summary.get('pollution', {}).get('recall', 0.79):.4f} |
+| Metric | Model | Persistence | Always alert |
+| :--- | :---: | :---: | :---: |
+| **RMSE (µg/m³)** | {_fmt(cs, 'pollution', 'rmse_ugm3', digits=2)} | {_fmt(cs, 'pollution', 'persistence_rmse_ugm3', digits=2)} | — |
+| **F1, PM2.5 ≥ {AQI_100_PM25_UGM3} µg/m³ (AQI > 100)** | {_fmt(cs, 'pollution', 'f1')} | {_fmt(cs, 'pollution', 'persistence_f1')} | {_fmt(cs, 'pollution', 'always_alert_f1')} |
+| **Precision / Recall** | {_fmt(cs, 'pollution', 'precision')} / {_fmt(cs, 'pollution', 'recall')} | — | — |
+
+*Observed station-days: {_fmt(cs, 'pollution', 'n_observed')} of {_fmt(cs, 'pollution', 'n_total')}; exceedance rate {_fmt(cs, 'pollution', 'exceedance_rate', digits=3)}. Missing readings are excluded.*
 
 ---
 
 ## 3. Neural Weather Model (NWM)
 
-| Metric | Value (MSE) |
+| Metric | Value |
 | :--- | :---: |
-| **Best Validation Loss** | {clean_summary.get('nwm', {}).get('best_val_loss', 0.1448):.4f} |
-| **Final Training Loss** | {clean_summary.get('nwm', {}).get('final_train_loss', 0.1283):.4f} |
+| **Best Validation Loss (MSE, normalized)** | {_fmt(cs, 'nwm', 'best_val_loss')} |
+| **Final Training Loss (MSE, normalized)** | {_fmt(cs, 'nwm', 'final_train_loss')} |
+| **Test 2 m Temperature RMSE (K, area-weighted)** | {_fmt(cs, 'nwm', 't2m_rmse_K', digits=3)} |
+| **Persistence 2 m Temperature RMSE (K)** | {_fmt(cs, 'nwm', 'persistence_t2m_rmse_K', digits=3)} |
 
+### Ablation
+
+{_ablation_md()}
 ---
 
 ## 4. Climate Feedback Change-Points
 
-* **Method**: {clean_summary.get('climate_feedback', {}).get('method', 'n/a')}
-* **Detected Breaks**: {clean_summary.get('climate_feedback', {}).get('changepoints_detected', 'n/a')}
-* **Change-Point Years**: {", ".join(map(str, clean_summary.get('climate_feedback', {}).get('changepoint_years', []))) or 'none'}
-* **Segment Warming Rates (°C/decade)**: {", ".join(f"{s:.3f}" for s in clean_summary.get('climate_feedback', {}).get('segment_slopes_c_per_decade', [])) or 'n/a'}
+* **Method**: {_fmt(cs, 'climate_feedback', 'method')}
+* **Detected Breaks**: {_fmt(cs, 'climate_feedback', 'changepoints_detected')}
+* **Change-Point Years**: {", ".join(map(str, cs.get('climate_feedback', {}).get('changepoint_years', []))) or 'none'}
+* **Segment Warming Rates (°C/decade)**: {", ".join(f"{v:.3f}" for v in slopes) or 'n/a'}
 """
     with open(ARTIFACTS_DIR / "metrics_summary.md", "w") as f:
         f.write(md_content)
@@ -1261,7 +1109,7 @@ This document summarizes the performance metrics generated during the evaluation
     try:
         copy_runtime_data()
     except Exception as e:
-        print(f"Failed to copy/sync runtime data: {e}")
+        print(f"Failed to copy runtime data: {e}")
 
     print("=" * 60)
     print(f"Artifact generation completed! Output directory: {ARTIFACTS_DIR}")

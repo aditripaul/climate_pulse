@@ -30,6 +30,7 @@ numpy>=2.5.1
 pyarrow>=25.0.0
 fastparquet>=2024.11.0
 scipy>=1.18.0
+statsmodels>=0.14.0
 
 # Config & utilities
 pydantic-settings>=2.0.0

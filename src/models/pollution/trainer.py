@@ -60,14 +60,15 @@ def train_pollution_model(
             )
             y = torch.FloatTensor(snapshot.y).to(device)
 
-            # Skip batches with NaN inputs (corrupt sensor data)
-            if torch.isnan(x).any() or torch.isnan(y).any():
+            # Only stations with a reading on the target day contribute to the loss
+            observed = torch.isfinite(y)
+            if not observed.any():
                 nan_batches_total += 1
                 continue
 
             optimizer.zero_grad()
             pred = model(x, edge_index, edge_weight).squeeze()
-            loss = torch.nn.functional.mse_loss(pred, y)
+            loss = torch.nn.functional.mse_loss(pred[observed], y[observed])
 
             # Guard against NaN loss (numerical instability)
             if torch.isnan(loss):
@@ -101,12 +102,12 @@ def train_pollution_model(
                     )
                     y = torch.FloatTensor(snapshot.y).to(device)
 
-                    # Skip batches with NaN inputs
-                    if torch.isnan(x).any() or torch.isnan(y).any():
+                    observed = torch.isfinite(y)
+                    if not observed.any():
                         continue
 
                     pred = model(x, edge_index, edge_weight).squeeze()
-                    batch_loss = torch.nn.functional.mse_loss(pred, y)
+                    batch_loss = torch.nn.functional.mse_loss(pred[observed], y[observed])
                     if not torch.isnan(batch_loss):
                         val_loss += batch_loss.item()
                         n_val += 1
@@ -139,7 +140,7 @@ def train_pollution_model(
         writer.writerows(history)
 
     if nan_batches_total > 0:
-        logger.warning(f"Skipped {nan_batches_total} batches with NaN inputs/loss during training")
+        logger.warning(f"Skipped {nan_batches_total} windows with no observed targets or NaN loss")
 
     db.complete_model_run(
         run_id, metrics=f"best_val={best_val_loss:.6f}", checkpoint_path=best_path or final_path

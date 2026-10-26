@@ -12,6 +12,15 @@ from pathlib import Path
 from loguru import logger
 from config import settings
 
+ERA5_PATH = settings.data.raw_dir / "nwm_era5" / "era5_5deg_6hr_2020_2022.nc"
+
+
+def nino_conditioning_path(conditioning: str) -> Path:
+    """Parquet file holding the Nino 3.4 series used to condition the NWM."""
+    if conditioning == "forecast":
+        return settings.data.processed_dir / "nino34_tft_lead1.parquet"
+    return settings.data.processed_dir / "nino_features.parquet"
+
 
 class NWMDataset(Dataset):
     def __init__(
@@ -21,14 +30,17 @@ class NWMDataset(Dataset):
         window_size: int = 2,
         prediction_steps: int = 1,
         mode: str = "train",
+        conditioning: str = "observed",
     ):
         """
         Args:
             nc_path: Path to ERA5 NetCDF file.
-            nino_path: Path to Nino 3.4 parquet file.
+            nino_path: Path to a monthly parquet file with 'time' and 'nino34'
+                (observed index, or TFT lead-1 forecasts for 'forecast').
             window_size: Number of past time steps to use as input.
             prediction_steps: Number of future time steps to predict.
             mode: 'train', 'val', or 'test'.
+            conditioning: 'observed', 'forecast' or 'none' (condition on zero).
         """
         logger.info(f"Loading NWM Dataset from {nc_path}")
         if not nc_path.exists():
@@ -37,11 +49,12 @@ class NWMDataset(Dataset):
         self.ds = xr.open_dataset(nc_path)
         self.window_size = window_size
         self.prediction_steps = prediction_steps
+        self.conditioning = conditioning
         
         # Load Nino 3.4 index
         nino_df = pd.read_parquet(nino_path)
         nino_df['time'] = pd.to_datetime(nino_df['time'])
-        nino_df.set_index('time', inplace=True)
+        nino_df = nino_df.set_index('time').sort_index()
         self.nino_series = nino_df['nino34']
         
         # Extract variables
@@ -53,10 +66,17 @@ class NWMDataset(Dataset):
         self.t2m = self.ds['2m_temperature'].transpose('time', 'latitude', 'longitude').values
         self.tp = self.ds['total_precipitation'].transpose('time', 'latitude', 'longitude').values
         
+        # Split logic: train on first 70%, val on next 15%, test on last 15%
+        total_steps = len(self.times)
+        train_end = int(total_steps * 0.7)
+        val_end = int(total_steps * 0.85)
+
         # --- B3: Latitude-cosine-weighted normalization ---
         # Grid cells near the equator represent larger physical areas (cos(lat) → 1)
         # than polar cells (cos(lat) → 0). Weighting prevents polar nodes from
-        # distorting the global normalization statistics.
+        # distorting the global normalization statistics. Statistics come from the
+        # training period only, so every split is normalized identically without
+        # leaking validation/test data.
         lat_weights = np.cos(np.radians(self.lat))  # [Lat]
         lat_weights = lat_weights / lat_weights.mean()  # unit mean
         # Expand to [Time, Lat, Lon] for broadcasting
@@ -65,13 +85,15 @@ class NWMDataset(Dataset):
         # Per-grid-node weights: repeat each lat weight across all longitudes
         node_weights = np.repeat(lat_weights, len(self.lon))  # [Lat*Lon]
 
-        t2m_spatial = self.t2m.mean(axis=0).flatten()  # [Lat*Lon]
-        tp_spatial  = self.tp.mean(axis=0).flatten()    # [Lat*Lon]
+        t2m_train = self.t2m[:train_end]
+        tp_train = self.tp[:train_end]
+        t2m_spatial = t2m_train.mean(axis=0).flatten()  # [Lat*Lon]
+        tp_spatial  = tp_train.mean(axis=0).flatten()    # [Lat*Lon]
 
         self.t2m_mean = float(np.average(t2m_spatial, weights=node_weights))
-        self.t2m_std  = float(np.sqrt(((self.t2m - self.t2m_mean) ** 2 * w).mean()) + 1e-6)
+        self.t2m_std  = float(np.sqrt(((t2m_train - self.t2m_mean) ** 2 * w).mean()) + 1e-6)
         self.tp_mean  = float(np.average(tp_spatial,  weights=node_weights))
-        self.tp_std   = float(np.sqrt(((self.tp  - self.tp_mean)  ** 2 * w).mean()) + 1e-6)
+        self.tp_std   = float(np.sqrt(((tp_train  - self.tp_mean)  ** 2 * w).mean()) + 1e-6)
 
         self.t2m = (self.t2m - self.t2m_mean) / self.t2m_std
         self.tp  = (self.tp  - self.tp_mean)  / self.tp_std
@@ -90,13 +112,6 @@ class NWMDataset(Dataset):
 
         # Cosine-latitude weights per grid node, used by the trainer for weighted loss.
         self.lat_weights = np.cos(np.radians(lats_2d.flatten())).astype(np.float32)  # [num_grid_nodes]
-        
-        # Time indices
-        total_steps = len(self.times)
-        
-        # Split logic (e.g., train on first 70%, val on next 15%, test on last 15%)
-        train_end = int(total_steps * 0.7)
-        val_end = int(total_steps * 0.85)
         
         self.valid_indices = []
         if mode == "train":
@@ -151,16 +166,18 @@ class NWMDataset(Dataset):
         y = np.concatenate([y_t2m_flat, y_tp_flat], axis=-1)
         y_flat = y.reshape(-1, y.shape[-1]) # [Lat*Lon, Channels*PredictionSteps]
         
-        # 3. Get Nino 3.4 conditioning scalar for the current time
-        current_time = self.times[time_idx]
-        
-        # Nearest valid Nino month (nino is usually monthly)
-        try:
-            nino_idx = self.nino_series.index.get_indexer([current_time], method='nearest')[0]
+        # 3. Get Nino 3.4 conditioning scalar for the month containing the current time.
+        # Monthly values are stamped at the month start, so take the latest stamp
+        # <= current time ('nearest' would use next month's value late in a month).
+        if self.conditioning == "none":
+            nino_val = 0.0
+        else:
+            current_time = self.times[time_idx]
+            nino_idx = self.nino_series.index.get_indexer([current_time], method="ffill")[0]
+            if nino_idx < 0:
+                raise ValueError(f"No Nino 3.4 value on or before {current_time}")
             nino_val = self.nino_series.iloc[nino_idx]
-        except Exception:
-            nino_val = 0.0 # Fallback if missing
-            
+
         condition = np.array([nino_val], dtype=np.float32)
         
         return (
