@@ -9,7 +9,6 @@ saves raw prediction/metric files, and plots standard graphics.
 import glob
 import json
 import os
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -77,14 +76,12 @@ def load_tft_test_data():
     if not tft_ckpts:
         raise FileNotFoundError("No TFT model checkpoints found.")
 
-    # Prefer the best checkpoint (lowest val_loss in the ModelCheckpoint filename);
-    # fall back to the most recent file if none carry a score.
-    scored = [
-        (float(m.group(1)), p)
-        for p in tft_ckpts
-        if (m := re.search(r"val_loss=([0-9.]+?)(?:-v\d+)?\.ckpt$", os.path.basename(p)))
-    ]
-    best_ckpt = min(scored)[1] if scored else max(tft_ckpts, key=os.path.getctime)
+    # ModelCheckpoint(save_top_k=1) keeps one "tft-*" file per run: that run's best.
+    # The directory accumulates files across runs, so take the newest best file
+    # rather than the lowest score (an old run's score may come from another split)
+    # or the newest file overall (usually last.ckpt).
+    best_ckpts = [p for p in tft_ckpts if os.path.basename(p).startswith("tft-")]
+    best_ckpt = max(best_ckpts or tft_ckpts, key=os.path.getmtime)
     print(f"Using TFT checkpoint: {best_ckpt}")
     tft_model = load_tft_model(best_ckpt)
 
