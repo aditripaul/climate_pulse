@@ -104,7 +104,7 @@ gen-research-paper-pdf: sync-paper-artifacts
     -s
 
 gen-research-paper_2-pdf: sync-paper-artifacts
-	cd docs/research_paper/ && sed '/^```mermaid$$/,/^```$$/d' research_paper_2.md | pandoc -f markdown -o climatepulse_research_paper_2.pdf \
+	cd docs/research_paper/ && sed '/^```mermaid$$/,/^```$$/d' research_paper.md | pandoc -f markdown -o climatepulse_research_paper.pdf \
      --pdf-engine=xelatex \
      --metadata=smart:false \
      -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
