@@ -2,7 +2,7 @@
 
 <div align="center">
   <h3>AI-Powered Global Climate Forecasting and Analysis</h3>
-  <p>An academic research project integrating deep learning forecasting for El Niño, global pollution, and downstream weather modeling.</p>
+  <p>An academic research project integrating deep learning forecasting for El Niño, regional air pollution, and global weather fields, plus statistical analysis of the warming trend.</p>
 
   [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
   [![PyTorch 2.12](https://img.shields.io/badge/PyTorch-2.12.1-ee4c2c.svg)](https://pytorch.org/)
@@ -13,39 +13,54 @@
 
 ## Overview
 
-ClimatePulse is an academic deep learning research project exploring the interconnected dynamics of global climate systems. Four model families are integrated in a single unified platform:
+ClimatePulse is an academic deep learning research project exploring the interconnected dynamics of global climate systems. Four model families share one data pipeline, configuration system and evaluation tooling:
 
 | Model | Task | Architecture |
 |:---|:---|:---|
-| **El Niño Forecaster** | Predict ENSO phase 3–60 months ahead | Temporal Fusion Transformer (TFT) + BiLSTM baseline |
-| **Pollution Dispersion** | Spatiotemporal PM2.5 / NO$_2$ across sensor networks | Attention-based Temporal Graph Conv (A3TGCN) |
-| **Climate Feedback** | Detect warming regime changepoints | Bayesian Hierarchical Regression (PyMC) |
-| **Neural Weather Model** | Global T2m & precipitation conditioned on ENSO | Spherical Mesh Encoder–Processor–Decoder (ST-GNN) |
+| **El Niño Forecaster** | Forecast the Niño 3.4 index 1–12 months ahead | Temporal Fusion Transformer (TFT) + BiLSTM and persistence baselines |
+| **Pollution Dispersion** | Next-day PM2.5 across a sensor network | Attention Temporal Graph Convolutional Network (A3TGCN) |
+| **Neural Weather Model** | Next 6-hour T2m & precipitation, conditioned on Niño 3.4 | Spherical-mesh Encoder–Processor–Decoder GNN |
+| **Climate Feedback** | Detect changes in the global warming rate | Piecewise-linear trend with AR(1) errors, change-points selected by BIC |
 
-The full stack is Python-only, using efficient data formats (Parquet + JSON) and mixed-precision PyTorch pipelines designed to run on consumer hardware (>= 15 GB VRAM) as well as cloud environments.
+The stack is Python-only, stores data as Parquet + JSON, and runs on CPU; CUDA, AMD ROCm and Intel NPU installs are also supported. A full CPU-only training run takes about 2.2 hours, almost all of it the Neural Weather Model.
 
 ---
 
 ## Models
 
-ClimatePulse integrates four distinct modeling approaches to capture the complexity of the global climate system:
-
 ### 1. El Niño Forecaster (TFT & LSTM)
-Predicts the phase and intensity of the El Niño-Southern Oscillation (ENSO) up to 60 months in advance.
-- **TFT (Temporal Fusion Transformer):** The primary model, leveraging multi-head self-attention and variable selection networks to capture long-range dependencies and provide probabilistic prediction intervals (e.g., 10th-90th quantiles).
-- **LSTM Baseline:** A bidirectional LSTM used as a baseline to benchmark the TFT's skill score and attention mechanisms.
+Forecasts the monthly Niño 3.4 sea-surface temperature anomaly 1–12 months ahead from a 60-month history.
+- **TFT (Temporal Fusion Transformer):** multi-head self-attention and variable selection networks over Niño 1+2, 3, 3.4 and 4 indices, rolling statistics and seasonal features. Quantile regression (10th/50th/90th percentiles) gives prediction intervals.
+- **LSTM baseline:** a two-layer bidirectional LSTM on the Niño 3.4 series alone.
+- **Persistence baseline:** the last observed anomaly held constant; skill scores are measured against it.
+
+Data are split chronologically 70/15/15 (train 1950–mid-2003, validation to 2014, test 2015–2026). No training target falls in the validation or test periods.
 
 ### 2. Pollution Dispersion (A3TGCN)
-Models the spatiotemporal dispersion of PM2.5 across global monitoring networks.
-- **Architecture:** Uses an Attention-based Spatial-Temporal Graph Convolutional Network (A3TGCN). It constructs a k-nearest-neighbor spatial graph of OpenAQ sensor locations and applies Chebyshev graph convolutions combined with Gated Recurrent Units (GRUs) to capture both spatial diffusion and temporal accumulation of pollutants.
+Predicts next-day PM2.5 at each station of an OpenAQ monitoring network (75 stations in India and the United States in the reference run).
+- **Architecture:** a 10-nearest-neighbour station graph with inverse-distance edge weights; A3TGCN combines graph convolutions (GCN) with GRU cells and attention over a 7-day input window.
 
 ### 3. Neural Weather Model (ST-GNN)
-A global, autoregressive weather surrogate model that predicts 2-meter temperature (T2m) and precipitation, conditioned on the ENSO phase.
-- **Architecture:** Employs an Encoder-Processor-Decoder Graph Neural Network. It maps the high-resolution ERA5 equirectangular grid (2,048 nodes) to a latent spherical Fibonacci mesh (2,000 nodes) for isotropic message passing, avoiding the spatial distortion at the poles inherent in standard CNN-based weather models.
+A global weather surrogate predicting the next 6-hourly 2 m temperature and precipitation fields from the previous two, conditioned on the Niño 3.4 index.
+- **Architecture:** an Encoder–Processor–Decoder GNN mapping the 5.625° ERA5 grid (2,048 nodes) to a 2,000-node Fibonacci spherical mesh, four GraphSAGE processor layers with Niño 3.4 injected into each layer's messages, and a decoder back to the grid. Training uses a latitude-cosine-weighted MSE loss.
+- **Conditioning input:** the *observed* monthly Niño 3.4 value for each sample time. TFT forecasts are not yet passed to this model.
 
-### 4. Climate Feedback (Bayesian Regression)
-Detects structural changes in the global warming trend and quantifies climate sensitivity to greenhouse gas emissions.
-- **Architecture:** A Bayesian piecewise hierarchical regression implemented in PyMC. It models NASA GISTEMP temperature anomalies against Climate TRACE emissions data to provide credible intervals for the continuous warming slope and rigorously identify potential regime shifts.
+### 4. Climate Feedback
+- **Warming-rate change-points (used in evaluation):** a continuous piecewise-linear trend fitted to annual NASA GISTEMP means (1950–2025) with AR(1) errors. Every placement of 0–3 change-points (segments of at least 10 years) is fitted, and the number of change-points is chosen by BIC.
+- **Emissions regression (`make train-climate`):** a Bayesian linear regression (PyMC) of global temperature anomaly on Climate TRACE CO₂e emissions. Only about 6 years of data overlap, so it is not yet informative and is not used in evaluation.
+
+---
+
+## Current Results
+
+Reference run `runtime/saved/run_20261026_162519` (single run, CPU). Full tables are in its [`metrics_summary.md`](runtime/saved/run_20261026_162519/eval_artifacts/metrics_summary.md) and the [research paper](docs/research_paper/research_paper.md).
+
+| Model | Result | Caveats |
+|:---|:---|:---|
+| El Niño TFT | RMSE 0.936 °C, ACC 0.727, skill 0.178 vs. persistence (test 2015–2026, leads 1–12) | LSTM is better on RMSE (0.871 °C, skill 0.289); TFT has a −0.68 °C cold bias, 30 % coverage of its 80 % interval, and large run-to-run variance |
+| Pollution A3TGCN | F1 0.973 for exceedance at a normalised threshold | Threshold is about 83 µg/m³, not AQI 100, and missing readings count as exceedances; an always-alert rule scores F1 0.977 |
+| Neural Weather Model | Best validation MSE 0.1185; test 2 m temperature RMSE 1.32 K | Trained on 2020–2021 only; no unconditioned baseline yet |
+| Change-points | One break in 1976: 0.03 → 0.21 °C/decade | Break year is loosely constrained (1971–1986); a second break in 2012 is nearly as well supported |
 
 ---
 
@@ -53,25 +68,25 @@ Detects structural changes in the global warming trend and quantifies climate se
 
 | Layer | Libraries |
 |:---|:---|
-| **Deep Learning** | PyTorch 2.12, torch-geometric 2.8, pytorch-forecasting 1.8 |
-| **Bayesian Modelling** | PyMC 6, ArviZ 1.2 |
+| **Deep Learning** | PyTorch 2.12, torch-geometric 2.8, torch-geometric-temporal, pytorch-forecasting 1.8 |
+| **Statistical Modelling** | NumPy (change-point search), PyMC 6 + ArviZ 1.2 (emissions regression) |
 | **Data Engineering** | xarray 2026.7, pandas 3, pyarrow 25, zarr 3, gcsfs |
 | **Configuration** | Pydantic-Settings v2, PyYAML |
-| **Logging / Metrics** | Loguru, CSV training history |
+| **Logging / Metrics** | Loguru, CSV training history, JSON run metadata |
 
 ---
 
 ## Data Sources
 
-Data ingestion is constrained to the **1950–present** window for high-fidelity relevance.
+Data ingestion covers **1950–present** unless a source starts later.
 
-| Source | Content | Access |
+| Source | Content used | Access |
 |:---|:---|:---|
-| [NOAA ERSST v5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html) | Sea surface temperature anomalies & Niño 3.4 Index | OPeNDAP |
-| [OpenAQ v3](https://openaq.org/) | Global PM2.5, NO$_2$, $O$_3$$ measurements | REST API (key required) |
-| [NASA GISTEMP v4](https://data.giss.nasa.gov/gistemp/) | Long-term global surface temperature anomalies | Direct download |
-| [Climate TRACE v7](https://climatetrace.org/) | CO$_2$, CH$_4$, N$_2$O emission inventories by sector | REST API |
-| [WeatherBench 2 / ERA5](https://weatherbench2.readthedocs.io/) | 2m temperature & total precipitation (5.625° grid, 6-hourly) | Google Cloud Zarr |
+| [NOAA ERSST v5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html) | Monthly SST; Niño 1+2, 3, 3.4 and 4 indices | OPeNDAP |
+| [OpenAQ v3](https://openaq.org/) | PM2.5 measurements for the focus countries (default India, USA) | REST API (key required) |
+| [NASA GISTEMP v4](https://data.giss.nasa.gov/gistemp/) | Monthly global land–ocean temperature anomalies | Direct download |
+| [Climate TRACE v7](https://climatetrace.org/) | CO₂e (100-year GWP) emissions for the focus countries | REST API |
+| [WeatherBench 2 / ERA5](https://weatherbench2.readthedocs.io/) | 2 m temperature & total precipitation, 5.625° grid, 6-hourly, 2020–2021 | Google Cloud Zarr |
 
 ---
 
@@ -82,6 +97,7 @@ Data ingestion is constrained to the **1950–present** window for high-fidelity
 - Python **3.12** (set via `.python-version` for pyenv users)
 - `make`, `git`
 - An OpenAQ v3 API key (free at [openaq.org](https://explore.openaq.org/register))
+- For PDFs: `pandoc` and `xelatex`
 
 ### Installation
 
@@ -100,7 +116,7 @@ make install-npu
 ```
 
 `make install` creates `.venv/` using `python3.12`, installs `torch 2.12.1`,
-`pyg-lib` (the PyG 2.8 accelerator — replaces the deprecated `torch-scatter`/`torch-sparse`),
+`pyg-lib` (the PyG 2.8 accelerator, replacing the deprecated `torch-scatter`/`torch-sparse`),
 then runs `pip install -e .` to install the package itself.
 
 ### Configuration
@@ -110,7 +126,7 @@ Two layers of configuration:
 **1. `.env` — private credentials**
 ```bash
 cp .env.example .env
-# Fill in DATA_OPENAQ_API_KEY and any overrides
+# Fill in DATA_OPENAQ_API_KEY
 ```
 
 **2. `configs/runtime_conf.yaml` — operational parameters**
@@ -122,15 +138,16 @@ data:
   focus_countries: "IND,USA"
 
 model:
-  tft_encoder_length: 120
+  max_epochs: 100
+  tft_encoder_length: 60
   lstm_encoder_length: 60
   lstm_hidden_size: 64
   gnn_num_periods: 7
 ```
 
-All values can also be overridden via environment variables prefixed with `DATA_`, `MODEL_`, `LOG_`, etc.
+Environment variables prefixed with `DATA_`, `MODEL_`, `LOG_`, etc. set values that the YAML file leaves out. **Values in the YAML file take precedence over environment variables**, and `train_models.py --epochs` currently has no effect while `max_epochs` is set in the YAML. To change such a value, edit the YAML or point `RUNTIME_CONF` at a copy.
 
-Additionally, the configuration file paths themselves can be overridden using the `RUNTIME_CONF` and `DATASET_CONF` environment variables or command-line parameters:
+The configuration file paths themselves can be overridden with the `RUNTIME_CONF` and `DATASET_CONF` environment variables or Make parameters:
 ```bash
 # Override config paths for Make command
 make train RUNTIME_CONF=configs/custom_runtime.yaml DATASET_CONF=configs/custom_dataset.yaml
@@ -142,10 +159,10 @@ RUNTIME_CONF=configs/custom_runtime.yaml DATASET_CONF=configs/custom_dataset.yam
 ### Running the Pipeline
 
 ```bash
-# 1. Ingest core datasets (NOAA, OpenAQ, NASA GISTEMP, Climate TRACE)
+# 1. Ingest core datasets (NOAA, OpenAQ, NASA GISTEMP, Climate TRACE); cached files are reused
 make download-data
 
-# 2. Download ERA5 Zarr data for the Neural Weather Model (large download)
+# 2. Download ERA5 data for the Neural Weather Model (large; skipped if present)
 make download-nwm-data
 
 # 3. Train all models
@@ -154,30 +171,49 @@ make train
 # Or train individual models:
 make train-elnino      # TFT + LSTM El Niño forecasters
 make train-pollution   # A3TGCN pollution ST-GNN
-make train-nwm         # Spherical Mesh Neural Weather Model
-make train-climate     # Bayesian climate feedback model
+make train-nwm         # Spherical-mesh Neural Weather Model
+make train-climate     # Bayesian emissions regression
 
-# 4. Generate paper artifacts (figures, metrics, tables)
+# 4. Evaluate all models; writes figures, metrics and tables to runtime/eval_artifacts/
 make gen-eval-artifacts
 
-# 5. Save the latest run checkpoints and artifacts for future reference
+# 5. Save the run's checkpoints and artifacts to runtime/saved/run_<timestamp>/
 make save-run
 
-# 6. Compile research paper to PDF (requires pandoc + xelatex)
+# 6. Point the paper's artifacts at the newest saved run
+make sync-paper-artifacts
+
+# 7. Compile the research paper and patent application PDFs
 make gen-research-paper-pdf
+make gen-patent-application-pdf
 ```
+
+Retraining replaces the previous run's checkpoints in `runtime/models/checkpoints/`; run `make save-run` first to keep them.
+
+---
+
+## Documents
+
+| Document | Source | Build |
+|:---|:---|:---|
+| Research paper | [`docs/research_paper/research_paper.md`](docs/research_paper/research_paper.md) | `make gen-research-paper-pdf` |
+| Patent application (draft) | [`docs/patent/patent_application.md`](docs/patent/patent_application.md) | `make gen-patent-application-pdf` |
+| Project proposal | [`docs/project_proposal.md`](docs/project_proposal.md) | `make project_proposal_pdf` |
+| Requirements specification | [`docs/requirement_spec.md`](docs/requirement_spec.md) | — |
+| Design document | [`docs/design_doc.md`](docs/design_doc.md) | — |
+
+`docs/research_paper/artifacts` is a symlink to `runtime/saved/run_save.latest`, which points at a saved run, so the paper always reads a fixed snapshot. Do not copy files into it; use `make save-run` followed by `make sync-paper-artifacts`. The patent has its own copy of the artifacts in `docs/patent/artifacts/`, refreshed by `make gen-patent-application-pdf`.
 
 ---
 
 ## Project Structure
 
-This project follows a modular architecture designed to separate data ingestion, modeling, and execution. The repository is organized into the following primary directories:
-
-- **`src/`**: Contains the core Python source code, structured into submodules for data processing (`src/data/`), model architectures (`src/models/`), and execution scripts (`src/scripts/`).
-- **`configs/`**: Stores YAML configuration files that define runtime behavior, hyperparameter values, and dataset parameters.
-- **`datasets/`**: The local storage directory for raw downloads and processed Parquet files.
-- **`runtime/`**: Directory for artifacts generated during execution, including trained model checkpoints, evaluation figures, saved runs, and training logs.
-- **`docs/`**: Contains formal project documentation, requirement specifications, architectural design documents, and the markdown source for the research paper.
+- **`src/`**: Python source code: data ingestion and processing (`src/data/`), models (`src/models/`) and command-line scripts (`src/scripts/`).
+- **`configs/`**: YAML configuration for runtime behaviour, hyperparameters and data sources.
+- **`datasets/`**: Raw downloads and processed Parquet files (gitignored).
+- **`runtime/`**: Checkpoints, evaluation artifacts, saved runs and logs.
+- **`docs/`**: Research paper, patent application, project proposal, requirements and design documents.
+- **`.agents/`**: Workspace rules and skills for AI coding agents.
 
 ```text
 climate_pulse/
@@ -187,13 +223,14 @@ climate_pulse/
 |   |-- data/
 |   |   |-- pipeline.py           # Orchestrates fetch -> clean -> store
 |   |   |-- sources/              # Data connectors (NOAA, OpenAQ, NASA, TRACE)
-|   |   |-- processing/           # Feature engineering (Nino 3.4, AQI, ...)
+|   |   |-- processing/           # Cleaning, feature engineering, station graphs
 |   |   +-- storage/db.py         # JSON metadata + Parquet data store
 |   |-- models/
 |   |   |-- el_nino/              # TFT (pytorch-forecasting) + BiLSTM
 |   |   |-- pollution/            # A3TGCN over OpenAQ sensor graph
 |   |   |-- nwm/                  # Neural Weather Model (native PyTorch ST-GNN)
-|   |   +-- climate_feedback/     # Bayesian hierarchical regression (PyMC)
+|   |   +-- climate_feedback/     # Change-point detection + Bayesian regression
+|   |-- visualization/            # Chart helpers and themes
 |   +-- scripts/
 |       |-- download_data.py
 |       |-- download_nwm_data.py
@@ -201,19 +238,22 @@ climate_pulse/
 |       +-- generate_eval_artifacts.py
 |-- configs/
 |   |-- runtime_conf.yaml         # Default runtime configuration
-|   +-- dataset_conf.yaml         # Dataset-specific metadata
+|   +-- dataset_conf.yaml         # Data source endpoints and regions
 |-- datasets/                     # Data root (gitignored)
 |   |-- raw/                      # Raw downloads
 |   +-- processed/                # Cleaned Parquet files
-|-- runtime/                      # Execution artifacts (gitignored)
-|   |-- models/checkpoints/       # Trained model weights
-|   |-- eval_artifacts/           # Figures, CSVs for paper
-|   |-- saved/                    # Snapshot runs saved for future inference
-|   +-- logs/                     # Training logs
+|-- runtime/
+|   |-- models/checkpoints/       # Latest trained weights (gitignored)
+|   |-- eval_artifacts/           # Latest figures, CSVs and metrics
+|   |-- saved/                    # Saved runs (tracked in git); run_save.latest -> current paper run
+|   +-- logs/                     # Training logs (gitignored)
 |-- docs/
-|   |-- research_paper/           # Research paper source
+|   |-- research_paper/           # Paper source, PDF; artifacts -> runtime/saved/run_save.latest
+|   |-- patent/                   # Patent application draft, PDF and artifacts
+|   |-- project_proposal.md       # Project proposal
 |   |-- requirement_spec.md       # Formal requirements specification
 |   +-- design_doc.md             # Architecture and design decisions
+|-- .agents/                      # AI agent workspace rules and skills
 |-- pyproject.toml                # Package metadata and dependencies
 |-- requirements.txt              # Flat dependency list
 |-- Makefile                      # Developer workflow commands
@@ -226,28 +266,34 @@ climate_pulse/
 
 ```bash
 # Setup
-make install              # Standard install (torch CPU/CUDA)
-make install-rocm         # torch 2.12 with ROCm 6.1 (AMD GPUs)
-make install-npu          # torch 2.12 + OpenVINO (Intel NPU)
+make install                    # Standard install (torch 2.12.1, CPU/CUDA)
+make install-rocm               # torch 2.6.0 with ROCm 6.1 (AMD GPUs)
+make install-npu                # torch 2.12.1 + OpenVINO (Intel NPU)
 
 # Data
-make download-data        # Ingest NOAA, OpenAQ, NASA, Climate TRACE
+make download-data              # Ingest NOAA, OpenAQ, NASA, Climate TRACE
+make download-nwm-data          # ERA5 subset for the Neural Weather Model
 
 # Training
-make train                # Train all four model families
-make train-elnino         # TFT + LSTM
-make train-pollution      # A3TGCN
-make train-nwm            # Spherical Mesh ST-GNN
-make train-climate        # Bayesian regression
+make train                      # Train all model families
+make train-elnino               # TFT + LSTM
+make train-pollution            # A3TGCN
+make train-nwm                  # Spherical-mesh ST-GNN
+make train-climate              # Bayesian emissions regression
 
-# Research outputs
-make gen-eval-artifacts   # Figures, tables, metrics
-make save-run             # Save run checkpoints/artifacts to runtime/saved/
-make gen-research-paper-pdf         # Compile to PDF (needs pandoc + xelatex)
+# Evaluation and documents
+make gen-eval-artifacts         # Figures, tables, metrics in runtime/eval_artifacts/
+make save-run                   # Save checkpoints/artifacts to runtime/saved/run_<timestamp>/
+make sync-paper-artifacts       # Point paper artifacts at the newest saved run
+make gen-research-paper-pdf     # Compile paper PDF (needs pandoc + xelatex)
+make sync-patent-artifacts      # Copy runtime/eval_artifacts/ into docs/patent/artifacts/
+make gen-patent-application-pdf # Sync patent artifacts and compile patent PDF
+make project_proposal_pdf       # Compile project proposal PDF
 
 # Cleanup
-make clean                # Remove __pycache__, build artifacts
-make clean-checkpoints    # Remove trained model weights (also cleans runtime/saved/)
+make clean                      # Remove __pycache__, build artifacts
+make clean-checkpoints          # Remove trained weights (saved runs in runtime/saved/ are kept)
+make clean-eval-artifacts       # Remove runtime/eval_artifacts/
 make clean-downloaded-datasets  # Remove raw and processed datasets
 ```
 
@@ -255,19 +301,19 @@ make clean-downloaded-datasets  # Remove raw and processed datasets
 
 ## Environment Variables
 
-Key variables (full list in `.env.example`):
+Credentials go in `.env` (see `.env.example`). Other variables apply only to settings not set in `configs/runtime_conf.yaml`; the values below are those the shipped YAML sets.
 
-| Variable | Default | Description |
+| Variable | Value | Description |
 |:---|:---|:---|
 | `DATA_OPENAQ_API_KEY` | — | **Required.** OpenAQ v3 API key |
 | `DATA_DIR` | `./datasets` | Root data directory |
 | `DATA_START_YEAR` | `1950` | Historical data start year |
-| `DATA_FOCUS_COUNTRIES` | `IND,USA` | ISO-3 country filter for OpenAQ |
+| `DATA_FOCUS_COUNTRIES` | `IND,USA` | ISO-3 country filter for OpenAQ and Climate TRACE |
 | `MODEL_MAX_EPOCHS` | `100` | Training epoch cap |
 | `MODEL_BATCH_SIZE` | `32` | Training batch size |
 | `MODEL_LEARNING_RATE` | `0.001` | Base learning rate |
 | `MODEL_DEVICE` | `auto` | `auto` / `cpu` / `cuda` / `mps` |
-| `MODEL_TFT_ENCODER_LENGTH` | `120` | TFT lookback window (months) |
+| `MODEL_TFT_ENCODER_LENGTH` | `60` | TFT lookback window (months) |
 | `MODEL_LSTM_HIDDEN_SIZE` | `64` | LSTM hidden units |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
