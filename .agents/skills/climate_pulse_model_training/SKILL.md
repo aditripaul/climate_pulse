@@ -86,7 +86,7 @@ For AMD GPUs, use `make install-rocm` instead of `make install`. For Intel NPU, 
 - ST-GNN normalization stats: `runtime/models/checkpoints/pollution/norm_stats.json`
 
 ```bash
-make clean-checkpoints   # Removes runtime/models/checkpoints/ and runtime/models/saved/
+make clean-checkpoints   # Removes runtime/models/checkpoints/ (saved runs in runtime/saved/ are kept)
 ```
 
 ## Important Constraints

@@ -1,4 +1,4 @@
-.PHONY: install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
+.PHONY: venv install install-dev install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
 
 .DEFAULT_GOAL := help
 
@@ -49,11 +49,14 @@ install-dev: install
 
 # === Setup (AMD ROCm) ===
 # pytorch-lightning 2.6.5 is the safe version (2.6.2-2.6.3 had supply-chain compromise)
+# pyg-lib wheels are built per torch version, so the index must match the ROCm torch.
+ROCM_TORCH_VERSION := 2.6.0
+
 install-rocm: venv
-	.venv/bin/pip install torch==2.6.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1
+	.venv/bin/pip install torch==$(ROCM_TORCH_VERSION)+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1
 	.venv/bin/python src/scripts/patch_rocm_elf.py
 	.venv/bin/python src/scripts/install_rocm_deps.py
-	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-2.12.1+cpu.html
+	.venv/bin/pip install pyg-lib --find-links https://data.pyg.org/whl/torch-$(ROCM_TORCH_VERSION)+cpu.html
 	.venv/bin/pip install -e . --no-build-isolation
 
 # === Setup (Intel NPU) ===
@@ -91,24 +94,23 @@ train-nwm:
 gen-eval-artifacts:
 	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/python src/scripts/generate_eval_artifacts.py
 
+# docs/research_paper/artifacts -> runtime/saved/run_save.latest -> a saved run.
+# The paper therefore reads artifacts from a saved snapshot; never copy into it.
+# Syncing means pointing run_save.latest at the newest saved run (see save-run).
 sync-paper-artifacts:
-	mkdir -p docs/research_paper/artifacts/eval_artifacts/run_results
-	cp -r runtime/eval_artifacts/* docs/research_paper/artifacts/eval_artifacts/
-	cp runtime/eval_artifacts/*.png docs/research_paper/artifacts/ 2>/dev/null || true
+	@LATEST=$$(ls -d runtime/saved/run_2* 2>/dev/null | sort | tail -1); \
+	if [ -z "$$LATEST" ]; then echo "No saved runs in runtime/saved/; run 'make save-run' first."; exit 1; fi; \
+	ln -sfn "$$(basename $$LATEST)" runtime/saved/run_save.latest; \
+	echo "Paper artifacts now point to $$LATEST"
 
-gen-research-paper-pdf: sync-paper-artifacts
-	cd docs/research_paper/ && sed '/^```mermaid$/,/^```$/d' research_paper.md | pandoc research_paper.md -o climatepulse_research_paper.pdf \
+# Builds from whatever run_save.latest points to; run sync-paper-artifacts to change it.
+# Mermaid blocks are stripped because pre-rendered figure-N.png images accompany them.
+gen-research-paper-pdf:
+	cd docs/research_paper/ && sed '/^```mermaid$$/,/^```$$/d' research_paper.md | pandoc -f markdown -o climatepulse_research_paper.pdf \
     --pdf-engine=xelatex \
     --metadata=smart:false \
     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
     -s
-
-gen-research-paper_2-pdf: sync-paper-artifacts
-	cd docs/research_paper/ && sed '/^```mermaid$$/,/^```$$/d' research_paper.md | pandoc -f markdown -o climatepulse_research_paper.pdf \
-     --pdf-engine=xelatex \
-     --metadata=smart:false \
-     -V geometry:"a4paper, top=2.5cm, bottom=2.5cm, includehead, includefoot" \
-     -s
 
 sync-patent-artifacts:
 	mkdir -p docs/patent/artifacts/eval_artifacts/run_results
@@ -140,9 +142,10 @@ save-run:
 	echo "Run successfully saved to: $$SAVE_DIR"
 
 # === Cleanup ===
+# Saved runs in runtime/saved/ are git-tracked and back the paper's artifacts,
+# so they are never cleaned here; remove an obsolete one with `git rm -r`.
 clean-checkpoints:
 	find runtime/models/checkpoints/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
-	find runtime/saved/ -mindepth 1 ! -name ".gitignore" -exec rm -rf {} + 2>/dev/null || true
 
 clean-eval-artifacts:
 	rm -rf runtime/eval_artifacts/
@@ -169,7 +172,7 @@ help:
 	@echo "  make train-climate : Train climate feedback model only"
 	@echo "  make train-nwm : Train Neural Weather Model (ST-GNN) only"
 	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
-	@echo "  make sync-paper-artifacts : Sync evaluation artifacts to research paper docs"
+	@echo "  make sync-paper-artifacts : Point research paper artifacts at the newest saved run (after save-run)"
 	@echo "  make sync-patent-artifacts : Sync evaluation artifacts to patent docs"
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
 	@echo "  make gen-patent-application-pdf : Generate publication-quality patent application pdf"

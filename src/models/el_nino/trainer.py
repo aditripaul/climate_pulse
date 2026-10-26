@@ -50,6 +50,15 @@ def train_tft(
     checkpoint_dir = settings.model.checkpoint_dir / "el_nino" / "tft"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
+    # Replace the previous run's checkpoints, as the LSTM/ST-GNN/NWM trainers do by
+    # overwriting fixed filenames. Otherwise stale files accumulate (last-v1.ckpt, ...)
+    # and get mixed into evaluation and `make save-run`. Keep runs with `make save-run`.
+    stale = sorted(checkpoint_dir.glob("*.ckpt"))
+    if stale:
+        logger.info(f"Removing {len(stale)} TFT checkpoint(s) from a previous run")
+        for path in stale:
+            path.unlink()
+
     class LoguruLoggingCallback(L.Callback):
         def on_validation_epoch_end(self, trainer, pl_module):
             if trainer.sanity_checking:

@@ -27,9 +27,11 @@ Artifacts include:
 
 ### 2. Compile the PDF research paper
 ```bash
+make save-run              # snapshot checkpoints + eval artifacts to runtime/saved/
+make sync-paper-artifacts  # point docs/research_paper/artifacts at the newest snapshot
 make gen-research-paper-pdf
 ```
-Runs Pandoc + XeLaTeX on `docs/research_paper/research_paper.md` and compiles `climatepulse_research_paper.pdf`.
+`docs/research_paper/artifacts` is a symlink to `runtime/saved/run_save.latest`, so the paper always reads a saved snapshot; never copy files into it. Runs Pandoc + XeLaTeX on `docs/research_paper/research_paper.md` and compiles `climatepulse_research_paper.pdf`.
 
 ### 3. Compile the PDF patent specification
 ```bash

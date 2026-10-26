@@ -1148,30 +1148,6 @@ def copy_runtime_data():
     print("Runtime data copy complete.")
 
 
-def sync_paper_artifacts():
-    """Sync runtime eval artifacts to docs/research_paper/artifacts/."""
-    print("Syncing evaluation artifacts to docs/research_paper/artifacts/...")
-    paper_artifacts_dir = PROJECT_ROOT / "docs" / "research_paper" / "artifacts"
-    paper_eval_dir = paper_artifacts_dir / "eval_artifacts"
-    paper_results_dir = paper_eval_dir / "run_results"
-
-    paper_eval_dir.mkdir(parents=True, exist_ok=True)
-    paper_results_dir.mkdir(parents=True, exist_ok=True)
-
-    for item in ARTIFACTS_DIR.glob("*.png"):
-        shutil.copy2(item, paper_artifacts_dir / item.name)
-        shutil.copy2(item, paper_eval_dir / item.name)
-
-    if (ARTIFACTS_DIR / "metrics_summary.md").exists():
-        shutil.copy2(ARTIFACTS_DIR / "metrics_summary.md", paper_eval_dir / "metrics_summary.md")
-
-    for item in RESULTS_DIR.glob("*"):
-        if item.is_file():
-            shutil.copy2(item, paper_results_dir / item.name)
-
-    print(f"Synced paper artifacts to {paper_artifacts_dir}")
-
-
 def main():
     print("=" * 60)
     print("ClimatePulse Paper Artifacts Generator")
@@ -1284,7 +1260,6 @@ This document summarizes the performance metrics generated during the evaluation
 
     try:
         copy_runtime_data()
-        sync_paper_artifacts()
     except Exception as e:
         print(f"Failed to copy/sync runtime data: {e}")
 
