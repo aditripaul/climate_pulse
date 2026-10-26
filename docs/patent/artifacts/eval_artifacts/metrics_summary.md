@@ -8,11 +8,11 @@ This document summarizes the performance metrics generated during the evaluation
 
 | Model | RMSE (°C) | MAE (°C) | Anomaly Correlation (ACC) | Skill Score |
 | :--- | :---: | :---: | :---: | :---: |
-| **Temporal Fusion Transformer (TFT)** | 0.3505 | 0.2496 | 0.9449 | 0.9051 |
-| **LSTM Baseline** | 0.9606 | 0.7661 | -0.0399 | 0.1450 |
-| **Persistence Baseline** | 1.0344 | 0.7527 | 0.4008 | 0.1737 |
+| **Temporal Fusion Transformer (TFT)** | 0.9362 | 0.7838 | 0.7268 | 0.1778 |
+| **LSTM Baseline** | 0.8705 | 0.6734 | 0.5099 | 0.2890 |
+| **Persistence Baseline** | 1.0324 | 0.7511 | 0.3979 | 0.0000 |
 
-*TFT outperforms baseline forecasting architectures across all prediction lead windows.*
+*Skill Score = 1 − MSE(model) / MSE(persistence), where persistence carries the last observed value across all 12 leads.*
 
 ---
 
@@ -20,11 +20,11 @@ This document summarizes the performance metrics generated during the evaluation
 
 | Metric | Value (Normalized PM2.5 AQI) |
 | :--- | :---: |
-| **Root Mean Square Error (RMSE)** | 0.1571 |
-| **Mean Absolute Error (MAE)** | 0.0464 |
-| **F1 Exceedance Rate (AQI > 100)** | 0.9750 |
-| **Precision** | 0.9677 |
-| **Recall** | 0.9825 |
+| **Root Mean Square Error (RMSE)** | 0.1596 |
+| **Mean Absolute Error (MAE)** | 0.0478 |
+| **F1 Exceedance Rate (AQI > 100)** | 0.9727 |
+| **Precision** | 0.9624 |
+| **Recall** | 0.9832 |
 
 ---
 
@@ -32,12 +32,14 @@ This document summarizes the performance metrics generated during the evaluation
 
 | Metric | Value (MSE) |
 | :--- | :---: |
-| **Best Validation Loss** | 0.1182 |
-| **Final Training Loss** | 0.1035 |
+| **Best Validation Loss** | 0.1185 |
+| **Final Training Loss** | 0.1053 |
 
 ---
 
 ## 4. Climate Feedback Change-Points
 
-* **Detected Breaks**: 0
-* **Change-Point Years**: 
+* **Method**: continuous piecewise-linear trend, AR(1) errors, K selected by BIC
+* **Detected Breaks**: 1
+* **Change-Point Years**: 1976
+* **Segment Warming Rates (°C/decade)**: 0.034, 0.212

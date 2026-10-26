@@ -38,7 +38,7 @@ header-includes:
 - **Status:** Consolidated Provisional Draft — Prepared for IPINDIA / PCT Legal Review
 - **Subject System:** ClimatePulse — AI-Powered Global Climate Forecasting Framework
 - **Target Patent Office:** IPINDIA (Controller General of Patents, Designs and Trade Marks) / PCT
-- **Code Reference:** git:254bd2b02204349bfe1dda9548bdf55d66a8f68f
+- **Code Reference:** git:7a1ff0eb83ef169774163e7160e4952d26768b70 (empirical results: run 20261026_162519)
 
 ---
 
@@ -81,7 +81,7 @@ Data-driven neural weather models have emerged as computationally efficient alte
 2. **Single-Task Unconditioned Architecture**: Existing neural weather models map an atmospheric state at time $t$ to time $t+1$ without incorporating macro-climatic forcing signals (e.g., ENSO phase indices) as persistent conditioning inputs into latent message passing. Consequently, such models treat an El Niño year identically to a La Niña year at initialization.
 3. **Rigidity of Icosahedral Subdivision Meshes**: Prior graph-based models rely on icosahedral subdivision, restricting computational mesh resolution to fixed discrete steps (20, 80, 320, 1,280, 5,120 nodes). This prevents flexible adaptation to specific hardware memory limits.
 4. **Absence of Physically Consistent Area-Weighted Objectives**: Prior models either ignore spatial area weighting during training or apply it post-hoc, leading to models optimized disproportionately for polar regions where verification data are sparse.
-5. **Disciplinary Silos**: No unified architecture exists that bridges long-horizon ENSO forecasting, real-time sensor network pollution dispersion, global weather prediction, and Bayesian regime-shift detection within a single shared data and conditioning framework.
+5. **Disciplinary Silos**: No unified architecture exists that bridges long-horizon ENSO forecasting, real-time sensor network pollution dispersion, global weather prediction, and climate regime-shift detection within a single shared data and conditioning framework.
 
 ---
 
@@ -93,7 +93,7 @@ To overcome these technical limitations, the present invention provides a unifie
 2. **Tripartite GraphSAGE Architecture**: An Encoder-Processor-Decoder network featuring three distinct bipartite GraphSAGE convolution stages — Grid-to-Mesh (G2M), Mesh-to-Mesh (M2M with residual connections), and Mesh-to-Grid (M2G with skip connections) — operating on 3D Cartesian KD-Tree nearest-neighbor graph topologies.
 3. **Macro-Climatic Conditioning Mechanism**: A neural conditioning pathway wherein a scalar anomaly index (such as the Niño 3.4, IOD, or NAO) is projected via a 2-layer MLP into a $d$-dimensional embedding vector, broadcast across all $N_{\text{mesh}}$ nodes, and **additively injected into the message tensor only** of each M2M processor layer before the residual connection, modulating spatial message passing without double-counting the signal through the residual path.
 4. **Hardware-Accelerated Vectorized Batch Expansion**: A method for expanding graph edge indices across batch dimensions using native tensor repeat operations, eliminating Python control-flow loops and reducing hardware accelerator kernel launch overhead from $O(B)$ to $O(1)$.
-5. **Multi-Modal Integrated Framework**: A unified framework integrating (i) an ENSO TFT forecasting module, (ii) an A3TGCN pollution dispersion module, (iii) the Fibonacci Neural Weather Model, and (iv) a Bayesian climate regime-shift module, wherein the predicted scalar anomaly index from the first module directly conditions the latent processor of the third module.
+5. **Multi-Modal Integrated Framework**: A unified framework integrating (i) an ENSO TFT forecasting module, (ii) an A3TGCN pollution dispersion module, (iii) the Fibonacci Neural Weather Model, and (iv) a statistical climate regime-shift module, wherein the predicted scalar anomaly index from the first module directly conditions the latent processor of the third module.
 6. **Physically Consistent Training Objective**: A training methodology employing a latitude-cosine-weighted mean squared error loss function combined with mathematically consistent latitude-cosine-weighted normalization statistics derived across the spatial-temporal domain.
 
 ---
@@ -104,7 +104,7 @@ To overcome these technical limitations, the present invention provides a unifie
 - **FIG. 2**: Visual comparison of the spherical Fibonacci golden-angle spiral latent mesh versus a standard equirectangular observation grid.
 - **FIG. 3**: Detailed computational flow diagram of the ENSO macro-climatic conditioning mechanism within a single Mesh-to-Mesh (M2M) processor layer.
 - **FIG. 4**: Memory layout and tensor manipulation diagram illustrating the hardware-accelerated vectorized batch-offset edge expansion algorithm.
-- **FIG. 5**: Empirical validation loss curves comparing the trained Neural Weather Model against unweighted baselines over 89 training epochs.
+- **FIG. 5**: Empirical training and validation loss curves of the Neural Weather Model, with the learning-rate schedule, over 83 training epochs.
 
 ---
 
@@ -125,7 +125,7 @@ The unified system comprises four specialized climate modeling components operat
      v                                   v                                   v
 +-----------------------+     +-----------------------+     +-----------------------+
 |  ENSO FORECASTER      |     | POLLUTION DISPERSION  |     | CLIMATE FEEDBACK      |
-|  (TFT Model)          |     | (A3TGCN Model)        |     | (Bayesian Regression) |
+|  (TFT Model)          |     | (A3TGCN Model)        |     | (Piecewise Trend+BIC) |
 |  Outputs: Niño 3.4    |     | Outputs: PM2.5 / NO2  |     | Outputs: Changepoints |
 +-----------------------+     +-----------------------+     +-----------------------+
      | (Conditioning Signal: Niño 3.4 Index)
@@ -213,10 +213,12 @@ Matching latitude-cosine-weighted mean $\mu$ and standard deviation $\sigma$ sta
 
 ### 7. Empirical Performance Verification
 
-When evaluated on ERA5 reanalysis data at $5.625^\circ$ resolution (2020–2022), the system achieved:
-- **NWM Forecast Skill:** Best validation MSE of **0.1182** (epoch 78 of 89), representing a **39.5% improvement** over initial unweighted baselines.
-- **ENSO Forecaster Skill:** Temporal Fusion Transformer achieved RMSE of **0.3505°C**, Anomaly Correlation Coefficient (ACC) of **0.9449**, and skill score of **0.9051** for multi-horizon Niño 3.4 prediction.
-- **Pollution Dispersion Skill:** A3TGCN achieved an $F_1$ score of **0.9750** on $\text{PM}_{2.5}$ exceedance detection across 75 global OpenAQ monitoring stations.
+The following results were obtained from a single training run of the reference implementation (code reference above), using strictly chronological 70/15/15 train/validation/test splits for every module.
+
+- **NWM Forecast Skill:** On ERA5 reanalysis data at $5.625^\circ$ resolution (2020–2021), the Neural Weather Model reached a best validation MSE of **0.1185** on normalized fields (epoch 72 of 83), a 39.8% reduction from the first training epoch (0.1968). On the test period, the 2 m temperature RMSE was **1.32 K** globally (0.83 K tropical, 1.46 K polar). In this run the conditioning input was the *observed* Niño 3.4 index for each sample time, not a forecast produced by the ENSO forecaster module. No comparison against an unweighted-loss or unconditioned baseline has yet been performed.
+- **ENSO Forecaster Skill:** On a held-out test period (January 2015–June 2026), the Temporal Fusion Transformer achieved RMSE of **0.936°C**, Anomaly Correlation Coefficient (ACC) of **0.727**, and a skill score of **0.178** relative to persistence, averaged over 1–12 month lead times. A bidirectional LSTM baseline achieved RMSE of 0.871°C (skill score 0.289). TFT test skill varied substantially between training runs.
+- **Pollution Dispersion:** Across 75 OpenAQ monitoring stations, the A3TGCN achieved an $F_1$ score of 0.973 on $\text{PM}_{2.5}$ exceedance at a threshold defined on normalized values. At this threshold 95.4% of test cases are exceedances and a classifier that always predicts exceedance attains $F_1$ = 0.977, so this figure does not by itself demonstrate exceedance-detection skill.
+- **Climate Feedback:** A continuous piecewise-linear trend model with AR(1) errors, with the number of change-points selected by the Bayesian Information Criterion, identified a change in the global warming rate in 1976 (from 0.03 to 0.21 °C/decade) in annual NASA GISTEMP means for 1950–2025.
 
 ---
 
@@ -258,7 +260,7 @@ When evaluated on ERA5 reanalysis data at $5.625^\circ$ resolution (2020–2022)
    (a) a first module comprising a Temporal Fusion Transformer (TFT) configured for multi-horizon forecasting of a macro-climatic scalar anomaly index;
    (b) a second module comprising an Attention Temporal Graph Convolutional Network (A3TGCN) configured for spatiotemporal pollutant dispersion forecasting over a sensor proximity graph;
    (c) a third module comprising the neural weather forecasting system of Claim 1; and
-   (d) a fourth module comprising a Bayesian hierarchical regression model configured for detecting structural changepoints in historical climate data;
+   (d) a fourth module comprising a piecewise-linear regression model configured for detecting structural changepoints in the rate of change of historical climate data;
    wherein a forecasted scalar anomaly index produced by said first module is transmitted via a cross-domain conditioning pathway to serve as the input scalar anomaly index for the processor layer conditioning mechanism of said third module.
 
 11. The system of Claim 10, wherein said first module incorporates quantile regression prediction heads at quantiles $\tau \in \{0.1, 0.5, 0.9\}$ to generate probabilistic prediction intervals.
@@ -279,7 +281,7 @@ When evaluated on ERA5 reanalysis data at $5.625^\circ$ resolution (2020–2022)
 
 ## ABSTRACT
 
-A unified multi-modal climate inference system and method are disclosed comprising: (1) a first module utilizing a Temporal Fusion Transformer for multi-horizon prediction of a macro-climatic scalar anomaly index (e.g., Niño 3.4); (2) a second module utilizing an Attention Temporal Graph Convolutional Network for pollution dispersion forecasting over sensor networks; (3) a third module comprising a Neural Weather Model operating on a spherical Fibonacci golden-angle spiral latent mesh of configurable resolution $N_{\text{mesh}}$, featuring tripartite bipartite GraphSAGE convolutions and a macro-climatic conditioning mechanism that additively injects the projected anomaly index into latent message-passing steps before residual connections; and (4) a hardware-accelerated vectorized batch-offset edge expansion algorithm mapping graph execution to continuous hardware accelerator kernels without loop overhead. The system achieves a 0.1182 validation MSE on ERA5 weather forecasting, a 0.9051 skill score on ENSO forecasting, and a 0.9750 $F_1$ score on $\text{PM}_{2.5}$ exceedance detection.
+A unified multi-modal climate inference system and method are disclosed comprising: (1) a first module utilizing a Temporal Fusion Transformer for multi-horizon prediction of a macro-climatic scalar anomaly index (e.g., Niño 3.4); (2) a second module utilizing an Attention Temporal Graph Convolutional Network for pollution dispersion forecasting over sensor networks; (3) a third module comprising a Neural Weather Model operating on a spherical Fibonacci golden-angle spiral latent mesh of configurable resolution $N_{\text{mesh}}$, featuring tripartite bipartite GraphSAGE convolutions and a macro-climatic conditioning mechanism that additively injects the projected anomaly index into latent message-passing steps before residual connections; and (4) a hardware-accelerated vectorized batch-offset edge expansion algorithm mapping graph execution to continuous hardware accelerator kernels without loop overhead. In a reference implementation, the neural weather model attains a validation MSE of 0.1185 on normalized ERA5 fields at $5.625^\circ$ resolution.
 
 ---
 

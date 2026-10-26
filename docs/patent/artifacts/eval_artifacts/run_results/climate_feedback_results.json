@@ -1,4 +1,22 @@
 {
-  "changepoints_detected": 0,
-  "changepoint_years": []
+  "method": "continuous piecewise-linear trend, AR(1) errors, K selected by BIC",
+  "years": [
+    1950,
+    2025
+  ],
+  "changepoints_detected": 1,
+  "changepoint_years": [
+    1976
+  ],
+  "segment_slopes_c_per_decade": [
+    0.033794757531261224,
+    0.21199578613009262
+  ],
+  "bic_by_k": {
+    "0": -105.40179487493927,
+    "1": -113.89203792385162,
+    "2": -113.61882923562483,
+    "3": -105.61196308579729
+  },
+  "ar1_phi": 0.2709308668070647
 }
