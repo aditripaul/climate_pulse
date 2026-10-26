@@ -47,12 +47,14 @@ This document defines the functional, data, model, and non-functional requiremen
 
 | ID | Requirement |
 |:---|:---|
-| **E-01** | The system shall train a Temporal Fusion Transformer (TFT) on Niño 3.4 index time-series with a configurable encoder length (default 120 months) and prediction horizon (default 12 months). |
+| **E-01** | The system shall train a Temporal Fusion Transformer (TFT) on Niño 3.4 index time-series with a configurable encoder length (default 60 months) and prediction horizon (default 12 months). |
 | **E-02** | The system shall train a bidirectional LSTM baseline for direct comparison with the TFT. |
-| **E-03** | Both models shall support multi-step forecasting from 3 to 60 months ahead. |
+| **E-03** | Both models shall forecast 1–12 months ahead (configurable via `tft_prediction_months` / `lstm_prediction_months`) on one shared chronological 70/15/15 split in which no training target falls in the validation or test period and no validation target falls in the test period. |
 | **E-04** | TFT training shall use a PyTorch-Lightning `Trainer` (via `pytorch-forecasting`) with early stopping (patience=10) and best-checkpoint saving. |
 | **E-05** | LSTM training shall use a native PyTorch loop with `ReduceLROnPlateau`, gradient clipping (max norm 1.0), and early stopping (patience=15). |
 | **E-06** | Training metrics (epoch, train_loss, val_loss) shall be written to `metrics.csv` in the checkpoint directory. |
+| **E-07** | Skill scores shall be computed against a persistence forecast (last observed value held across all leads). |
+| **E-08** | Reported El Niño results shall include the mean and standard deviation over multiple training seeds (`make train-elnino-seeds`); model variants shall be selected on validation loss, never on test results. |
 
 ### 3.4 Pollution ST-GNN Model
 
@@ -62,6 +64,9 @@ This document defines the functional, data, model, and non-functional requiremen
 | **P-02** | The system shall train an A3TGCN (Attention Temporal Graph Convolutional Network) on the PM2.5 sensor graph. |
 | **P-03** | The model shall support a sliding-window input size configurable via `MODEL_GNN_NUM_PERIODS` (default 7). |
 | **P-04** | The pollution model shall produce per-sensor, per-timestep PM2.5 forecasts. |
+| **P-05** | Missing sensor readings shall be excluded from normalisation statistics, the training loss and evaluation; inputs may impute them with the training mean. |
+| **P-06** | Normalisation statistics shall be computed on the training split only. |
+| **P-07** | Exceedance metrics shall use a threshold in physical units (default PM2.5 ≥ 35.5 µg/m³, AQI > 100) and be reported alongside persistence and always-alert baselines. |
 
 ### 3.5 Neural Weather Model (NWM)
 
@@ -70,17 +75,19 @@ This document defines the functional, data, model, and non-functional requiremen
 | **N-01** | The system shall map ERA5 grid nodes to a latent spherical mesh using a Fibonacci lattice (default 2,000 mesh nodes). |
 | **N-02** | Grid-to-mesh, mesh-to-mesh, and mesh-to-grid connectivity shall be derived via KD-tree nearest-neighbour search on 3D Cartesian coordinates. |
 | **N-03** | The model architecture shall follow an Encoder–Processor–Decoder pattern using `SAGEConv` layers with `LayerNorm` and GELU activations. |
-| **N-04** | The model shall accept the monthly Niño 3.4 index as a scalar conditioning signal injected at each processor layer. |
+| **N-04** | The model shall accept the monthly Niño 3.4 index as a scalar conditioning signal injected at each processor layer. The source shall be configurable (`nwm.conditioning`): the observed index, TFT lead-1 forecasts, or none. Each sample shall use the value for the month containing its timestamp. |
 | **N-05** | Batch edge-index expansion shall be computed via vectorised tensor operations (no Python loops over batch dimension). |
 | **N-06** | The NWM shall be trained using `NWMTrainer`, a native PyTorch class with no `pytorch-lightning` import. |
 | **N-07** | The training loop shall use `AdamW` with `ReduceLROnPlateau`, gradient clipping (default max norm 1.0), and configurable early stopping patience (default 10). |
 | **N-08** | The dataset split shall be 70% train / 15% validation / 15% test over the temporal axis. |
+| **N-09** | An ablation (`make nwm-ablation`) shall compare the main model with forecast-conditioned, unconditioned and unweighted-loss variants on area-weighted test RMSE in physical units. |
 
-### 3.6 Climate Feedback / Bayesian Model
+### 3.6 Climate Feedback
 
 | ID | Requirement |
 |:---|:---|
-| **B-01** | The system shall fit a Bayesian hierarchical regression (PyMC) on CO$_2$, CH$_4$ emissions and NASA GISTEMP temperature anomalies to estimate climate sensitivity. |
+| **B-01** | The system shall detect changes in the global warming rate by fitting continuous piecewise-linear trends with AR(1) errors to annual NASA GISTEMP means, selecting the number of change-points (0–3) by BIC. |
+| **B-01a** | The system shall fit a Bayesian linear regression (PyMC) of temperature anomaly on Climate TRACE emissions. *Status: implemented as a single-level model; the overlapping record (about 6 years) is too short for informative estimates.* |
 | **B-02** | The model fitting results shall include posterior trace, summary statistics, and posterior predictive samples. |
 | **B-03** | Normalisation parameters (`X_mean`, `X_std`, `predictor_cols`) shall be returned alongside the model object rather than monkey-patched onto `pm.Model`. |
 
@@ -88,9 +95,9 @@ This document defines the functional, data, model, and non-functional requiremen
 
 | ID | Requirement |
 |:---|:---|
-| **C-01** | All configuration shall be managed through Pydantic-Settings `BaseSettings` classes with environment variable overrides and YAML file loading. |
+| **C-01** | All configuration shall be managed through Pydantic-Settings `BaseSettings` classes loaded from YAML, with environment variables (and `.env`) taking precedence over YAML values. |
 | **C-02** | `PROJECT_ROOT` shall resolve to the repository root (two parents above `src/config.py`). |
-| **C-03** | `ModelSettings` shall expose fields for all model hyperparameters: `tft_*`, `lstm_*`, `gnn_*`. |
+| **C-03** | `ModelSettings` shall expose fields for all model hyperparameters (`tft_*`, `lstm_*`, `gnn_*`, `seed`); `NWMModelSettings` shall expose the NWM hyperparameters, conditioning source and loss weighting. |
 | **C-04** | Settings shall be immutable at runtime; epoch overrides shall be applied via `os.environ` + `get_settings.cache_clear()`. |
 
 ### 3.8 Research Artifact Generation
@@ -98,7 +105,7 @@ This document defines the functional, data, model, and non-functional requiremen
 | ID | Requirement |
 |:---|:---|
 | **R-01** | The system shall generate reproducible evaluation metrics, comparison plots, and LaTeX-ready tables for all four model families. |
-| **R-01a** | The generated evaluation plots shall include: SST anomaly forecasts, CRPS vs lead time, calibration diagrams, and error heatmaps for the El Niño model; RMSE spatial distributions and exceedance confusion matrices for the Pollution model; T2m prediction maps, error maps, and mesh visualizations for the NWM; and Bayesian changepoint regression plots. |
+| **R-01a** | The generated evaluation plots shall include: SST anomaly forecasts, CRPS vs lead time, calibration diagrams, and error heatmaps for the El Niño model; RMSE spatial distributions and exceedance confusion matrices for the Pollution model; T2m prediction maps, error maps, and mesh visualizations for the NWM; and warming-rate change-point plots. All plotted and tabulated values shall be computed from model outputs; missing results shall be shown as missing, never replaced by synthetic or default values. |
 | **R-01b** | The generated dataset artifacts shall include processed training inputs (`ersst_v5.parquet`, `nino_features.parquet`, `gistemp_features.parquet`, etc.) and output metric summaries (`tft_metrics.csv`, `pollution_metrics.csv`, `nwm_metrics.csv`, `summary_metrics.json`). |
 | **R-02** | The `gen-research-paper-pdf` Makefile target shall compile `docs/research_paper/research_paper.md` to PDF using Pandoc + XeLaTeX. |
 | **R-02b** | The `gen-patent-application-pdf` Makefile target shall compile `docs/patent/patent_application.md` to PDF using Pandoc + XeLaTeX. |
@@ -113,8 +120,8 @@ This document defines the functional, data, model, and non-functional requiremen
 
 | ID | Requirement |
 |:---|:---|
-| **NF-01** | All models shall support mixed-precision training (FP16/BF16) where hardware allows. |
-| **NF-02** | The system shall run end-to-end (data ingestion + all model training) on a single workstation with >= 15 GB VRAM. |
+| **NF-01** | All models shall support mixed-precision training (FP16/BF16) where hardware allows. *Status: not yet implemented.* |
+| **NF-02** | The system shall run end-to-end (data ingestion + all model training) on a single workstation; a GPU is optional. *Reference: about 2.2 hours CPU-only for the main models.* |
 | **NF-03** | NWM batch edge expansion shall be O(E) in tensor operations, not O(batch × E) via Python loops. |
 
 ### 4.2 Hardware Compatibility

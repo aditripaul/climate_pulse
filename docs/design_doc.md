@@ -54,7 +54,7 @@ src/                  # PYTHONPATH root
 |   |   +-- lstm_baseline.py  # LSTMForecaster (native PyTorch)
 |   |   +-- dataset.py        # LSTMDataset, TFT TimeSeriesDataSet builder
 |   |   +-- trainer.py        # train_tft(), train_lstm()
-|   |   +-- evaluate.py       # Metrics: RMSE, MAE, skill score
+|   |   +-- evaluate.py       # Metrics, aligned TFT/LSTM/persistence test predictions
 |   +-- pollution/
 |   |   +-- stgnn_model.py    # A3TGCN wrapper
 |   |   +-- graph_dataset.py  # Sensor graph construction
@@ -65,14 +65,20 @@ src/                  # PYTHONPATH root
 |   |   +-- graph_builder.py  # SphericalGraphBuilder (Fibonacci mesh, KD-tree)
 |   |   +-- dataset.py        # NWMDataset (ERA5 NetCDF + Niño conditioning)
 |   |   +-- trainer.py        # NWMTrainer (native PyTorch, no lightning)
+|   |   +-- evaluate.py       # Area-weighted test RMSE in physical units
 |   +-- climate_feedback/
+|       +-- changepoint.py          # detect_slope_changepoints() (piecewise trend, AR(1), BIC)
 |       +-- bayesian_regression.py  # build_bayesian_model(), fit_bayesian_model()
+|       +-- ols_baseline.py         # statsmodels OLS baseline
 |       +-- evaluate.py
 +-- scripts/
     +-- download_data.py           # CLI: ingest pipeline
     +-- download_nwm_data.py       # CLI: ERA5 Zarr download
     +-- train_models.py            # CLI: train all / individual models
     +-- generate_eval_artifacts.py
+    +-- run_elnino_seeds.py        # multi-seed TFT/LSTM evaluation
+    +-- export_tft_forecasts.py    # TFT lead-1 forecasts for NWM conditioning
+    +-- run_nwm_ablation.py        # NWM conditioning / loss-weighting ablation
 ```
 
 ---
@@ -84,16 +90,18 @@ src/                  # PYTHONPATH root
 ```
 get_settings()  →  Settings (singleton, lru_cache)
                     +-- DataSettings      (prefix: DATA_)
+                    +-- MetadataSettings  (prefix: META_)
                     +-- ModelSettings     (prefix: MODEL_)
+                    +-- NWMModelSettings  (prefix: NWM_)
                     +-- LogSettings       (prefix: LOG_)
-                    +-- TFTModelSettings  (prefix: TFT_)
-                    +-- GRPCSettings      (prefix: GRPC_)
 ```
 
-Each `BaseSettings` subclass reads from three sources in increasing priority:
+Each section reads from three sources in increasing priority:
 1. Default field values in code
-2. `configs/runtime_conf.yaml` (loaded explicitly in `get_settings()`)
-3. `.env` file and environment variables (Pydantic-Settings native)
+2. `configs/runtime_conf.yaml` (loaded explicitly in `get_settings()` and passed as init values)
+3. `.env` file and environment variables
+
+pydantic-settings normally ranks init values above environment variables; `_YamlDefaultSettings.settings_customise_sources()` reorders the sources so environment variables win.
 
 ### 3.2 Path Resolution
 
@@ -174,9 +182,12 @@ Loss: QuantileLoss (0.1, 0.5, 0.9)
 ```
 
 **Key configuration fields** (`ModelSettings`):
-- `tft_encoder_length` (default 120 months)
+- `tft_encoder_length` (default 60 months)
 - `tft_prediction_months` (default 12)
 - `tft_hidden_size`, `tft_attention_head_size`, `tft_dropout`
+- `tft_use_year` (include calendar year as a known covariate)
+
+**Splits:** `chronological_split_bounds()` defines one 70/15/15 split shared with the LSTM. The training `TimeSeriesDataSet` covers only the training months; validation windows stop before the test period. Training removes the previous run's checkpoints so that only the current run's best checkpoint is evaluated.
 
 ### 5.2 El Niño — LSTM Baseline
 
@@ -204,13 +215,15 @@ Early stopping: patience=15 epochs
 
 ```
 Input: [N_sensors, T_steps, features] PM2.5 time-series on sensor graph
-  → A3TGCN: Attention + Chebyshev graph conv + GRU
+  → A3TGCN: Attention + GCN graph conv (Kipf & Welling) + GRU
   → Linear projection
 Output: [N_sensors, forecast_horizon]
 
 Graph: k-NN connectivity over sensor (lat, lon) positions
-Training: Native PyTorch loop
+Training: Native PyTorch loop, MSE over observed station-days only
 ```
+
+Missing readings are NaN: they are excluded from normalisation statistics (computed on training days only), imputed with the training mean as inputs, and masked out of the loss and evaluation. Exceedance is evaluated at PM2.5 ≥ 35.5 µg/m³ (AQI > 100) against persistence and always-alert baselines.
 
 **Key config:** `gnn_num_periods` (sliding window size, default 7)
 
@@ -228,8 +241,8 @@ Grid nodes (lat × lon ERA5 grid)
 
 Mesh nodes (2,000 Fibonacci lattice points on unit sphere)
   v Processor (N × SAGEConv Mesh → Mesh)
-    At each layer: mesh_feat += condition_embed(Niño3.4)
-                   mesh_feat += SAGEConv(mesh_feat) + residual
+    At each layer: msg = GELU(LN(SAGEConv(mesh_feat) + condition_embed(Niño3.4)))
+                   mesh_feat = mesh_feat + msg
 
   v Decoder (BipartiteGNN: Mesh → Grid)
     SAGEConv((hidden, hidden), hidden) + LayerNorm + GELU
@@ -239,8 +252,10 @@ Mesh nodes (2,000 Fibonacci lattice points on unit sphere)
     Linear(hidden, grid_out_channels)
 
 Output: (batch, N_grid_nodes, prediction_steps × 2)
-Loss: MSELoss  |  Optimizer: AdamW + ReduceLROnPlateau
+Loss: cos(latitude)-weighted MSE  |  Optimizer: AdamW + ReduceLROnPlateau
 ```
+
+**Conditioning source** (`nwm.conditioning`): `observed` (monthly Niño 3.4 for the month containing each sample), `forecast` (TFT lead-1 forecasts from `export_tft_forecasts.py`, i.e. issued before the month starts) or `none`. `run_nwm_ablation.py` compares these, and an unweighted-loss variant, on area-weighted test RMSE.
 
 #### Graph Construction (`SphericalGraphBuilder`)
 
@@ -260,7 +275,22 @@ src = edge_idx[0].repeat(B) + src_offsets
 tgt = edge_idx[1].repeat(B) + tgt_offsets
 ```
 
-### 5.5 Climate Feedback — Bayesian Regression
+### 5.5 Climate Feedback — Warming-Rate Change-Points
+
+**Function:** `detect_slope_changepoints()` (NumPy only)
+
+```
+Data: annual means of complete years of NASA GISTEMP (1950–2025)
+Model: continuous piecewise-linear trend
+       mu(t) = b0 + b1 t + sum_k d_k max(0, t - tau_k)
+Errors: AR(1), fitted by two-step Prais–Winsten GLS, exact Gaussian likelihood
+Search: every set of 0–3 breaks on the annual grid, segments >= 10 years
+Selection: minimum BIC with 4 + 2K parameters
+```
+
+A mean-shift CUSUM (`detect_changepoints_simple()`) is kept as a diagnostic only: on a trending series it reports spurious level shifts.
+
+### 5.6 Climate Feedback — Bayesian Emissions Regression
 
 **Library:** `pymc $\ge$ 6`, `arviz $\ge$ 1.2`
 
@@ -278,6 +308,8 @@ Likelihood:
 
 Sampling: NUTS (default 1000 draws, 2 chains)
 ```
+
+Climate TRACE and GISTEMP currently overlap for only about 6 years, so this model is not yet informative and is not used in evaluation.
 
 Normalisation metadata (`predictor_cols`, `X_mean`, `X_std`) is returned separately from `build_bayesian_model()` rather than attached to the `pm.Model` object.
 
@@ -347,10 +379,15 @@ TFT requires a `pytorch-lightning` `Trainer` because `TemporalFusionTransformer`
 **Decision:** Use `repeat` + `repeat_interleave` for edge index batching.  
 **Rationale:** The original Python loop over the batch dimension was O(B×E) in Python overhead — a significant bottleneck for batch_size=32 with 8,000 edges per graph type. The vectorised version performs the same operation in a single tensor kernel call.
 
-### 7.5 Normalisation Leak Fix
+### 7.5 No Leakage Across Splits
 
-**Decision:** NWM z-score statistics computed from training split only.  
-**Rationale:** Computing statistics over the full dataset before splitting causes val/test targets to inform training normalisation — a subtle but real data leakage. Statistics are now derived from `t2m[:train_end]` and applied uniformly.
+**Decision:** Normalisation statistics (NWM, pollution) come from the training split only; El Niño training and validation targets never fall in a later split.  
+**Rationale:** Statistics or targets drawn from validation/test data let evaluation data inform training, inflating reported skill. Each is covered by a test in `tests/`.
+
+### 7.6 Honest Artifacts
+
+**Decision:** Evaluation artifacts never fall back to synthetic or default values.  
+**Rationale:** A missing result is shown as "n/a" or an empty panel, so that no invented number or curve can reach the paper or patent.
 
 ---
 
@@ -358,11 +395,11 @@ TFT requires a `pytorch-lightning` `Trainer` because `TemporalFusionTransformer`
 
 | Target | Makefile Target | torch index URL | PyG wheel |
 |:---|:---|:---|:---|
-| CPU / CUDA | `make install` | default (PyPI) | `torch-2.13.0+cpu` |
-| AMD ROCm 7.2 | `make install-rocm` | `download.pytorch.org/whl/rocm7.2` | `torch-2.13.0+rocm7.2` |
-| Intel NPU | `make install-npu` | default + OpenVINO | `torch-2.13.0+cpu` |
+| CPU / CUDA | `make install` | default (PyPI), torch 2.12.1 | `torch-2.12.1+cpu` |
+| AMD ROCm 6.1 | `make install-rocm` | `download.pytorch.org/whl/rocm6.1`, torch 2.6.0 | `torch-2.6.0+cpu` |
+| Intel NPU | `make install-npu` | default + OpenVINO, torch 2.12.1 | `torch-2.12.1+cpu` |
 
-`torch-scatter` and `torch-sparse` are deprecated as of torch-geometric 2.8.0 and replaced by `pyg-lib`, which is installed from `https://data.pyg.org/whl/torch-2.13.0+{variant}.html`.
+`torch-scatter` and `torch-sparse` are deprecated as of torch-geometric 2.8.0 and replaced by `pyg-lib`, installed from `https://data.pyg.org/whl/torch-<version>+cpu.html` for the matching torch version (the ROCm path also builds `torch-scatter`/`torch-sparse` via `install_rocm_deps.py`).
 
 ---
 
@@ -421,7 +458,8 @@ The ClimatePulse pipeline generates two main classes of artifacts: processed dat
 - **`ersst_v5.parquet`**: Cleaned sea surface temperature anomalies.
 - **`nino34_index.parquet` / `nino_features.parquet`**: Calculated Niño 3.4 index and engineered features for ENSO forecasting.
 - **`gistemp_features.parquet` / `gistemp_global_mean.parquet`**: Global temperature features and anomalies.
-- **`regression_dataset.parquet`**: Combined dataset for Bayesian piecewise regression modeling.
+- **`regression_dataset.parquet`**: Annual emissions × temperature dataset for the Bayesian emissions regression.
+- **`nino34_tft_lead1.parquet`**: TFT lead-1 Niño 3.4 forecasts for forecast-conditioned NWM runs.
 - **`openaq/`**: Graph-structured dataset representing the spatial topology of global air quality sensors.
 - **`climate_trace/`**: Processed multi-sector greenhouse gas emissions inventories.
 
@@ -430,15 +468,15 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 
 **El Niño Forecaster (TFT & LSTM):**
 - `elnino_forecast_vs_actual.png`: 12-month ahead SST anomaly forecasts (median and intervals) vs observations.
-- `elnino_crps_leadtime.png`: Continuous Ranked Probability Score across varying forecast horizons.
-- `elnino_calibration_diagram.png`: Reliability diagram assessing TFT 80% prediction interval coverage.
+- `elnino_crps_leadtime.png`: RMSE by forecast lead time for TFT, LSTM and persistence.
+- `elnino_calibration_diagram.png`: Observed frequency below each TFT quantile (0.1, 0.5, 0.9) on the test set.
 - `elnino_predicted_vs_actual_scatter.png`: Scatter plot comparing TFT and LSTM error clusters.
 - `elnino_error_heatmap.png`: Heatmap of absolute forecast errors across lead horizons and chronological windows.
 - `elnino_quantile_coverage.png`: Probabilistic 6-month forecast trajectories vs observed anomalies.
 
 **Pollution Dispersion (A3TGCN):**
-- `pollution_dispersion_nodes.png`: Spatial map showing per-node RMSE across PM2.5 monitoring stations.
-- `pollution_confusion_matrix.png`: Exceedance classification matrix for high pollution events (AQI > 100).
+- `pollution_dispersion_nodes.png`: Distribution of per-station RMSE (µg/m³).
+- `pollution_confusion_matrix.png`: Next-day exceedance matrix at PM2.5 ≥ 35.5 µg/m³ (AQI > 100), observed station-days only.
 
 **Neural Weather Model (ST-GNN):**
 - `nwm_convergence_lr.png`: MSE loss convergence and ReduceLROnPlateau scheduling curves.
@@ -446,13 +484,14 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 - `nwm_spatial_error_map.png`: Time-averaged RMSE per spatial grid node.
 - `nwm_fibonacci_mesh.png`: 3D visualization of the bipartite graph mapping 2,048 equirectangular grid nodes to a 2,000-node Fibonacci lattice.
 
-**Climate Feedback (Bayesian Regression):**
-- `climate_changepoint_regression.png`: Posterior predictive plot of piecewise regression on temperature anomalies.
+**Climate Feedback (Change-Points):**
+- `climate_changepoint_regression.png`: GISTEMP anomalies with the BIC-selected piecewise-linear trend and change-points.
 
 **General Metrics (`run_results/`):**
 - `summary_metrics.json`: High-level aggregated performance skill scores across all models.
 - `model_training_curves.png`: Multi-panel figure of training/validation loss trajectories for all deep learning models.
 - Model-specific performance CSVs (`tft_metrics.csv`, `lstm_metrics.csv`, `nwm_metrics.csv`, `pollution_metrics.csv`).
+- `elnino_seeds.csv` and `nwm_ablation.csv`: multi-seed El Niño and NWM ablation results, when those runs have been made.
 
 ### 10.3 Documentation & Patent Build Pipeline
 - **`make gen-research-paper-pdf`**: Compiles `docs/research_paper/research_paper.md` to `climatepulse_research_paper.pdf` via XeLaTeX.
@@ -469,6 +508,7 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 | NWM variables | T2m, Precip only | Add wind, humidity, pressure level data |
 | Pollution graph | Static k-NN graph | Dynamic graph with time-varying edge weights |
 | TFT covariates | Niño 3.4 only | Add $\text{CO}_2$ ppm, solar index as global covariates |
-| Bayesian model | Single-level regression | Hierarchical by region/country |
-| Evaluation | RMSE/MAE | Add CRPS (probabilistic), anomaly correlation coefficient |
+| Emissions regression | Single-level, ~6 overlapping years | Longer emissions record (e.g. pre-2015 inventories); hierarchical by region |
+| Evaluation | RMSE, MAE, ACC, skill, quantile calibration | Add CRPS for the probabilistic TFT forecasts |
+| Mixed precision | Not implemented | FP16/BF16 training on supported GPUs |
 | Artifact generator | Monolithic 27 KB script | Split into per-model artifact modules |

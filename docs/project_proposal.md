@@ -34,10 +34,10 @@ header-includes:
 Global climate change presents an urgent need for fast, high-precision, and multi-scale environmental forecasting tools. Traditional Numerical Weather Prediction (NWP) systems are computationally prohibitive, requiring supercomputers running for hours per forecast cycle. Conversely, existing data-driven AI weather models operate in disciplinary isolation—predicting short-term atmospheric states without integrating long-range macro-climatic forcings (such as El Niño-Southern Oscillation, or ENSO) or local urban pollution transport.
 
 **ClimatePulse** addresses this challenge by proposing a unified, modular, open-source Python framework that bridges four core climate modeling dimensions:
-1. **El Niño Forecasting:** Probabilistic multi-horizon forecasting of the Niño 3.4 sea surface temperature index up to 60 months ahead.
+1. **El Niño Forecasting:** Probabilistic multi-horizon forecasting of the Niño 3.4 sea surface temperature index 1–12 months ahead.
 2. **Pollution Dispersion:** Spatial-temporal forecasting of $\text{PM}_{2.5}$ concentrations across a global sensor network.
 3. **Neural Weather Modeling (NWM):** Global weather forecasting operating on a uniform 3D spherical latent mesh conditioned on macro-climate ENSO signals.
-4. **Climate Feedback Attribution:** Statistical Bayesian regression detecting structural regime shifts in historical global temperature anomalies.
+4. **Climate Feedback Attribution:** Statistical change-point analysis detecting shifts in the rate of historical global warming.
 
 This proposal outlines the technical vision, system architecture, dataset sources, technical stack, expected evaluation metrics, and system requirements for the ClimatePulse platform.
 
@@ -66,9 +66,9 @@ ClimatePulse connects four specialized AI modeling components through a single d
 
 | Model / Subsystem | Core Task | Architecture | Target Data Source |
 |:---|:---|:---|:---|
-| **El Niño Forecaster** | Predict ENSO phase 3–60 months ahead | Temporal Fusion Transformer (TFT) + BiLSTM baseline | NOAA ERSST v5 |
-| **Pollution Dispersion** | Spatiotemporal $\text{PM}_{2.5}$ / $\text{NO}_2$ transport | Attention-based Temporal Graph Conv (A3TGCN) | OpenAQ v3 Telemetry |
-| **Climate Feedback** | Detect warming regime changepoints | Bayesian Hierarchical Regression (PyMC) | NASA GISTEMP v4 & Climate TRACE |
+| **El Niño Forecaster** | Predict ENSO phase 1–12 months ahead | Temporal Fusion Transformer (TFT) + BiLSTM baseline | NOAA ERSST v5 |
+| **Pollution Dispersion** | Spatiotemporal $\text{PM}_{2.5}$ transport | Attention-based Temporal Graph Conv (A3TGCN) | OpenAQ v3 Telemetry |
+| **Climate Feedback** | Detect warming regime changepoints | Piecewise-linear trend with AR(1) errors, BIC model selection; Bayesian emissions regression (PyMC) | NASA GISTEMP v4 & Climate TRACE |
 | **Neural Weather Model** | Global $T_{2\text{m}}$ & precipitation conditioned on ENSO | Spherical Fibonacci Mesh Graph Neural Network (ST-GNN) | WeatherBench 2 / ERA5 |
 
 ```
@@ -101,7 +101,7 @@ ClimatePulse connects four specialized AI modeling components through a single d
 ### 2.2 Subsystem Details
 
 #### 2.2.1 El Niño Forecaster (Ocean Oscillation Module)
-- **Role:** Predicts the phase and intensity of the El Niño-Southern Oscillation (ENSO) up to 60 months in advance using historical ocean temperature records.
+- **Role:** Predicts the phase and intensity of the El Niño-Southern Oscillation (ENSO) 1–12 months in advance using historical ocean temperature records.
 - **How it Works:** Uses a Temporal Fusion Transformer (TFT) with self-attention and variable selection networks to process multi-year ocean temperature series.
 - **Key Output:** Delivers probabilistic prediction intervals (10th, 50th, and 90th percentiles) for the Niño 3.4 index to capture forecast uncertainty.
 
@@ -120,8 +120,8 @@ ClimatePulse connects four specialized AI modeling components through a single d
 
 #### 2.2.4 Climate Feedback Attribution (Regime Shift Module)
 - **Role:** Analyzes long-term historical global temperature trends (1950–present) to identify structural shifts in global warming rates.
-- **How it Works:** Fits a Bayesian piecewise regression model over historical surface temperature anomaly records and greenhouse gas emissions inventories.
-- **Key Output:** Identifies statistical changepoints and estimates historical climate sensitivity trends.
+- **How it Works:** Fits continuous piecewise-linear trends with autocorrelated errors to annual surface temperature anomalies and selects the number of regime changes by BIC; a Bayesian regression relates temperature to greenhouse gas emissions inventories.
+- **Key Output:** Identifies changes in the warming rate and estimates the rate within each regime.
 
 ---
 
@@ -132,9 +132,9 @@ Data ingestion is constrained to the **1950–present** window for high-fidelity
 | Dataset Source | Content & Variables | Ingestion Access Mechanism | Primary Subsystem Usage |
 |:---|:---|:---|:---|
 | **[NOAA ERSST v5](https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html)** | Monthly sea surface temperature (SST) anomalies & derived Niño 3.4 index | OPeNDAP Protocol | El Niño Forecaster (TFT / LSTM) |
-| **[OpenAQ v3](https://openaq.org/)** | Spatiotemporal $\text{PM}_{2.5}$, $\text{NO}_2$, $\text{O}_3$ measurements from global monitoring stations | REST API (API key authenticated) | Pollution Dispersion (A3TGCN) |
-| **[NASA GISTEMP v4](https://data.giss.nasa.gov/gistemp/)** | Long-term global surface temperature anomaly records (1880–present) | Direct HTTPS Download | Climate Feedback (Bayesian) |
-| **[Climate TRACE v7](https://climatetrace.org/)** | Multi-sector greenhouse gas emissions inventories ($\text{CO}_2$, $\text{CH}_4$, $\text{N}_2\text{O}$) | REST API | Climate Feedback (Bayesian) |
+| **[OpenAQ v3](https://openaq.org/)** | Spatiotemporal $\text{PM}_{2.5}$ measurements from monitoring stations (default: India and the United States) | REST API (API key authenticated) | Pollution Dispersion (A3TGCN) |
+| **[NASA GISTEMP v4](https://data.giss.nasa.gov/gistemp/)** | Long-term global surface temperature anomaly records (1880–present) | Direct HTTPS Download | Climate Feedback (change-points) |
+| **[Climate TRACE v7](https://climatetrace.org/)** | Multi-sector greenhouse gas emissions inventories ($\text{CO}_2$, $\text{CH}_4$, $\text{N}_2\text{O}$) | REST API | Climate Feedback (emissions regression) |
 | **[WeatherBench 2 / ERA5](https://weatherbench2.readthedocs.io/)** | 6-hourly 2m temperature ($T_{2\text{m}}$) & total precipitation ($5.625^\circ$ equirectangular grid) | Google Cloud Storage Zarr | Neural Weather Model (ST-GNN) |
 
 All ingested data are processed and stored using high-performance Parquet format for bulk time-series data and JSON for metadata tracking.
@@ -148,14 +148,14 @@ All ingested data are processed and stored using high-performance Parquet format
 | System Layer | Libraries & Technologies |
 |:---|:---|
 | **Deep Learning** | PyTorch 2.12, torch-geometric 2.8, pytorch-forecasting 1.8 |
-| **Bayesian Modeling** | PyMC 6, ArviZ 1.2 |
+| **Statistical Modeling** | NumPy, statsmodels, PyMC 6, ArviZ 1.2 |
 | **Data Engineering** | xarray 2026.7, pandas 3, pyarrow 25, zarr 3, gcsfs |
 | **Configuration** | Pydantic-Settings v2, PyYAML |
 | **Logging / Artifacts** | Loguru, CSV metrics logger |
 
 ### 4.2 Hardware Compatibility
-- **Hardware Acceleration:** Fully compatible with NVIDIA CUDA, AMD ROCm 7.2 (`HSA_OVERRIDE_GFX_VERSION=10.3.0`), and Intel NPU via OpenVINO.
-- **Resource Footprint:** Designed for efficient training and inference on workstation hardware with $\ge 15\text{ GB}$ VRAM.
+- **Hardware Acceleration:** Supports NVIDIA CUDA, AMD ROCm 6.1 (`HSA_OVERRIDE_GFX_VERSION=10.3.0`), and Intel NPU via OpenVINO; runs on CPU when no accelerator is present.
+- **Resource Footprint:** Trains on a single workstation; the main models take about 2.2 hours CPU-only.
 
 ### 4.3 Build and Workflow Automation
 The platform includes an automated command-line workflow for environment setup, data ingestion, training, artifact generation, and document compilation:
@@ -166,8 +166,9 @@ make download-data                  # Ingest ERSST, OpenAQ, GISTEMP, and Climate
 make download-nwm-data              # Ingest ERA5 WeatherBench 2 Zarr data
 make train                          # Train all four model families
 make gen-eval-artifacts             # Generate evaluation plots and summary metrics
-make gen-research-paper-pdf         # Compile research paper PDF
 make save-run                       # Snapshot checkpoints and evaluation artifacts
+make sync-paper-artifacts           # Point the paper at the newest snapshot
+make gen-research-paper-pdf         # Compile research paper PDF
 ```
 
 ---
@@ -181,12 +182,12 @@ The framework will be evaluated against standardized meteorological benchmarks a
 | Model / Subsystem | Primary Evaluation Metrics | Target Performance Criteria | Evaluation Dataset |
 |:---|:---|:---|:---|
 | **El Niño Forecaster (TFT)** | Skill Score, RMSE, Anomaly Correlation Coefficient (ACC) | Skill Score $> 0.85$; RMSE $< 0.40^\circ\text{C}$ over 12-month lead horizon | NOAA ERSST v5 (1950–present) |
-| **Pollution ST-GNN (A3TGCN)** | $F_1$ Score, Precision, Recall, Station RMSE | $F_1 > 0.85$ on AQI exceedance alerts ($>100\,\mu\text{g/m}^3$) | OpenAQ Sensor Network Telemetry |
+| **Pollution ST-GNN (A3TGCN)** | $F_1$ Score, Precision, Recall, Station RMSE | $F_1 > 0.85$ on AQI exceedance alerts (AQI $> 100$, i.e. $\text{PM}_{2.5} \ge 35.5\,\mu\text{g/m}^3$), above persistence and always-alert baselines | OpenAQ Sensor Network Telemetry |
 | **Neural Weather Model (ST-GNN)** | Latitude-Weighted Validation MSE, Convergence Rate | $>35\%$ forecast error reduction relative to unweighted initialization | ERA5 WeatherBench 2 Reanalysis ($5.625^\circ$) |
-| **Climate Feedback (Bayesian)** | Posterior Trace Convergence, Changepoint Count | Posterior convergence ($\hat{R} \le 1.05$) across monthly temperature series | NASA GISTEMP v4 Surface Anomaly Records |
+| **Climate Feedback (Change-Points)** | Number and timing of warming-rate change-points, segment warming rates | Change-points selected by BIC with autocorrelated errors; recovery of known breaks in synthetic series | NASA GISTEMP v4 Surface Anomaly Records |
 
 ---
 
 ## 6. CONCLUSION
 
-ClimatePulse establishes a novel, highly efficient paradigm for multi-modal climate forecasting. By unifying long-horizon ocean-atmosphere forecasting, local sensor-network pollution transport, and global spherical neural weather modeling into a single reproducible open-source platform, the project delivers state-of-the-art predictive performance while maintaining a low computational footprint.
+ClimatePulse establishes a novel, highly efficient paradigm for multi-modal climate forecasting. By unifying long-horizon ocean-atmosphere forecasting, local sensor-network pollution transport, and global spherical neural weather modeling into a single reproducible open-source platform, the project aims to deliver competitive predictive performance while maintaining a low computational footprint.

@@ -139,13 +139,19 @@ data:
 
 model:
   max_epochs: 100
+  seed: 42
   tft_encoder_length: 60
+  tft_use_year: true
   lstm_encoder_length: 60
   lstm_hidden_size: 64
   gnn_num_periods: 7
+
+nwm:
+  conditioning: "observed"   # observed | forecast | none
+  area_weighted_loss: true
 ```
 
-Environment variables prefixed with `DATA_`, `MODEL_`, `LOG_`, etc. set values that the YAML file leaves out. **Values in the YAML file take precedence over environment variables**, and `train_models.py --epochs` currently has no effect while `max_epochs` is set in the YAML. To change such a value, edit the YAML or point `RUNTIME_CONF` at a copy.
+Environment variables prefixed with `DATA_`, `MODEL_`, `NWM_`, `LOG_` or `META_` override the YAML values, for example `MODEL_MAX_EPOCHS=5 make train-elnino`. `train_models.py` also accepts `--epochs` and `--seed`.
 
 The configuration file paths themselves can be overridden with the `RUNTIME_CONF` and `DATASET_CONF` environment variables or Make parameters:
 ```bash
@@ -174,16 +180,22 @@ make train-pollution   # A3TGCN pollution ST-GNN
 make train-nwm         # Spherical-mesh Neural Weather Model
 make train-climate     # Bayesian emissions regression
 
-# 4. Evaluate all models; writes figures, metrics and tables to runtime/eval_artifacts/
+# 4. Robustness studies: multi-seed El Niño, then the NWM ablation
+#    (forecast-conditioned, unconditioned and unweighted-loss variants)
+make train-elnino-seeds
+make export-tft-forecasts
+make nwm-ablation
+
+# 5. Evaluate all models; writes figures, metrics and tables to runtime/eval_artifacts/
 make gen-eval-artifacts
 
-# 5. Save the run's checkpoints and artifacts to runtime/saved/run_<timestamp>/
+# 6. Save the run's checkpoints and artifacts to runtime/saved/run_<timestamp>/
 make save-run
 
-# 6. Point the paper's artifacts at the newest saved run
+# 7. Point the paper's artifacts at the newest saved run
 make sync-paper-artifacts
 
-# 7. Compile the research paper and patent application PDFs
+# 8. Compile the research paper and patent application PDFs
 make gen-research-paper-pdf
 make gen-patent-application-pdf
 ```
@@ -253,6 +265,7 @@ climate_pulse/
 |   |-- project_proposal.md       # Project proposal
 |   |-- requirement_spec.md       # Formal requirements specification
 |   +-- design_doc.md             # Architecture and design decisions
+|-- tests/                        # pytest suite (make test)
 |-- .agents/                      # AI agent workspace rules and skills
 |-- pyproject.toml                # Package metadata and dependencies
 |-- requirements.txt              # Flat dependency list
@@ -267,6 +280,8 @@ climate_pulse/
 ```bash
 # Setup
 make install                    # Standard install (torch 2.12.1, CPU/CUDA)
+make install-dev                # Install plus test dependencies (pytest)
+make test                       # Run the test suite
 make install-rocm               # torch 2.6.0 with ROCm 6.1 (AMD GPUs)
 make install-npu                # torch 2.12.1 + OpenVINO (Intel NPU)
 
@@ -280,6 +295,11 @@ make train-elnino               # TFT + LSTM
 make train-pollution            # A3TGCN
 make train-nwm                  # Spherical-mesh ST-GNN
 make train-climate              # Bayesian emissions regression
+
+# Robustness studies
+make train-elnino-seeds         # TFT (with/without year covariate) + LSTM over 5 seeds
+make export-tft-forecasts       # TFT lead-1 forecasts for forecast-conditioned NWM
+make nwm-ablation               # NWM: forecast-conditioned, unconditioned, unweighted variants
 
 # Evaluation and documents
 make gen-eval-artifacts         # Figures, tables, metrics in runtime/eval_artifacts/
@@ -301,7 +321,7 @@ make clean-downloaded-datasets  # Remove raw and processed datasets
 
 ## Environment Variables
 
-Credentials go in `.env` (see `.env.example`). Other variables apply only to settings not set in `configs/runtime_conf.yaml`; the values below are those the shipped YAML sets.
+Credentials go in `.env` (see `.env.example`). Environment variables override `configs/runtime_conf.yaml`; the values below are those the shipped YAML sets.
 
 | Variable | Value | Description |
 |:---|:---|:---|
@@ -315,6 +335,8 @@ Credentials go in `.env` (see `.env.example`). Other variables apply only to set
 | `MODEL_DEVICE` | `auto` | `auto` / `cpu` / `cuda` / `mps` |
 | `MODEL_TFT_ENCODER_LENGTH` | `60` | TFT lookback window (months) |
 | `MODEL_LSTM_HIDDEN_SIZE` | `64` | LSTM hidden units |
+| `MODEL_SEED` | `42` | Random seed |
+| `NWM_CONDITIONING` | `observed` | NWM Niño 3.4 input: `observed`, `forecast` (TFT lead-1) or `none` |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
 ---
