@@ -57,16 +57,14 @@ def train_lstm():
     import numpy as np
     import pandas as pd
 
-    from models.el_nino.dataset import LSTMDataset
+    from models.el_nino.dataset import LSTMDataset, chronological_split_bounds
     from models.el_nino.lstm_baseline import create_lstm_model
     from models.el_nino.trainer import train_lstm as _train
 
     df = pd.read_parquet(settings.data.processed_dir / "nino_features.parquet")
     data = df["nino34"].values.astype(np.float32)
 
-    n = len(data)
-    train_end = int(n * 0.7)
-    val_end = int(n * 0.85)
+    train_end, val_end = chronological_split_bounds(len(data))
 
     enc_len = settings.model.lstm_encoder_length
     train_ds = LSTMDataset(data[:train_end].reshape(-1, 1))

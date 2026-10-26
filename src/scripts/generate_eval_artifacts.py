@@ -9,6 +9,7 @@ saves raw prediction/metric files, and plots standard graphics.
 import glob
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -35,6 +36,7 @@ from models.el_nino.dataset import (  # noqa: E402
     LSTMDataset,
     create_tft_dataset,
     prepare_tft_dataframe,
+    chronological_split_bounds,
     split_tft_dataset,
 )
 from models.el_nino.evaluate import (  # noqa: E402
@@ -75,8 +77,16 @@ def load_tft_test_data():
     if not tft_ckpts:
         raise FileNotFoundError("No TFT model checkpoints found.")
 
-    latest_ckpt = max(tft_ckpts, key=os.path.getctime)
-    tft_model = load_tft_model(latest_ckpt)
+    # Prefer the best checkpoint (lowest val_loss in the ModelCheckpoint filename);
+    # fall back to the most recent file if none carry a score.
+    scored = [
+        (float(m.group(1)), p)
+        for p in tft_ckpts
+        if (m := re.search(r"val_loss=([0-9.]+?)(?:-v\d+)?\.ckpt$", os.path.basename(p)))
+    ]
+    best_ckpt = min(scored)[1] if scored else max(tft_ckpts, key=os.path.getctime)
+    print(f"Using TFT checkpoint: {best_ckpt}")
+    tft_model = load_tft_model(best_ckpt)
 
     df = prepare_tft_dataframe()
     dataset = create_tft_dataset(df)
@@ -96,8 +106,7 @@ def load_lstm_test_data():
     df = pd.read_parquet(settings.data.processed_dir / "nino_features.parquet")
     data = df["nino34"].values.astype(np.float32)
 
-    n = len(data)
-    val_end = int(n * 0.85)
+    _, val_end = chronological_split_bounds(len(data))
     enc_len = settings.model.lstm_encoder_length
 
     test_data = data[val_end - enc_len :]
@@ -164,17 +173,32 @@ def evaluate_el_nino(tft_model, test_ds, lstm_model, lstm_test_data):
     # Align counts between TFT and LSTM for direct comparison if needed
     comp_samples = min(num_samples, lstm_samples)
 
+    # Persistence: last observed encoder value carried across every lead.
+    # Skill scores are measured against it (SS = 1 - MSE_model / MSE_persistence).
+    persistence_preds = np.repeat(tft_last_y[:comp_samples, 0:1], tft_actuals.shape[1], axis=1)
+
+    # TFT and LSTM test windows start at the same month, so sample i is aligned.
+    if not np.allclose(lstm_actuals[:comp_samples], tft_actuals[:comp_samples], atol=1e-4):
+        raise ValueError("TFT and LSTM test windows are misaligned; skill comparison invalid")
+
     # Compute overall metrics (average over all leads)
     tft_metrics = evaluate_forecast(
-        tft_actuals[:comp_samples].flatten(), tft_preds[:comp_samples].flatten(), "TFT"
+        tft_actuals[:comp_samples].flatten(),
+        tft_preds[:comp_samples].flatten(),
+        "TFT",
+        baseline_pred=persistence_preds.flatten(),
     )
     lstm_metrics = evaluate_forecast(
-        lstm_actuals[:comp_samples].flatten(), lstm_preds[:comp_samples].flatten(), "LSTM"
+        lstm_actuals[:comp_samples].flatten(),
+        lstm_preds[:comp_samples].flatten(),
+        "LSTM",
+        baseline_pred=persistence_preds.flatten(),
     )
-
-    persistence_preds = np.repeat(tft_last_y[:comp_samples, 0:1], tft_actuals.shape[1], axis=1)
     persistence_metrics = evaluate_forecast(
-        tft_actuals[:comp_samples].flatten(), persistence_preds.flatten(), "Persistence"
+        tft_actuals[:comp_samples].flatten(),
+        persistence_preds.flatten(),
+        "Persistence",
+        baseline_pred=persistence_preds.flatten(),
     )
 
     # Save raw run results to CSV/JSON
@@ -462,90 +486,80 @@ def evaluate_pollution():
 
 
 def evaluate_climate_feedback():
-    """Run Bayesian changepoint detection on climate feedback."""
-    print("Evaluating Climate Feedback via Bayesian Regression...")
+    """Detect warming-rate change-points in GISTEMP with a piecewise-linear trend."""
+    print("Evaluating Climate Feedback via piecewise-linear change-point analysis...")
 
-    # Read aligned dataset
-    dataset_path = settings.data.processed_dir / "regression_dataset.parquet"
-    if not dataset_path.exists():
-        from data.pipeline import DataPipeline
-
-        pipeline = DataPipeline()
-        res = pipeline.build_regression_dataset()
-        dataset_path = Path(res["path"])
-
-    df = pd.read_parquet(dataset_path)
-
-    # Use the full monthly GISTEMP dataset for changepoint analysis to ensure a statistically significant sample size
     temp_path = settings.data.processed_dir / "gistemp_features.parquet"
-    if temp_path.exists():
-        temp_df = pd.read_parquet(temp_path)
-        temp_df["time"] = pd.to_datetime(temp_df["time"])
-        temp_df["year"] = temp_df["time"].dt.year
-    else:
-        temp_df = df.copy()
+    monthly = pd.read_parquet(temp_path)
+    monthly["time"] = pd.to_datetime(monthly["time"])
+    monthly["year"] = monthly["time"].dt.year
 
-    # Run changepoint analysis
-    from models.climate_feedback.changepoint import detect_changepoints_simple
+    # Annual means of complete years only: reduces month-to-month autocorrelation
+    # and avoids a biased, partial final year.
+    annual = (
+        monthly.groupby("year")["global_temp_anomaly"]
+        .agg(["mean", "count"])
+        .reset_index()
+    )
+    annual = annual[annual["count"] == 12].rename(columns={"mean": "global_temp_anomaly"})
+    annual = annual[["year", "global_temp_anomaly"]].reset_index(drop=True)
 
-    changepoints = detect_changepoints_simple(temp_df, value_col="global_temp_anomaly", window=24)
+    from models.climate_feedback.changepoint import detect_slope_changepoints
+
+    result = detect_slope_changepoints(
+        annual, value_col="global_temp_anomaly", time_col="year", max_changepoints=3, min_segment=10
+    )
+    changepoints = result["changepoints"]
+    slopes_per_decade = [10.0 * s for s in result["segment_slopes"]]
+    cp_years = [int(cp["time"]) for cp in changepoints]
 
     # Save changepoints to CSV
-    cp_df = pd.DataFrame(changepoints)
+    cp_df = pd.DataFrame(
+        {
+            "year": cp_years,
+            "slope_before_c_per_decade": slopes_per_decade[:-1],
+            "slope_after_c_per_decade": slopes_per_decade[1:],
+        }
+    )
     cp_df.to_csv(RESULTS_DIR / "climate_changepoints.csv", index=False)
 
-    # Fit piecewise lines to draw plot
-    t = np.arange(len(temp_df))
-    y = temp_df["global_temp_anomaly"].values
-
     fig, ax = plt.subplots(figsize=(6, 3.5))
-    ax.plot(temp_df["year"], y, "k-", label="Observed Global Anomaly", alpha=0.3)
-
-    if changepoints:
-        cp_idx = changepoints[0]["index"]
-        cp_year = temp_df.iloc[cp_idx]["year"]
-        ax.axvline(cp_year, color="red", linestyle="--", label=f"Change-point ({cp_year})")
-
-        # Draw piecewise linear fits
-        t1, y1 = t[: cp_idx + 1], y[: cp_idx + 1]
-        t2, y2 = t[cp_idx:], y[cp_idx:]
-
-        fit1 = np.polyfit(t1, y1, 1)
-        fit2 = np.polyfit(t2, y2, 1)
-
-        ax.plot(
-            temp_df["year"].iloc[: cp_idx + 1],
-            np.polyval(fit1, t1),
-            "g-",
-            linewidth=2,
-            label="Warming Segment 1",
-        )
-        ax.plot(
-            temp_df["year"].iloc[cp_idx:],
-            np.polyval(fit2, t2),
-            "r-",
-            linewidth=2,
-            label="Warming Segment 2",
-        )
-    else:
-        # standard line fit
-        fit = np.polyfit(t, y, 1)
-        ax.plot(temp_df["year"], np.polyval(fit, t), "r-", linewidth=2, label="OLS Warming Trend")
+    ax.plot(
+        monthly["time"].dt.year + (monthly["time"].dt.month - 0.5) / 12,
+        monthly["global_temp_anomaly"],
+        "k-",
+        alpha=0.15,
+        linewidth=0.6,
+        label="Monthly anomaly",
+    )
+    ax.plot(annual["year"] + 0.5, annual["global_temp_anomaly"], "ko", markersize=2.5, label="Annual mean")
+    ax.plot(
+        annual["year"] + 0.5,
+        result["fitted"],
+        "r-",
+        linewidth=2,
+        label="Piecewise trend (" + ", ".join(f"{s:.2f}" for s in slopes_per_decade) + " °C/decade)",
+    )
+    for year in cp_years:
+        ax.axvline(year + 0.5, color="red", linestyle="--", linewidth=1, label=f"Change-point ({year})")
 
     ax.set_xlabel("Year")
     ax.set_ylabel("Global Temperature Anomaly (°C)")
     ax.set_title("Warming Rate Regime Changes (Piecewise Analysis)")
-    ax.legend()
+    ax.legend(fontsize=7)
     fig.tight_layout()
     fig.savefig(ARTIFACTS_DIR / "climate_changepoint_regression.png", dpi=300)
     plt.close(fig)
 
     # Save metrics to JSON
     feedback_stats = {
+        "method": "continuous piecewise-linear trend, AR(1) errors, K selected by BIC",
+        "years": [int(annual["year"].min()), int(annual["year"].max())],
         "changepoints_detected": len(changepoints),
-        "changepoint_years": [int(temp_df.iloc[cp["index"]]["year"]) for cp in changepoints]
-        if changepoints
-        else [],
+        "changepoint_years": cp_years,
+        "segment_slopes_c_per_decade": slopes_per_decade,
+        "bic_by_k": {str(k): v for k, v in result["bic_by_k"].items()},
+        "ar1_phi": result["ar1_phi"],
     }
     with open(RESULTS_DIR / "climate_feedback_results.json", "w") as f:
         json.dump(feedback_stats, f, indent=2)
@@ -1236,7 +1250,7 @@ This document summarizes the performance metrics generated during the evaluation
 | **LSTM Baseline** | {clean_summary.get('elnino', {}).get('lstm', {}).get('rmse', 0.39):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('mae', 0.30):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('acc', 0.84):.4f} | {clean_summary.get('elnino', {}).get('lstm', {}).get('skill_score', 0.65):.4f} |
 | **Persistence Baseline** | {clean_summary.get('elnino', {}).get('persistence', {}).get('rmse', 0.51):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('mae', 0.42):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('acc', 0.62):.4f} | {clean_summary.get('elnino', {}).get('persistence', {}).get('skill_score', 0.0):.4f} |
 
-*TFT outperforms baseline forecasting architectures across all prediction lead windows.*
+*Skill Score = 1 − MSE(model) / MSE(persistence), where persistence carries the last observed value across all 12 leads.*
 
 ---
 
@@ -1263,8 +1277,10 @@ This document summarizes the performance metrics generated during the evaluation
 
 ## 4. Climate Feedback Change-Points
 
-* **Detected Breaks**: {clean_summary.get('climate_feedback', {}).get('changepoints_detected', 1)}
-* **Change-Point Years**: {", ".join(map(str, clean_summary.get('climate_feedback', {}).get('changepoint_years', [2016])))}
+* **Method**: {clean_summary.get('climate_feedback', {}).get('method', 'n/a')}
+* **Detected Breaks**: {clean_summary.get('climate_feedback', {}).get('changepoints_detected', 'n/a')}
+* **Change-Point Years**: {", ".join(map(str, clean_summary.get('climate_feedback', {}).get('changepoint_years', []))) or 'none'}
+* **Segment Warming Rates (°C/decade)**: {", ".join(f"{s:.3f}" for s in clean_summary.get('climate_feedback', {}).get('segment_slopes_c_per_decade', [])) or 'n/a'}
 """
     with open(ARTIFACTS_DIR / "metrics_summary.md", "w") as f:
         f.write(md_content)

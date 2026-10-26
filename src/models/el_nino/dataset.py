@@ -18,6 +18,21 @@ from torch.utils.data import Dataset
 from config import settings
 
 
+def chronological_split_bounds(
+    n: int,
+    train_ratio: float = 0.7,
+    val_ratio: float = 0.15,
+) -> tuple[int, int]:
+    """
+    Row indices for a chronological train/val/test split shared by TFT and LSTM.
+
+    Returns:
+        (val_start, test_start): train = [0, val_start), val = [val_start, test_start),
+        test = [test_start, n).
+    """
+    return int(n * train_ratio), int(n * (train_ratio + val_ratio))
+
+
 def prepare_tft_dataframe(
     nino_features_path: str | None = None,
 ) -> pd.DataFrame:
@@ -88,10 +103,12 @@ def create_tft_dataset(
     time_varying_known = [c for c in time_varying_known if c in df.columns]
     time_varying_unknown = [c for c in time_varying_unknown if c in df.columns]
 
-    training_cutoff = df["time_idx"].max() - pred_len
+    # Train only on the training split so that no validation/test month is ever
+    # seen as an encoder input or prediction target during fitting.
+    val_start, _ = chronological_split_bounds(len(df))
 
     dataset = TimeSeriesDataSet(
-        df[df["time_idx"] <= training_cutoff],
+        df[df["time_idx"] < val_start],
         time_idx="time_idx",
         target="nino34",
         group_ids=["series_id"],
@@ -116,26 +133,28 @@ def create_tft_dataset(
 def split_tft_dataset(
     dataset: Any,
     df: pd.DataFrame,
-    val_ratio: float = 0.15,
-    test_ratio: float = 0.15,
 ) -> tuple[Any, Any, Any]:
     """
     Split TimeSeriesDataSet into train/val/test by time.
+
+    `dataset` must come from create_tft_dataset(), which already covers only the
+    training split. Validation and test prediction targets never overlap each
+    other or the training targets.
 
     Returns:
         (train_dataset, val_dataset, test_dataset)
     """
     from pytorch_forecasting import TimeSeriesDataSet
 
-    n = df["time_idx"].max()
-    test_start = int(n * (1 - test_ratio))
-    val_start = int(n * (1 - test_ratio - val_ratio))
+    n = len(df)
+    val_start, test_start = chronological_split_bounds(n)
 
     enc_len = dataset.max_encoder_length
 
     # Validation and test DataFrames must include the historical encoder length
-    # so that the model has past context to make predictions.
-    val_df = df[df["time_idx"] >= val_start - enc_len]
+    # so that the model has past context to make predictions. Validation stops
+    # at test_start so its targets never reach into the test period.
+    val_df = df[(df["time_idx"] >= val_start - enc_len) & (df["time_idx"] < test_start)]
     test_df = df[df["time_idx"] >= test_start - enc_len]
 
     val_dataset = TimeSeriesDataSet.from_dataset(dataset, val_df, stop_randomization=True)
@@ -143,7 +162,8 @@ def split_tft_dataset(
 
     logger.info(
         f"Split: train={val_start} months, val={test_start - val_start} months, "
-        f"test={n - test_start} months"
+        f"test={n - test_start} months; windows train={len(dataset)}, "
+        f"val={len(val_dataset)}, test={len(test_dataset)}"
     )
     return dataset, val_dataset, test_dataset
 

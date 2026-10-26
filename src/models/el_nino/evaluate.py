@@ -74,6 +74,7 @@ def evaluate_forecast(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     model_name: str = "model",
+    baseline_pred: np.ndarray | None = None,
 ) -> dict:
     """
     Compute full evaluation metrics for a forecast.
@@ -82,6 +83,9 @@ def evaluate_forecast(
         y_true: Observed values.
         y_pred: Predicted values.
         model_name: Name for logging.
+        baseline_pred: Reference forecast for the skill score, aligned with y_true.
+            Pass the true persistence forecast (last observed value per window);
+            the default constant baseline is only meaningful for a single window.
 
     Returns:
         Dictionary of metric name → value.
@@ -90,7 +94,7 @@ def evaluate_forecast(
         "rmse": rmse(y_true, y_pred),
         "mae": mae(y_true, y_pred),
         "acc": anomaly_correlation(y_true, y_pred),
-        "skill_score": skill_score(y_true, y_pred),
+        "skill_score": skill_score(y_true, y_pred, baseline_pred),
     }
 
     logger.info(
