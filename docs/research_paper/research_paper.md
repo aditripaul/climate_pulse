@@ -97,7 +97,7 @@ Non-Euclidean sensor networks resist regular-grid convolution, which explains wh
 
 ### 2.3 Neural Weather Modelling
 
-GraphCast [16] and Keisler [23] pioneered the Encoder-Processor-Decoder approach on icosahedral meshes. FourCastNet [17] takes a different route, deploying Adaptive Fourier Neural Operators on regular grids. The NWM presented here adapts the Encoder-Processor-Decoder architecture to a Fibonacci-lattice spherical mesh with $k$-NN bipartite connectivity and adds ENSO conditioning through an additive MLP mechanism injected at every mesh-processor layer — a coupling absent from prior spherical GNN weather models.
+Deep learning is increasingly used alongside process models in Earth system science [24]. GraphCast [16] and Keisler [23] pioneered the Encoder-Processor-Decoder approach on icosahedral meshes. FourCastNet [17] takes a different route, deploying Adaptive Fourier Neural Operators on regular grids. The NWM presented here adapts the Encoder-Processor-Decoder architecture to a Fibonacci-lattice spherical mesh with $k$-NN bipartite connectivity and adds ENSO conditioning through an additive MLP mechanism injected at every mesh-processor layer — a coupling absent from prior spherical GNN weather models.
 
 ### 2.4 Uncertainty Quantification in Climate Models
 
@@ -121,7 +121,7 @@ C) **NASA GISTEMP v4** contributes the global land-ocean surface temperature ano
 
 D) **Climate TRACE v7** delivers sectoral greenhouse-gas emissions ($\text{CO}_2$, $\text{CH}_4$, $\text{N}_2\text{O}$) across 196 countries and 11 sectors.
 
-E) **ERA5 (WeatherBench2)** supplies 6-hourly global reanalysis at $5.625^{\circ}$ resolution. Two variables are extracted — 2 m air temperature and total precipitation — over 2020–2021 (2,924 six-hourly steps).
+E) **ERA5 (WeatherBench2)** [22] supplies 6-hourly global reanalysis at $5.625^{\circ}$ resolution. Two variables are extracted — 2 m air temperature and total precipitation — over 2020–2021 (2,924 six-hourly steps).
 
 **Table 1: Dataset Statistics and Coverage**
 
@@ -149,11 +149,11 @@ flowchart LR
 
 ### 3.2 Feature Engineering
 
-A) **El Niño module.** The TFT training set is formatted in long form: integer time index, a single series identifier, and time-varying covariates. Known reals include cyclic month encodings ($\sin(2\pi m/12)$, $\cos(2\pi m/12)$) alongside raw month and year. Unknown reals comprise the Niño 3.4 target, the Niño 1+2, Niño 3, and Niño 4 indices, and rolling mean and standard deviation of Niño 3.4 over 3-, 6-, and 12-month windows. Missing values (fewer than 2 % of entries) are handled by backward-fill followed by zero-imputation. The resulting feature matrix contains 918 timesteps and 15 features, split 70/15/15 by time index: training January 1950–June 2003 (642 months, 571 windows), validation July 2003–December 2014 (138 months, 127 windows), and test January 2015–June 2026 (138 months, 127 windows). The TFT and LSTM share these boundaries. Validation and test windows draw their 60-month encoder context from the preceding period, but no training target falls in the validation or test periods, and no validation target falls in the test period.
+A) **El Niño module.** The TFT training set is formatted in long form: integer time index, a single series identifier, and time-varying covariates. Known reals are cyclic month encodings ($\sin(2\pi m/12)$, $\cos(2\pi m/12)$) and the raw month. An optional calendar-year covariate was evaluated and dropped, because it lowered mean validation loss across five seeds when removed (§5.1). Unknown reals comprise the Niño 3.4 target, the Niño 1+2, Niño 3, and Niño 4 indices, and rolling mean and standard deviation of Niño 3.4 over 3-, 6-, and 12-month windows. Missing values (fewer than 2 % of entries) are handled by backward-fill followed by zero-imputation. The resulting feature matrix contains 918 timesteps, split 70/15/15 by time index: training January 1950–June 2003 (642 months, 571 windows), validation July 2003–December 2014 (138 months, 127 windows), and test January 2015–June 2026 (138 months, 127 windows). The TFT and LSTM share these boundaries. Validation and test windows draw their 60-month encoder context from the preceding period, but no training target falls in the validation or test periods, and no validation target falls in the test period.
 
-B) **Pollution module.** OpenAQ coordinates define a proximity graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, W)$ with $|\mathcal{V}|=75$ nodes and $|\mathcal{E}|=705$ edges (average degree 9.4), constructed via $k$-nearest neighbours ($k=10$) under Haversine great-circle distance. Edge weights $w_{ij} = 1/(d_{ij}+1)$ ($d_{ij}$ in km, edges capped at 500 km) are scaled by the global maximum weight. PM2.5 measurements are aggregated into 180 daily temporal snapshots with window size $P=7$, yielding 118 training, 21 validation, and 20 test windows. Z-score normalisation over non-zero readings follows (mean = 112.99, std = 85.72 µg/m³); zeros, which encode missing readings, are left unchanged.
+B) **Pollution module.** OpenAQ coordinates define a proximity graph $\mathcal{G} = (\mathcal{V}, \mathcal{E}, W)$ with $|\mathcal{V}|=75$ nodes and $|\mathcal{E}|=705$ edges (average degree 9.4), constructed via $k$-nearest neighbours ($k=10$) under Haversine great-circle distance. Edge weights $w_{ij} = 1/(d_{ij}+1)$ ($d_{ij}$ in km, edges capped at 500 km) are scaled by the global maximum weight. The ingested record holds 10,000 hourly PM2.5 measurements (the configured download limit) spanning 2016–2025. Aggregated to daily means they cover only 180 distinct dates, with a median of one reporting station per date, so consecutive snapshots are generally *not* consecutive days. Windows of $P=7$ snapshots yield 118 training, 21 validation and 20 test windows. Missing station-days are kept as missing: z-score statistics are computed on the training snapshots only (mean = 122.87, std = 90.47 µg/m³), missing inputs are imputed with the training mean, and missing targets are excluded from the loss and from evaluation.
 
-C) **NWM module.** ERA5 fields are extracted as $[\text{Time}, \text{Lat}, \text{Lon}]$ arrays and independently z-score normalised. Input tensors are formed by transposing a temporal window of size $W=2$ into $[\text{Lat}\times\text{Lon},\, 2C]$ (2 channels × 2 time steps); the target is the next single step in the same flattened format. The Niño 3.4 scalar for each sample timestamp is retrieved via nearest-index lookup on a monthly parquet file. Splits follow 70/15/15 by temporal index.
+C) **NWM module.** ERA5 fields are extracted as $[\text{Time}, \text{Lat}, \text{Lon}]$ arrays and independently z-score normalised with cosine-latitude-weighted statistics computed on the training period only. Input tensors are formed by transposing a temporal window of size $W=2$ into $[\text{Lat}\times\text{Lon},\, 2C]$ (2 channels × 2 time steps); the target is the next single step in the same flattened format. The Niño 3.4 scalar for each sample is the value for the calendar month containing its timestamp. Its source is configurable: the observed index, the TFT's lead-1 forecast for that month (issued from data up to the previous month and drawn from the TFT test period, hence out of sample), or a constant zero. Splits follow 70/15/15 by temporal index.
 
 ---
 
@@ -181,21 +181,23 @@ where $Q$, $K$, $V$ are linear projections of LSTM encoder hidden states, hidden
 
 $$\mathcal{L}_{\text{TFT}} = \sum_{\tau \in \{0.1, 0.5, 0.9\}} \mathbb{E}\bigl[\rho_\tau(y - \hat{q}_\tau)\bigr], \quad \rho_\tau(u) = u(\tau - \mathbf{1}[u < 0])$$
 
-**Configuration.** Encoder length 60 months; prediction horizon 12 months; hidden size 32; hidden continuous size 16; attention heads 4; dropout 0.1. Adam ($\beta_1=0.9$, $\beta_2=0.999$, lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5, min_lr = $10^{-5}$), batch size 32, gradient-clip value 0.1, max 100 epochs, early-stopping patience 10.
+**Configuration.** Calendar-year covariate excluded (selected on validation loss, §5.1); encoder length 60 months; prediction horizon 12 months; hidden size 32; hidden continuous size 16; attention heads 4; dropout 0.1. Adam ($\beta_1=0.9$, $\beta_2=0.999$, lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5, min_lr = $10^{-5}$), batch size 32, gradient-clip value 0.1, max 100 epochs, early-stopping patience 10.
 
 **LSTM baseline.** Two-layer bidirectional LSTM, hidden size 64 per direction, 142,668 total parameters, dropout rate 0.1. The final hidden state passes through a two-layer MLP ($[128 \to 64 \to 12]$) to produce 12-month forecasts. Adam (lr = 0.001), batch size 32, gradient-clip norm = 1.0, max 100 epochs, patience 15.
 
 **Persistence baseline.** $\hat{y}_{t+k} = y_t \; \forall k = 1,\ldots,12$ (last observed anomaly held constant).
 
+**Seeds and model selection.** The TFT (with and without the calendar-year covariate) and the LSTM are each trained with five seeds. The TFT variant is chosen by mean validation loss; test results are reported for all variants but never used for selection. Figures use a separate main run (seed 42) of the selected configuration.
+
 ### 4.2 Spatio-Temporal Pollution Dispersion: A3TGCN
 
 **Architecture.** Operating on the 75-node monitoring graph, the A3TGCN layer [2] processes $X \in \mathbb{R}^{N \times C \times P}$ (nodes, channels, periods $P=7$) through three stages: (1) spectral graph convolution over $\hat{A} = D^{-1/2}(A+I)D^{-1/2}$ for spatial message passing; (2) GRU cells evolving hidden state across $P$ snapshots; (3) soft attention over temporal states $\alpha_p = \text{Softmax}(\mathbf{W}_\alpha \mathbf{h}_p)$. The context-weighted representation $\mathbf{h} \in \mathbb{R}^{N \times 32}$ feeds a two-stage MLP ($[32 \to 16 \to 1]$, ReLU, dropout 0.1). Total parameters: 6,984.
 
-**Training objective.** Mean-squared error on z-score-normalised PM2.5 values:
+**Training objective.** Mean-squared error on z-score-normalised PM2.5 values over observed station-days $\mathcal{O}$:
 
-$$\mathcal{L}_{\text{STGNN}} = \mathcal{L}_{\text{MSE}}(\hat{y}, y)$$
+$$\mathcal{L}_{\text{STGNN}} = \frac{1}{|\mathcal{O}|} \sum_{(i,t) \in \mathcal{O}} (\hat{y}_{i,t} - y_{i,t})^2$$
 
-Exceedance labels are obtained at evaluation time by thresholding predictions and targets; no classification term enters the loss.
+**Evaluation.** Predictions are converted back to µg/m³. Exceedance is defined as daily-mean PM2.5 $\ge 35.5$ µg/m³, the US EPA threshold for AQI > 100, and is scored on observed station-days only. Two baselines are reported: persistence (the last input snapshot, with the training mean where missing) and an always-alert classifier.
 
 **Configuration.** Hidden channels 32; temporal periods $P$ = 7; Adam (lr = 0.001) with `ReduceLROnPlateau` (patience = 5, factor = 0.5), one graph window per step, gradient-clip norm = 1.0, 100 epochs with the best-validation checkpoint retained (no early stopping).
 
@@ -210,7 +212,7 @@ Exceedance labels are obtained at evaluation time by thresholding predictions an
 
 *Grid Embedding.* Linear projection + LayerNorm + GELU maps each grid-node input $\mathbf{x}_g \in \mathbb{R}^{2CW+4}$ to latent dimension $d=128$, where $C=2$ channels, $W=2$ input time steps, $+4$ static features.
 
-*Grid-to-Mesh Encoder (Bipartite GraphSAGE).* A SAGEConv layer with LayerNorm and GELU propagates grid features onto the mesh, initialised with zero mesh states:
+*Grid-to-Mesh Encoder (Bipartite GraphSAGE).* A SAGEConv layer [21] with LayerNorm and GELU propagates grid features onto the mesh, initialised with zero mesh states:
 
 $$\mathbf{h}_m = \text{GELU}(\text{LN}(\text{SAGEConv}(\mathbf{h}_g,\, \mathbf{0},\, \mathcal{E}_{g \to m})))$$
 
@@ -227,6 +229,8 @@ $$\mathbf{h}_g^\text{out} = \text{SAGEConv}(\mathbf{h}_m,\, \mathbf{0},\, \mathc
 *Output Projection.* A linear layer maps $\mathbf{h}_g^\text{out} \in \mathbb{R}^{N_\text{grid} \times d}$ to $N_\text{grid} \times 2$ predictions (temperature and precipitation at the next time step).
 
 All bipartite convolutions are vectorised across the batch dimension via edge-index offset expansion.
+
+**Ablation.** Three variants each differ from the main model (observed Niño 3.4, area-weighted loss) in one respect: conditioning on TFT lead-1 forecasts, no conditioning (input fixed at zero), and unweighted MSE loss. All are scored on area-weighted test RMSE in physical units, with 6-hour persistence as reference.
 
 **Training.** AdamW (lr = $10^{-3}$, weight_decay = $10^{-4}$); cosine-latitude-weighted MSE loss on normalised outputs; `ReduceLROnPlateau` (factor = 0.5, patience = 3); gradient clipping (max norm = 1.0); early-stopping patience = 10; best checkpoint saved by minimum validation loss.
 
@@ -263,41 +267,59 @@ A mean-shift CUSUM test is not suited to this question: it detects changes in le
 
 ### 5.1 El Niño Forecasting Performance
 
-Evaluation proceeds on the held-out test set against persistence. Metrics: RMSE (°C), MAE (°C), Anomaly Correlation Coefficient (ACC), and skill score $\text{SS} = 1 - \text{MSE}_{\text{model}}/\text{MSE}_{\text{persistence}}$.
+Evaluation uses the held-out test period (January 2015–June 2026, 127 forecast windows × 12 leads). Metrics: RMSE (°C), MAE (°C), Anomaly Correlation Coefficient (ACC), mean error (bias, °C), and skill score $\text{SS} = 1 - \text{MSE}_{\text{model}}/\text{MSE}_{\text{persistence}}$.
 
-| Model | RMSE (°C) | MAE (°C) | ACC | Skill Score |
-|---|---|---|---|---|
-| TFT | 0.9362 | 0.7838 | 0.7268 | 0.1778 |
-| LSTM Baseline | 0.8705 | 0.6734 | 0.5099 | 0.2890 |
-| Persistence Baseline | 1.0324 | 0.7511 | 0.3979 | 0.0000 |
+**Across seeds.** Table 2 summarises five training seeds per configuration. Removing the calendar-year covariate lowered mean validation loss (0.282 vs. 0.322), so the TFT without it is the selected model. Test results for both variants are shown for transparency.
+
+| Model | Val. loss | RMSE (°C) | ACC | Skill Score | Bias (°C) |
+|---|---|---|---|---|---|
+| TFT, without year (selected) | 0.282 ± 0.018 | 0.796 ± 0.095 | 0.648 ± 0.038 | 0.399 ± 0.150 | −0.325 ± 0.188 |
+| TFT, with year | 0.322 ± 0.036 | 0.829 ± 0.094 | 0.468 ± 0.258 | 0.349 ± 0.148 | −0.224 ± 0.100 |
+| LSTM Baseline | 0.338 ± 0.013 | 0.826 ± 0.027 | 0.547 ± 0.028 | 0.360 ± 0.042 | −0.272 ± 0.037 |
+| Persistence Baseline | — | 1.032 | 0.398 | 0.000 | +0.063 |
+
+*Table 2: Mean ± standard deviation over five seeds. Validation loss is quantile loss for the TFT and MSE for the LSTM, so it is comparable only within a model.*
+
+Source: `docs/research_paper/artifacts/eval_artifacts/run_results/elnino_seeds.csv`
+
+Both learned models clearly beat persistence. On average the selected TFT edges the LSTM (RMSE 0.796 vs. 0.826 °C, ACC 0.648 vs. 0.547), but the difference is smaller than the TFT's own run-to-run spread, which is about three times the LSTM's (RMSE s.d. 0.095 vs. 0.027 °C). The two architectures should therefore be regarded as comparable on this record, with the LSTM the more reliable to train.
+
+Both models are biased cold (−0.33 and −0.27 °C). Removing the calendar-year covariate did not remove this bias, and the LSTM, which never sees the year, shares it. The likelier cause is non-stationarity: mean Niño 3.4 anomaly rises from −0.23 °C in the training period to +0.09 °C in the test period, and models fitted to the earlier climate under-predict the later one.
+
+**Main run.** The figures below come from a separate run (seed 42) of the selected configuration:
+
+| Model | RMSE (°C) | MAE (°C) | ACC | Skill Score | Bias (°C) |
+|---|---|---|---|---|---|
+| TFT | 0.7593 | 0.5770 | 0.6603 | 0.4591 | −0.2954 |
+| LSTM Baseline | 0.7931 | 0.6066 | 0.6070 | 0.4099 | −0.2881 |
+| Persistence Baseline | 1.0324 | 0.7511 | 0.3979 | 0.0000 | +0.0635 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metrics.json`
-
-All metrics pool the 127 test windows and 12 leads. Both learned models beat persistence on average, and the LSTM beats the TFT on RMSE, MAE and skill. The TFT's higher ACC (0.727 vs. 0.510) shows that it follows the phase of the oscillation more closely; its larger error comes from a systematic offset. Mean TFT error is −0.68 °C (LSTM −0.34 °C, persistence +0.06 °C): the forecast is consistently too cold. This offset is larger than the shift in mean Niño 3.4 anomaly between the training period (−0.23 °C) and the test period (+0.09 °C), so non-stationarity alone does not account for it; its cause has not yet been diagnosed.
 
 Per-lead-time RMSE sharpens the picture:
 
 | Lead Time (months) | TFT RMSE (°C) | LSTM RMSE (°C) | Persistence RMSE (°C) |
 |---|---|---|---|
-| 1 | 0.8334 | 0.5469 | 0.2476 |
-| 3 | 0.8788 | 0.6850 | 0.6102 |
-| 6 | 0.9447 | 0.9579 | 1.0383 |
-| 9 | 0.9752 | 0.9892 | 1.2728 |
-| 12 | 0.9972 | 0.9156 | 1.3343 |
+| 1 | 0.478 | 0.298 | 0.248 |
+| 3 | 0.582 | 0.555 | 0.610 |
+| 6 | 0.789 | 0.855 | 1.038 |
+| 9 | 0.869 | 0.952 | 1.273 |
+| 12 | 0.882 | 0.892 | 1.334 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/elnino_lead_time_metrics.csv`
 
-Persistence is best through month 4 (RMSE 0.2476 °C at 1 month), then degrades to 1.3343 °C by month 12. The LSTM overtakes persistence from month 5, the TFT from month 6. TFT error is nearly flat across the horizon (0.83 → 1.00 °C), as expected from a constant bias; it is marginally below the LSTM at months 6–10 (by at most 0.03 °C) and above it elsewhere. In answer to RQ1, the TFT does not outperform the LSTM baseline in this run.
+Persistence is best at 1–2 months (RMSE 0.248 °C at 1 month) and degrades to 1.334 °C by month 12. Both learned models overtake it from month 3. The LSTM is more accurate than the TFT at 1–3 months; the TFT is more accurate at 4–11 months, and the two are level at 12 months. In answer to RQ1, the TFT's advantage is confined to longer leads and is not robust across seeds.
 
-**Calibration.** The 80 % TFT prediction interval (10th–90th quantiles) achieves only 29.8 % empirical coverage with an average width of 0.853 °C. The misses are one-sided: 64.0 % of observations lie above the 90th percentile and 6.2 % below the 10th, consistent with the cold bias rather than with intervals that are merely too narrow.
-
-**Run-to-run variability.** An earlier training run with identical code and data (not archived) reached RMSE 0.708 °C, ACC 0.739, skill 0.530 and 69.8 % interval coverage, while reporting a *worse* best validation loss (0.351 vs. 0.289). Validation loss therefore does not reliably select the better test-period model, and single-run TFT figures should be read with caution until multi-seed results are available (§5.6).
+**Calibration.** The TFT 80 % prediction interval (10th–90th quantiles) covers 72.4 % of test observations, with an average width of 1.55 °C. The quantiles are shifted rather than merely too narrow: 7.1 % of observations fall below the 10th percentile, 28.3 % below the median and 79.5 % below the 90th percentile, against nominal 10 %, 50 % and 90 %. This is the cold bias seen from the probabilistic side.
 
 ![](artifacts/eval_artifacts/elnino_forecast_vs_actual.png)\
-**Figure 1:** 12-month SST anomaly forecast for a single held-out test sequence: TFT median (blue) and LSTM baseline (red, dashed) versus observed Niño 3.4 values (black). The shaded region is the TFT 10th–90th percentile interval. Observations lie above the interval at most leads, illustrating the TFT cold bias.
+**Figure 1:** 12-month SST anomaly forecast for a single held-out test sequence: TFT median (blue) and LSTM baseline (red, dashed) versus observed Niño 3.4 values (black). The shaded region is the TFT 10th–90th percentile interval, which contains the observations throughout this sequence while both medians sit below them from month 5 onward.
 
 ![](artifacts/eval_artifacts/elnino_crps_leadtime.png)\
-**Figure 2:** RMSE as a function of forecast lead time. Persistence (green, dashed) is lowest through month 4; the LSTM (red) is lower than the TFT (blue) at months 1–5 and 11–12, the two are nearly equal at months 6–10, and both beat persistence beyond month 5.
+**Figure 2:** RMSE as a function of forecast lead time. Persistence (green, dashed) is lowest at 1–2 months; the LSTM (red) is lower than the TFT (blue) at 1–3 months and higher at 4–11 months; both beat persistence from month 3.
+
+![](artifacts/eval_artifacts/elnino_calibration_diagram.png)\
+**Figure 2b:** TFT quantile calibration on the test set: observed frequency of outcomes below the predicted 10th, 50th and 90th percentiles. Points below the diagonal indicate forecasts that are too low.
 
 ![](artifacts/eval_artifacts/elnino_predicted_vs_actual_scatter.png)\
 **Figure 3:** Scatter of predicted vs. observed SST anomalies for the TFT (blue) and LSTM (red); the dashed line marks a perfect forecast.
@@ -306,33 +328,30 @@ Persistence is best through month 4 (RMSE 0.2476 °C at 1 month), then degrades 
 **Figure 3b:** Heatmap of absolute forecast errors across lead horizons (1–12 months) and chronological test windows.
 
 ![](artifacts/eval_artifacts/elnino_quantile_coverage.png)\
-**Figure 3c:** 6-month ahead TFT median forecast (blue) and 10th–90th percentile interval (shaded) versus observed values (black) across the chronological test set. The forecast reproduces the timing of the 2015–16 and 2023–24 El Niño peaks but sits below the observations through most neutral and warm periods.
+**Figure 3c:** 6-month ahead TFT median forecast (blue) and 10th–90th percentile interval (shaded) versus observed values (black) across the chronological test set. The forecast reproduces the timing of the 2015–16 and 2023–24 El Niño events but underestimates their peaks, and it lags several transitions by a few months.
 
 ### 5.2 Spatio-Temporal Pollution Dispersion Validation
 
-Held-out temporal snapshots from the 75-node monitoring graph serve as the test bed.
+The test split holds 20 windows over the 75-node graph, i.e. 1,500 station-days, of which only **85 have a PM2.5 reading**, from 36 stations; 62 of them fall on two dates. All metrics below use these 85 observed station-days.
 
-| Metric | Value |
-|---|---|
-| RMSE (normalized PM2.5) | 0.1596 |
-| MAE (normalized PM2.5) | 0.0478 |
-| F1 Score ($z > -0.35$) | 0.9727 |
-| Precision ($z > -0.35$) | 0.9624 |
-| Recall ($z > -0.35$) | 0.9832 |
+| Metric | A3TGCN | Persistence | Always alert |
+|---|---|---|---|
+| RMSE (µg/m³) | 46.6 | 52.0 | — |
+| MAE (µg/m³) | 40.1 | — | — |
+| F1, PM2.5 ≥ 35.5 µg/m³ (AQI > 100) | 0.828 | 0.881 | 0.828 |
+| Precision / Recall | 0.706 / 1.000 | — | — |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metrics.json`
 
-**Exceedance threshold.** Exceedance is evaluated on z-score-normalised values at $z > -0.35$, i.e. PM2.5 above roughly $113 - 0.35 \times 86 \approx 83$ µg/m³ (normalisation statistics in §3.2). This threshold does not correspond to US EPA AQI 100 (PM2.5 of about 35.5 µg/m³). Missing sensor readings are stored as zero and remain zero after normalisation, so they also count as exceedances.
+The model's concentration error is about 10 % lower than persistence. For exceedance, however, it predicts AQI > 100 for every observed station-day, so its scores equal those of the always-alert classifier (70.6 % of observed station-days exceed the threshold), and persistence scores higher. In answer to RQ2, the A3TGCN does not demonstrate exceedance-detection skill on this record, and with 85 test observations no pollution result here is statistically robust.
 
-At this threshold 1,431 of the 1,500 test node-days (95.4 %) are labelled exceedances. A trivial classifier that always raises an alert would therefore score precision 0.954, recall 1.000 and F1 = 0.977, marginally above the model. The classification metrics consequently do not demonstrate exceedance-detection skill; in answer to RQ2, a meaningful assessment requires a threshold in physical units and masking of missing readings (§5.6).
-
-Per-node RMSE (from `docs/research_paper/artifacts/eval_artifacts/run_results/pollution_node_rmse.csv`) is bimodal. Forty stations sit below RMSE 0.05; nine fall between 0.05 and 0.15, and the remaining 26 scatter between 0.19 and 0.40 (max 0.396). Because missing readings are encoded as zero, part of the low-error group may reflect stations whose test windows are largely empty rather than well-predicted pollution; we have not yet separated the two effects.
+Per-station RMSE (from `docs/research_paper/artifacts/eval_artifacts/run_results/pollution_node_rmse.csv`) has a median of 46.8 µg/m³ and a maximum of 85.2 µg/m³ across the 36 stations with test readings.
 
 ![](artifacts/eval_artifacts/pollution_dispersion_nodes.png)\
-**Figure 4:** Distribution of per-node RMSE across the 75 monitoring stations.
+**Figure 4:** Distribution of per-station RMSE (µg/m³) across the 36 stations with test readings.
 
 ![](artifacts/eval_artifacts/pollution_confusion_matrix.png)\
-**Figure 4b:** Confusion matrix for PM2.5 exceedance classification at the normalised threshold $z > -0.35$ (axis labels in the figure read "AQI 100", which is incorrect; see §5.2): 1,407 true positives, 55 false positives, 24 false negatives, 14 true negatives. Precision = 96.24 %, Recall = 98.32 %.
+**Figure 4b:** Exceedance confusion matrix at PM2.5 ≥ 35.5 µg/m³ (AQI > 100) on observed test station-days: 60 true positives, 25 false positives, no false negatives and no true negatives.
 
 ### 5.3 Neural Weather Model Performance & Convergence
 
@@ -471,9 +490,7 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 
 [12] Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
 
-[13] Nordhaus, W. D. (2017). Revisiting the Social Cost of Carbon (DICE Model). *PNAS*, 114(7), 1518–1523.
 
-[14] Luderer, G., Vrontisi, Z., Bertram, C., et al. (2018). Residual Fossil $\text{CO}_2$ Emissions in 1.5–2°C Pathways. *Nature Climate Change*, 8(7), 626–633.
 
 [15] Danabasoglu, G., et al. (2020). The Community Earth System Model Version 2 (CESM2). *JAMES*, 12(2), e2019MS001916.
 
@@ -481,9 +498,7 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 
 [17] Pathak, J., Subramanian, S., Harrington, P., et al. (2022). FourCastNet: A Global Data-Driven High-Resolution Weather Model Using Adaptive Fourier Neural Operators. *arXiv:2202.11214*.
 
-[18] Salvatier, J., Wiecki, T. V., & Fonnesbeck, C. (2016). Probabilistic Programming in Python using PyMC3. *PeerJ CS*, 2, e55.
 
-[19] Kumar, R., Carroll, C., Hartikainen, A., & Martin, O. A. (2019). ArviZ: A Unified Library for Exploratory Analysis of Bayesian Models. *JOSS*, 4(33), 1143.
 
 [21] Hamilton, W. L., Ying, R., & Leskovec, J. (2017). Inductive Representation Learning on Large Graphs. *NeurIPS*, 30.
 
@@ -493,7 +508,6 @@ We thank the NOAA Physical Sciences Laboratory, OpenAQ, NASA GISS, Climate TRACE
 
 [24] Reichstein, M., Camps-Valls, G., Stevens, B., et al. (2019). Deep Learning and Process Understanding for Data-Driven Earth System Science. *Nature*, 566, 195–204.
 
-[25] Betancourt, M. (2017). A Conceptual Introduction to Hamiltonian Monte Carlo. *arXiv:1701.02434*.
 
 [26] Schwarz, G. (1978). Estimating the Dimension of a Model. *Annals of Statistics*, 6(2), 461–464.
 
