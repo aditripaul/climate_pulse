@@ -1,0 +1,25 @@
+2026-10-27 14:28:43.324 | INFO     | models.el_nino.lstm_baseline:__init__:67 - Created LSTM model: 142,668 params, hidden=64, layers=2, bidirectional=True
+2026-10-27 14:28:43.979 | INFO     | models.el_nino.trainer:train_lstm:207 - Training LSTM: 100 epochs, batch_size=32, lr=0.001
+2026-10-27 14:28:44.550 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 1/100: train_loss=0.792306, val_loss=0.523623
+2026-10-27 14:28:45.066 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 2/100: train_loss=0.691612, val_loss=0.461802
+2026-10-27 14:28:45.572 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 3/100: train_loss=0.592919, val_loss=0.419890
+2026-10-27 14:28:46.111 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 4/100: train_loss=0.542580, val_loss=0.366191
+2026-10-27 14:28:46.639 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 5/100: train_loss=0.507167, val_loss=0.336776
+2026-10-27 14:28:47.166 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 6/100: train_loss=0.476482, val_loss=0.381340
+2026-10-27 14:28:47.673 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 7/100: train_loss=0.462861, val_loss=0.348374
+2026-10-27 14:28:48.207 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 8/100: train_loss=0.451940, val_loss=0.387284
+2026-10-27 14:28:48.729 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 9/100: train_loss=0.433978, val_loss=0.352374
+2026-10-27 14:28:49.248 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 10/100: train_loss=0.446951, val_loss=0.370142
+2026-10-27 14:28:49.765 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 11/100: train_loss=0.432645, val_loss=0.359539
+2026-10-27 14:28:50.289 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 12/100: train_loss=0.420162, val_loss=0.362915
+2026-10-27 14:28:50.813 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 13/100: train_loss=0.416465, val_loss=0.372960
+2026-10-27 14:28:51.327 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 14/100: train_loss=0.417750, val_loss=0.365267
+2026-10-27 14:28:51.862 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 15/100: train_loss=0.408809, val_loss=0.353245
+2026-10-27 14:28:52.371 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 16/100: train_loss=0.408460, val_loss=0.377129
+2026-10-27 14:28:52.891 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 17/100: train_loss=0.418238, val_loss=0.349036
+2026-10-27 14:28:53.432 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 18/100: train_loss=0.403672, val_loss=0.350379
+2026-10-27 14:28:53.958 | INFO     | models.el_nino.trainer:train_lstm:271 - Epoch 19/100: train_loss=0.395379, val_loss=0.368880
+2026-10-27 14:28:54.485 | INFO     | models.el_nino.trainer:train_lstm:267 - Early stopping at epoch 20
+2026-10-27 14:28:54.488 | INFO     | models.el_nino.trainer:train_lstm:294 - LSTM training complete. Best val_loss=0.336776
+2026-10-27 14:28:54.488 | INFO     | __main__:train_lstm:83 - LSTM result: {'best_checkpoint': '/home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/el_nino_seeds/lstm/seed_3/el_nino/lstm/lstm_best.pt', 'best_val_loss': 0.3367755226790905, 'epochs_trained': 20}
+2026-10-27 14:28:54.489 | INFO     | __main__:main:250 - Training complete!

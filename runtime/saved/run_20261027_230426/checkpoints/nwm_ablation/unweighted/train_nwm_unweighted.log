@@ -1,0 +1,96 @@
+2026-10-27 16:53:04.953 | INFO     | __main__:train_nwm:142 - Training Neural Weather Model (NWM)...
+2026-10-27 16:53:06.542 | INFO     | __main__:train_nwm:163 - NWM conditioning=observed (nino_features.parquet), area_weighted_loss=False
+2026-10-27 16:53:06.542 | INFO     | models.nwm.dataset:__init__:45 - Loading NWM Dataset from /home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/datasets/raw/nwm_era5/era5_5deg_6hr_2020_2022.nc
+2026-10-27 16:53:06.721 | INFO     | models.nwm.dataset:__init__:129 - Initialized train dataset with 2044 samples.
+2026-10-27 16:53:06.721 | INFO     | models.nwm.dataset:__init__:45 - Loading NWM Dataset from /home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/datasets/raw/nwm_era5/era5_5deg_6hr_2020_2022.nc
+2026-10-27 16:53:06.850 | INFO     | models.nwm.dataset:__init__:129 - Initialized val dataset with 439 samples.
+2026-10-27 16:53:06.884 | INFO     | models.nwm.trainer:fit:136 - Training NWM ST-GNN: 100 epochs, device=cpu, lr=0.001, wd=0.0001
+2026-10-27 16:56:22.729 | INFO     | models.nwm.trainer:fit:197 - Epoch 1/100: train_loss=0.302558, val_loss=0.186431, val_rmse=0.431777
+2026-10-27 16:59:35.153 | INFO     | models.nwm.trainer:fit:197 - Epoch 2/100: train_loss=0.153770, val_loss=0.152767, val_rmse=0.390854
+2026-10-27 17:03:07.126 | INFO     | models.nwm.trainer:fit:197 - Epoch 3/100: train_loss=0.140984, val_loss=0.144124, val_rmse=0.379637
+2026-10-27 17:06:53.773 | INFO     | models.nwm.trainer:fit:197 - Epoch 4/100: train_loss=0.133993, val_loss=0.137839, val_rmse=0.371267
+2026-10-27 17:10:34.810 | INFO     | models.nwm.trainer:fit:197 - Epoch 5/100: train_loss=0.129978, val_loss=0.132736, val_rmse=0.364329
+2026-10-27 17:14:26.933 | INFO     | models.nwm.trainer:fit:197 - Epoch 6/100: train_loss=0.124425, val_loss=0.127381, val_rmse=0.356905
+2026-10-27 17:18:22.524 | INFO     | models.nwm.trainer:fit:197 - Epoch 7/100: train_loss=0.120726, val_loss=0.122755, val_rmse=0.350364
+2026-10-27 17:22:17.340 | INFO     | models.nwm.trainer:fit:197 - Epoch 8/100: train_loss=0.119266, val_loss=0.120721, val_rmse=0.347449
+2026-10-27 17:26:13.758 | INFO     | models.nwm.trainer:fit:197 - Epoch 9/100: train_loss=0.115061, val_loss=0.118050, val_rmse=0.343584
+2026-10-27 17:30:03.401 | INFO     | models.nwm.trainer:fit:197 - Epoch 10/100: train_loss=0.113015, val_loss=0.114887, val_rmse=0.338950
+2026-10-27 17:33:56.093 | INFO     | models.nwm.trainer:fit:197 - Epoch 11/100: train_loss=0.111032, val_loss=0.112903, val_rmse=0.336010
+2026-10-27 17:37:44.236 | INFO     | models.nwm.trainer:fit:197 - Epoch 12/100: train_loss=0.109110, val_loss=0.112237, val_rmse=0.335018
+2026-10-27 17:41:32.538 | INFO     | models.nwm.trainer:fit:197 - Epoch 13/100: train_loss=0.107533, val_loss=0.110338, val_rmse=0.332172
+2026-10-27 17:45:24.092 | INFO     | models.nwm.trainer:fit:197 - Epoch 14/100: train_loss=0.106800, val_loss=0.108450, val_rmse=0.329318
+2026-10-27 17:49:15.104 | INFO     | models.nwm.trainer:fit:197 - Epoch 15/100: train_loss=0.105601, val_loss=0.108566, val_rmse=0.329493
+2026-10-27 17:53:06.678 | INFO     | models.nwm.trainer:fit:197 - Epoch 16/100: train_loss=0.104496, val_loss=0.107842, val_rmse=0.328393
+2026-10-27 17:57:00.913 | INFO     | models.nwm.trainer:fit:197 - Epoch 17/100: train_loss=0.104036, val_loss=0.106191, val_rmse=0.325870
+2026-10-27 18:00:48.755 | INFO     | models.nwm.trainer:fit:197 - Epoch 18/100: train_loss=0.102532, val_loss=0.105715, val_rmse=0.325139
+2026-10-27 18:04:35.940 | INFO     | models.nwm.trainer:fit:197 - Epoch 19/100: train_loss=0.101973, val_loss=0.105667, val_rmse=0.325064
+2026-10-27 18:08:25.718 | INFO     | models.nwm.trainer:fit:197 - Epoch 20/100: train_loss=0.101157, val_loss=0.103733, val_rmse=0.322076
+2026-10-27 18:12:12.642 | INFO     | models.nwm.trainer:fit:197 - Epoch 21/100: train_loss=0.100202, val_loss=0.102817, val_rmse=0.320651
+2026-10-27 18:16:01.233 | INFO     | models.nwm.trainer:fit:197 - Epoch 22/100: train_loss=0.099608, val_loss=0.102623, val_rmse=0.320349
+2026-10-27 18:19:48.955 | INFO     | models.nwm.trainer:fit:197 - Epoch 23/100: train_loss=0.099208, val_loss=0.101631, val_rmse=0.318796
+2026-10-27 18:23:40.276 | INFO     | models.nwm.trainer:fit:197 - Epoch 24/100: train_loss=0.098934, val_loss=0.102328, val_rmse=0.319887
+2026-10-27 18:27:29.672 | INFO     | models.nwm.trainer:fit:197 - Epoch 25/100: train_loss=0.098694, val_loss=0.101000, val_rmse=0.317805
+2026-10-27 18:31:22.111 | INFO     | models.nwm.trainer:fit:197 - Epoch 26/100: train_loss=0.097676, val_loss=0.100304, val_rmse=0.316709
+2026-10-27 18:35:29.544 | INFO     | models.nwm.trainer:fit:197 - Epoch 27/100: train_loss=0.097440, val_loss=0.100518, val_rmse=0.317046
+2026-10-27 18:39:20.267 | INFO     | models.nwm.trainer:fit:197 - Epoch 28/100: train_loss=0.096912, val_loss=0.100069, val_rmse=0.316337
+2026-10-27 18:43:17.565 | INFO     | models.nwm.trainer:fit:197 - Epoch 29/100: train_loss=0.096817, val_loss=0.101554, val_rmse=0.318676
+2026-10-27 18:47:11.773 | INFO     | models.nwm.trainer:fit:197 - Epoch 30/100: train_loss=0.096442, val_loss=0.099687, val_rmse=0.315732
+2026-10-27 18:50:54.333 | INFO     | models.nwm.trainer:fit:197 - Epoch 31/100: train_loss=0.095557, val_loss=0.098558, val_rmse=0.313939
+2026-10-27 18:54:43.138 | INFO     | models.nwm.trainer:fit:197 - Epoch 32/100: train_loss=0.095340, val_loss=0.098508, val_rmse=0.313860
+2026-10-27 18:58:27.184 | INFO     | models.nwm.trainer:fit:197 - Epoch 33/100: train_loss=0.095098, val_loss=0.099049, val_rmse=0.314721
+2026-10-27 19:02:13.926 | INFO     | models.nwm.trainer:fit:197 - Epoch 34/100: train_loss=0.094414, val_loss=0.098221, val_rmse=0.313402
+2026-10-27 19:05:53.086 | INFO     | models.nwm.trainer:fit:197 - Epoch 35/100: train_loss=0.094119, val_loss=0.097432, val_rmse=0.312141
+2026-10-27 19:09:35.359 | INFO     | models.nwm.trainer:fit:197 - Epoch 36/100: train_loss=0.094100, val_loss=0.099352, val_rmse=0.315202
+2026-10-27 19:13:09.203 | INFO     | models.nwm.trainer:fit:197 - Epoch 37/100: train_loss=0.093653, val_loss=0.098700, val_rmse=0.314166
+2026-10-27 19:16:46.861 | INFO     | models.nwm.trainer:fit:197 - Epoch 38/100: train_loss=0.093115, val_loss=0.097099, val_rmse=0.311607
+2026-10-27 19:20:26.236 | INFO     | models.nwm.trainer:fit:197 - Epoch 39/100: train_loss=0.092946, val_loss=0.098436, val_rmse=0.313746
+2026-10-27 19:24:03.224 | INFO     | models.nwm.trainer:fit:197 - Epoch 40/100: train_loss=0.093162, val_loss=0.098010, val_rmse=0.313066
+2026-10-27 19:27:50.734 | INFO     | models.nwm.trainer:fit:197 - Epoch 41/100: train_loss=0.092430, val_loss=0.096988, val_rmse=0.311428
+2026-10-27 19:31:37.959 | INFO     | models.nwm.trainer:fit:197 - Epoch 42/100: train_loss=0.091944, val_loss=0.096363, val_rmse=0.310424
+2026-10-27 19:35:29.150 | INFO     | models.nwm.trainer:fit:197 - Epoch 43/100: train_loss=0.091901, val_loss=0.096611, val_rmse=0.310823
+2026-10-27 19:39:24.751 | INFO     | models.nwm.trainer:fit:197 - Epoch 44/100: train_loss=0.091590, val_loss=0.096953, val_rmse=0.311373
+2026-10-27 19:43:13.862 | INFO     | models.nwm.trainer:fit:197 - Epoch 45/100: train_loss=0.091056, val_loss=0.096463, val_rmse=0.310585
+2026-10-27 19:47:00.319 | INFO     | models.nwm.trainer:fit:197 - Epoch 46/100: train_loss=0.091123, val_loss=0.096873, val_rmse=0.311244
+2026-10-27 19:50:42.555 | INFO     | models.nwm.trainer:fit:197 - Epoch 47/100: train_loss=0.088846, val_loss=0.094490, val_rmse=0.307393
+2026-10-27 19:54:21.957 | INFO     | models.nwm.trainer:fit:197 - Epoch 48/100: train_loss=0.088624, val_loss=0.094238, val_rmse=0.306982
+2026-10-27 19:58:01.671 | INFO     | models.nwm.trainer:fit:197 - Epoch 49/100: train_loss=0.088250, val_loss=0.094450, val_rmse=0.307327
+2026-10-27 20:01:44.631 | INFO     | models.nwm.trainer:fit:197 - Epoch 50/100: train_loss=0.088170, val_loss=0.094795, val_rmse=0.307887
+2026-10-27 20:05:27.850 | INFO     | models.nwm.trainer:fit:197 - Epoch 51/100: train_loss=0.087862, val_loss=0.094693, val_rmse=0.307723
+2026-10-27 20:09:05.975 | INFO     | models.nwm.trainer:fit:197 - Epoch 52/100: train_loss=0.087849, val_loss=0.094131, val_rmse=0.306807
+2026-10-27 20:12:47.388 | INFO     | models.nwm.trainer:fit:197 - Epoch 53/100: train_loss=0.087756, val_loss=0.094835, val_rmse=0.307953
+2026-10-27 20:16:36.054 | INFO     | models.nwm.trainer:fit:197 - Epoch 54/100: train_loss=0.087434, val_loss=0.094600, val_rmse=0.307571
+2026-10-27 20:20:17.582 | INFO     | models.nwm.trainer:fit:197 - Epoch 55/100: train_loss=0.087211, val_loss=0.094405, val_rmse=0.307255
+2026-10-27 20:23:56.942 | INFO     | models.nwm.trainer:fit:197 - Epoch 56/100: train_loss=0.087092, val_loss=0.094344, val_rmse=0.307155
+2026-10-27 20:27:46.360 | INFO     | models.nwm.trainer:fit:197 - Epoch 57/100: train_loss=0.085881, val_loss=0.093238, val_rmse=0.305349
+2026-10-27 20:31:33.275 | INFO     | models.nwm.trainer:fit:197 - Epoch 58/100: train_loss=0.085694, val_loss=0.093711, val_rmse=0.306123
+2026-10-27 20:35:25.927 | INFO     | models.nwm.trainer:fit:197 - Epoch 59/100: train_loss=0.085658, val_loss=0.093461, val_rmse=0.305714
+2026-10-27 20:39:09.784 | INFO     | models.nwm.trainer:fit:197 - Epoch 60/100: train_loss=0.085439, val_loss=0.093341, val_rmse=0.305518
+2026-10-27 20:42:51.555 | INFO     | models.nwm.trainer:fit:197 - Epoch 61/100: train_loss=0.085250, val_loss=0.093436, val_rmse=0.305673
+2026-10-27 20:46:40.809 | INFO     | models.nwm.trainer:fit:197 - Epoch 62/100: train_loss=0.084600, val_loss=0.092878, val_rmse=0.304759
+2026-10-27 20:50:32.701 | INFO     | models.nwm.trainer:fit:197 - Epoch 63/100: train_loss=0.084488, val_loss=0.092970, val_rmse=0.304910
+2026-10-27 20:54:14.658 | INFO     | models.nwm.trainer:fit:197 - Epoch 64/100: train_loss=0.084371, val_loss=0.093165, val_rmse=0.305229
+2026-10-27 20:57:55.262 | INFO     | models.nwm.trainer:fit:197 - Epoch 65/100: train_loss=0.084307, val_loss=0.092878, val_rmse=0.304759
+2026-10-27 21:01:36.817 | INFO     | models.nwm.trainer:fit:197 - Epoch 66/100: train_loss=0.084244, val_loss=0.093052, val_rmse=0.305045
+2026-10-27 21:05:15.549 | INFO     | models.nwm.trainer:fit:197 - Epoch 67/100: train_loss=0.083808, val_loss=0.092700, val_rmse=0.304467
+2026-10-27 21:09:01.066 | INFO     | models.nwm.trainer:fit:197 - Epoch 68/100: train_loss=0.083739, val_loss=0.092850, val_rmse=0.304713
+2026-10-27 21:12:42.864 | INFO     | models.nwm.trainer:fit:197 - Epoch 69/100: train_loss=0.083658, val_loss=0.092759, val_rmse=0.304564
+2026-10-27 21:16:18.964 | INFO     | models.nwm.trainer:fit:197 - Epoch 70/100: train_loss=0.083642, val_loss=0.092887, val_rmse=0.304774
+2026-10-27 21:20:03.881 | INFO     | models.nwm.trainer:fit:197 - Epoch 71/100: train_loss=0.083616, val_loss=0.092743, val_rmse=0.304537
+2026-10-27 21:24:03.901 | INFO     | models.nwm.trainer:fit:197 - Epoch 72/100: train_loss=0.083398, val_loss=0.092798, val_rmse=0.304627
+2026-10-27 21:27:50.246 | INFO     | models.nwm.trainer:fit:197 - Epoch 73/100: train_loss=0.083363, val_loss=0.092768, val_rmse=0.304579
+2026-10-27 21:31:40.592 | INFO     | models.nwm.trainer:fit:197 - Epoch 74/100: train_loss=0.083320, val_loss=0.092720, val_rmse=0.304500
+2026-10-27 21:35:21.508 | INFO     | models.nwm.trainer:fit:197 - Epoch 75/100: train_loss=0.083307, val_loss=0.092634, val_rmse=0.304358
+2026-10-27 21:38:55.806 | INFO     | models.nwm.trainer:fit:197 - Epoch 76/100: train_loss=0.083265, val_loss=0.092795, val_rmse=0.304622
+2026-10-27 21:42:37.429 | INFO     | models.nwm.trainer:fit:197 - Epoch 77/100: train_loss=0.083227, val_loss=0.092788, val_rmse=0.304611
+2026-10-27 21:46:22.122 | INFO     | models.nwm.trainer:fit:197 - Epoch 78/100: train_loss=0.083210, val_loss=0.092756, val_rmse=0.304558
+2026-10-27 21:50:00.143 | INFO     | models.nwm.trainer:fit:197 - Epoch 79/100: train_loss=0.083200, val_loss=0.092800, val_rmse=0.304631
+2026-10-27 21:53:28.964 | INFO     | models.nwm.trainer:fit:197 - Epoch 80/100: train_loss=0.083068, val_loss=0.092725, val_rmse=0.304508
+2026-10-27 21:56:03.071 | INFO     | models.nwm.trainer:fit:197 - Epoch 81/100: train_loss=0.083046, val_loss=0.092718, val_rmse=0.304496
+2026-10-27 21:58:38.959 | INFO     | models.nwm.trainer:fit:197 - Epoch 82/100: train_loss=0.083018, val_loss=0.092674, val_rmse=0.304423
+2026-10-27 22:01:13.635 | INFO     | models.nwm.trainer:fit:197 - Epoch 83/100: train_loss=0.083023, val_loss=0.092677, val_rmse=0.304429
+2026-10-27 22:03:51.905 | INFO     | models.nwm.trainer:fit:197 - Epoch 84/100: train_loss=0.082953, val_loss=0.092713, val_rmse=0.304488
+2026-10-27 22:06:19.515 | INFO     | models.nwm.trainer:fit:189 - Early stopping triggered at epoch 85.
+2026-10-27 22:06:19.517 | INFO     | models.nwm.trainer:fit:218 - NWM training complete. Best val_loss=0.092634
+2026-10-27 22:06:19.517 | INFO     | models.nwm.trainer:fit:219 - Best checkpoint: /home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/nwm_ablation/unweighted/nwm/nwm_best.pt
+2026-10-27 22:06:19.517 | INFO     | __main__:train_nwm:212 - NWM training complete.
+2026-10-27 22:06:19.518 | INFO     | __main__:main:250 - Training complete!

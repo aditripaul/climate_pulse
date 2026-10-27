@@ -1,0 +1,189 @@
+{
+  "elnino": {
+    "tft": {
+      "rmse": 0.6838446855545044,
+      "mae": 0.5237480998039246,
+      "acc": 0.7040503621101379,
+      "skill_score": 0.5644057393074036,
+      "bias": -0.20662637054920197
+    },
+    "lstm": {
+      "rmse": 0.7983918190002441,
+      "mae": 0.6133118271827698,
+      "acc": 0.5568867325782776,
+      "skill_score": 0.40625590085983276,
+      "bias": -0.23642565310001373
+    },
+    "persistence": {
+      "rmse": 1.036135196685791,
+      "mae": 0.7510204315185547,
+      "acc": 0.3834816515445709,
+      "skill_score": 0.0,
+      "bias": 0.061668042093515396
+    },
+    "calibration": {
+      "target_coverage": 0.8,
+      "actual_coverage": 0.7565104166666666,
+      "avg_interval_width": 1.4913772344589233,
+      "is_calibrated": true,
+      "frac_above_upper": 0.16145833333333334,
+      "frac_below_lower": 0.08203125
+    },
+    "quantile_calibration": [
+      {
+        "quantile": 0.1,
+        "observed_frequency": 0.08203125
+      },
+      {
+        "quantile": 0.5,
+        "observed_frequency": 0.3489583333333333
+      },
+      {
+        "quantile": 0.9,
+        "observed_frequency": 0.8385416666666666
+      }
+    ]
+  },
+  "pollution": {
+    "rmse_ugm3": 46.5776252746582,
+    "mae_ugm3": 40.13233184814453,
+    "persistence_rmse_ugm3": 51.973934173583984,
+    "threshold_ugm3": 35.5,
+    "n_observed": 85,
+    "n_total": 1500,
+    "exceedance_rate": 0.7058823529411765,
+    "f1": 0.8275862068965517,
+    "precision": 0.7058823529411765,
+    "recall": 1.0,
+    "confusion": {
+      "tp": 60,
+      "fp": 25,
+      "fn": 0,
+      "tn": 0
+    },
+    "persistence_f1": 0.8805970149253731,
+    "always_alert_f1": 0.8275862068965517,
+    "node_rmse": [
+      null,
+      11.139591217041016,
+      11.552786827087402,
+      null,
+      24.51714324951172,
+      null,
+      null,
+      54.49927520751953,
+      null,
+      null,
+      null,
+      26.87029457092285,
+      null,
+      null,
+      null,
+      8.30936336517334,
+      null,
+      null,
+      null,
+      75.86497497558594,
+      null,
+      null,
+      null,
+      24.9875545501709,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      85.16233825683594,
+      null,
+      52.91469955444336,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      53.50703048706055,
+      null,
+      null,
+      25.615726470947266,
+      59.87977600097656,
+      48.65619659423828,
+      null,
+      44.51012420654297,
+      null,
+      14.696011543273926,
+      51.08247756958008,
+      42.41362380981445,
+      67.24007415771484,
+      null,
+      64.74212646484375,
+      45.036399841308594,
+      null,
+      null,
+      38.181636810302734,
+      59.239742279052734,
+      49.67045593261719,
+      40.99428176879883,
+      32.56025695800781,
+      67.20178985595703,
+      null,
+      52.65556335449219,
+      13.140356063842773,
+      42.67536926269531,
+      40.669654846191406,
+      50.31848907470703,
+      48.901241302490234,
+      null,
+      16.737932205200195,
+      null,
+      53.57113265991211,
+      56.96588897705078
+    ],
+    "norm_stats": {
+      "mean": 122.86822509765625,
+      "std": 90.46532440185547
+    },
+    "snapshot_counts": {
+      "train": 125,
+      "val": 28,
+      "test": 27
+    }
+  },
+  "climate_feedback": {
+    "method": "continuous piecewise-linear trend, AR(1) errors, K selected by BIC",
+    "years": [
+      1950,
+      2025
+    ],
+    "changepoints_detected": 1,
+    "changepoint_years": [
+      1976
+    ],
+    "segment_slopes_c_per_decade": [
+      0.03495518940018747,
+      0.21148409657360046
+    ],
+    "bic_by_k": {
+      "0": -105.66284868513912,
+      "1": -114.10666300304707,
+      "2": -113.68674799040322,
+      "3": -105.66112067202563
+    },
+    "ar1_phi": 0.26894234291041236
+  },
+  "nwm": {
+    "best_epoch": 70,
+    "best_train_loss": 0.1079075242159888,
+    "best_val_loss": 0.1173338113086564,
+    "final_train_loss": 0.1069993448909372,
+    "final_val_loss": 0.117434091333832,
+    "conditioning": "observed",
+    "checkpoint": "/home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/nwm/nwm_best.pt",
+    "n_test": 438,
+    "t2m_rmse_K": 1.2144038677215576,
+    "tp_rmse": 0.0006820695707574487,
+    "persistence_t2m_rmse_K": 2.4574899673461914,
+    "persistence_tp_rmse": 0.000903208099771291
+  }
+}

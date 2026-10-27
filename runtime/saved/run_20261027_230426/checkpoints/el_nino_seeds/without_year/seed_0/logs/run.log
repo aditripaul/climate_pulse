@@ -1,0 +1,30 @@
+2026-10-27 14:24:10.052 | INFO     | models.el_nino.dataset:prepare_tft_dataframe:66 - Prepared TFT DataFrame: 921 timesteps, 15 features
+2026-10-27 14:24:12.407 | INFO     | models.el_nino.dataset:create_tft_dataset:128 - Created TFT dataset: encoder=60, prediction=12, known_reals=3, unknown_reals=10
+2026-10-27 14:24:12.453 | INFO     | models.el_nino.dataset:split_tft_dataset:165 - Split: train=644 months, val=138 months, test=139 months; windows train=573, val=127, test=128
+2026-10-27 14:24:12.488 | INFO     | models.el_nino.tft_model:create_tft_model:47 - Created TFT model: 96,047 parameters
+2026-10-27 14:24:12.497 | INFO     | models.el_nino.trainer:train_tft:122 - Training TFT: 100 epochs, batch_size=32
+2026-10-27 14:24:15.706 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 1/100: TFT train_loss=0.489854, val_loss=0.379906
+2026-10-27 14:24:18.198 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 2/100: TFT train_loss=0.479740, val_loss=0.362448
+2026-10-27 14:24:19.942 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 3/100: TFT train_loss=0.432195, val_loss=0.346654
+2026-10-27 14:24:21.806 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 4/100: TFT train_loss=0.418416, val_loss=0.335908
+2026-10-27 14:24:24.125 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 5/100: TFT train_loss=0.385407, val_loss=0.320980
+2026-10-27 14:24:26.507 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 6/100: TFT train_loss=0.355469, val_loss=0.306431
+2026-10-27 14:24:28.985 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 7/100: TFT train_loss=0.330320, val_loss=0.304919
+2026-10-27 14:24:31.025 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 8/100: TFT train_loss=0.307614, val_loss=0.363450
+2026-10-27 14:24:32.840 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 9/100: TFT train_loss=0.287247, val_loss=0.313892
+2026-10-27 14:24:35.093 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 10/100: TFT train_loss=0.274367, val_loss=0.320616
+2026-10-27 14:24:37.348 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 11/100: TFT train_loss=0.269207, val_loss=0.298874
+2026-10-27 14:24:39.387 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 12/100: TFT train_loss=0.262170, val_loss=0.308624
+2026-10-27 14:24:41.970 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 13/100: TFT train_loss=0.259445, val_loss=0.323123
+2026-10-27 14:24:44.266 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 14/100: TFT train_loss=0.247745, val_loss=0.319043
+2026-10-27 14:24:46.388 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 15/100: TFT train_loss=0.240254, val_loss=0.314079
+2026-10-27 14:24:48.388 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 16/100: TFT train_loss=0.231961, val_loss=0.390005
+2026-10-27 14:24:50.385 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 17/100: TFT train_loss=0.232010, val_loss=0.374371
+2026-10-27 14:24:52.610 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 18/100: TFT train_loss=0.228378, val_loss=0.339845
+2026-10-27 14:24:54.332 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 19/100: TFT train_loss=0.224990, val_loss=0.337752
+2026-10-27 14:24:56.605 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 20/100: TFT train_loss=0.205209, val_loss=0.354441
+2026-10-27 14:24:58.809 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 21/100: TFT train_loss=0.197965, val_loss=0.330805
+2026-10-27 14:24:58.832 | INFO     | models.el_nino.trainer:train_tft:146 - TFT training complete. Best val_loss=0.298874
+2026-10-27 14:24:58.832 | INFO     | models.el_nino.trainer:train_tft:147 - Best checkpoint: /home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/el_nino_seeds/without_year/seed_0/el_nino/tft/tft-epoch=10-val_loss=0.2989.ckpt
+2026-10-27 14:24:58.832 | INFO     | __main__:train_tft:53 - TFT result: {'best_checkpoint': '/home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/el_nino_seeds/without_year/seed_0/el_nino/tft/tft-epoch=10-val_loss=0.2989.ckpt', 'best_val_loss': 0.29887449741363525, 'epochs_trained': 21}
+2026-10-27 14:24:58.833 | INFO     | __main__:main:250 - Training complete!

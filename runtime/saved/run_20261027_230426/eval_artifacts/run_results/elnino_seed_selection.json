@@ -1,0 +1,15 @@
+{
+  "selected_variant": "without_year",
+  "tft_use_year": false,
+  "mean_val_loss": {
+    "with_year": 0.33098,
+    "without_year": 0.28268
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

@@ -1,0 +1,27 @@
+2026-10-27 14:23:25.451 | INFO     | models.el_nino.dataset:prepare_tft_dataframe:66 - Prepared TFT DataFrame: 921 timesteps, 15 features
+2026-10-27 14:23:27.748 | INFO     | models.el_nino.dataset:create_tft_dataset:128 - Created TFT dataset: encoder=60, prediction=12, known_reals=4, unknown_reals=10
+2026-10-27 14:23:27.794 | INFO     | models.el_nino.dataset:split_tft_dataset:165 - Split: train=644 months, val=138 months, test=139 months; windows train=573, val=127, test=128
+2026-10-27 14:23:27.834 | INFO     | models.el_nino.tft_model:create_tft_model:47 - Created TFT model: 100,467 parameters
+2026-10-27 14:23:27.845 | INFO     | models.el_nino.trainer:train_tft:122 - Training TFT: 100 epochs, batch_size=32
+2026-10-27 14:23:30.732 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 1/100: TFT train_loss=0.405670, val_loss=0.400437
+2026-10-27 14:23:32.453 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 2/100: TFT train_loss=0.549961, val_loss=0.365881
+2026-10-27 14:23:34.613 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 3/100: TFT train_loss=0.440016, val_loss=0.361529
+2026-10-27 14:23:36.897 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 4/100: TFT train_loss=0.431029, val_loss=0.348555
+2026-10-27 14:23:39.063 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 5/100: TFT train_loss=0.417595, val_loss=0.341308
+2026-10-27 14:23:41.456 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 6/100: TFT train_loss=0.395527, val_loss=0.320136
+2026-10-27 14:23:44.073 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 7/100: TFT train_loss=0.374694, val_loss=0.349322
+2026-10-27 14:23:45.925 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 8/100: TFT train_loss=0.359581, val_loss=0.288108
+2026-10-27 14:23:48.178 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 9/100: TFT train_loss=0.328133, val_loss=0.333241
+2026-10-27 14:23:50.203 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 10/100: TFT train_loss=0.314329, val_loss=0.324452
+2026-10-27 14:23:52.802 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 11/100: TFT train_loss=0.280050, val_loss=0.369325
+2026-10-27 14:23:55.136 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 12/100: TFT train_loss=0.280497, val_loss=0.363665
+2026-10-27 14:23:57.161 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 13/100: TFT train_loss=0.268739, val_loss=0.346234
+2026-10-27 14:23:59.292 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 14/100: TFT train_loss=0.256315, val_loss=0.401220
+2026-10-27 14:24:01.663 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 15/100: TFT train_loss=0.252790, val_loss=0.373933
+2026-10-27 14:24:03.824 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 16/100: TFT train_loss=0.237490, val_loss=0.365881
+2026-10-27 14:24:05.679 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 17/100: TFT train_loss=0.229184, val_loss=0.422815
+2026-10-27 14:24:08.048 | INFO     | models.el_nino.trainer:on_validation_epoch_end:87 - Epoch 18/100: TFT train_loss=0.223913, val_loss=0.404676
+2026-10-27 14:24:08.074 | INFO     | models.el_nino.trainer:train_tft:146 - TFT training complete. Best val_loss=0.288108
+2026-10-27 14:24:08.074 | INFO     | models.el_nino.trainer:train_tft:147 - Best checkpoint: /home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/el_nino_seeds/with_year/seed_0/el_nino/tft/tft-epoch=07-val_loss=0.2881.ckpt
+2026-10-27 14:24:08.074 | INFO     | __main__:train_tft:53 - TFT result: {'best_checkpoint': '/home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/el_nino_seeds/with_year/seed_0/el_nino/tft/tft-epoch=07-val_loss=0.2881.ckpt', 'best_val_loss': 0.28810828924179077, 'epochs_trained': 18}
+2026-10-27 14:24:08.074 | INFO     | __main__:main:250 - Training complete!

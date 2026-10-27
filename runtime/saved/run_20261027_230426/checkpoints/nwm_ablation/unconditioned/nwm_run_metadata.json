@@ -1,0 +1,16 @@
+{
+    "data_sources": {},
+    "model_runs": {
+        "1": {
+            "id": 1,
+            "model_type": "nwm_stgnn",
+            "config": "epochs=100, lr=0.001, wd=0.0001",
+            "started_at": "2026-10-27T11:23:06.888232+00:00",
+            "completed_at": "2026-10-27T16:22:59.808695+00:00",
+            "status": "completed",
+            "metrics": "best_val_loss=0.116634",
+            "checkpoint_path": "/home/data.arp/repos.arp/workspace/grokking.workspace/climate_pulse.git/runtime/models/checkpoints/nwm_ablation/unconditioned/nwm/nwm_best.pt"
+        }
+    },
+    "next_run_id": 2
+}
