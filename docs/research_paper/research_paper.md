@@ -414,7 +414,7 @@ The robust finding is a transition from near-zero warming in the 1950s–1970s t
 
 ### 5.5 Architecture Analysis
 
-The ENSO results do not support a general advantage for the TFT over the LSTM. The TFT's higher anomaly correlation suggests that attention over a 60-month context window does capture the phase of the oscillation; that advantage is offset by its cold bias and by large run-to-run variability. With only 571 training windows, a 100k-parameter TFT is likely data-limited, and its additional covariates offer more ways to extrapolate poorly into a test period whose mean state differs from training; the calendar year as a known real was the clearest case, and removing it lowered both validation loss and test error.
+The ENSO results do not support a general advantage for the TFT over the LSTM. The TFT's higher anomaly correlation suggests that attention over a 60-month context window does capture the phase of the oscillation; that advantage is offset by its cold bias and by large run-to-run variability. With only 573 training windows, a 100k-parameter TFT is likely data-limited, and its additional covariates offer more ways to extrapolate poorly into a test period whose mean state differs from training; the calendar year as a known real was the clearest case, and removing it lowered both validation loss and test error.
 
 The NWM ablation qualifies the case for cross-domain coupling. Conditioning a 6-hour weather model on a monthly ENSO index added nothing measurable on a two-year record, and routing the TFT's forecasts into it made it worse. Coupling the modules through a shared pipeline is useful for reproducibility; coupling them through model inputs has to be justified per task, and here it is not.
 
@@ -457,14 +457,40 @@ Four directions follow. The most immediate is diagnostic: the source of the shar
 
 **Code Repository:** https://github.com/aditripaul/climatepulse (GPL v3.0 License)
 
+Every result in this paper can be rebuilt from a fresh clone with the steps below, in this order. On CPU, the main weather model takes about 2 hours and the NWM ablation about 5 hours; all other steps take minutes.
+
 ```bash
 git clone https://github.com/aditripaul/climatepulse && cd climatepulse
-make install                   # Creates .venv and installs all dependencies
-make download-data             # NOAA, OpenAQ, NASA GISTEMP, Climate TRACE
-make download-nwm-data         # ERA5 WeatherBench2 subset
-make train                     # Trains all models
-make gen-eval-artifacts        # Generates all metrics, figures, summary
+
+# 0. Environment and credentials
+make install-dev                    # venv, torch, dependencies, pytest
+cp -n .env.example .env             # then set DATA_OPENAQ_API_KEY
+
+# 1. Data
+make download-data                  # NOAA, OpenAQ, GISTEMP, Climate TRACE
+make download-nwm-data              # ERA5 subset (large)
+make test                           # unit tests
+
+# 2. El Niño: five seeds, then the main run
+make train-elnino-seeds             # writes elnino_seeds.csv and elnino_seed_selection.json
+#   set model.tft_use_year in configs/runtime_conf.yaml to the "tft_use_year"
+#   value in runtime/eval_artifacts/run_results/elnino_seed_selection.json
+make train-elnino                   # main TFT + LSTM
+
+# 3. Other models
+make train-pollution
+make train-nwm                      # main weather model
+make export-tft-forecasts           # TFT lead-1 forecasts; needs the main TFT
+make nwm-ablation                   # trains and scores the 3 comparison variants
+
+# 4. Artifacts, snapshot, documents
+make gen-eval-artifacts             # all metrics, figures and metrics_summary.md
+make save-run                       # timestamped snapshot in runtime/saved/
+make sync-paper-artifacts           # points the paper at that snapshot
+make gen-research-paper-pdf
 ```
+
+The same sequence is provided as `run.sh` and, for Google Colab, as the notebook `run.ipynb`. The results reported here are from the snapshot `runtime/saved/run_20261027_230426`, which is included in the repository together with its model checkpoints. The order matters: `nwm-ablation` scores the main weather model, so `train-nwm` comes first, and `export-tft-forecasts` needs the main TFT.
 
 **Datasets (All Publicly Accessible):**
 
