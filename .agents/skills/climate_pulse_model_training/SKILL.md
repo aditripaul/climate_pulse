@@ -36,13 +36,18 @@ make train-elnino       # TFT + LSTM
 make train-pollution    # ST-GNN
 make train-nwm          # Neural Weather Model
 make train-climate      # Bayesian regression
+make train-elnino-seeds    # 5 seeds, TFT with/without year + LSTM; writes elnino_seed_selection.json
+make export-tft-forecasts  # TFT lead-1 forecasts for NWM conditioning
+make nwm-ablation          # NWM forecast-conditioned / unconditioned / unweighted-loss variants
 ```
 
 ### Override max epochs
 ```bash
 PYTHONPATH=src .venv/bin/python src/scripts/train_models.py --model tft --epochs 50
 ```
-The `--epochs` flag temporarily overrides `MODEL_MAX_EPOCHS` via environment variable and clears the settings cache.
+The `--epochs` and `--seed` flags set `MODEL_MAX_EPOCHS` / `MODEL_SEED` in the environment and clear the settings cache. Environment variables override `configs/runtime_conf.yaml`.
+
+For a full from-scratch rebuild (seed study, ablation, artifacts, PDFs) follow "Reproducing the Results" in `README.md`, or run `run.ipynb` on Google Colab.
 
 ## Key Source Files
 

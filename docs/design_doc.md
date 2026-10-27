@@ -500,7 +500,21 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 
 ---
 
-## 11. Known Limitations and Future Work
+## 11. Reproducibility and Execution Environments
+
+**Command sequence.** The full rebuild is: install; clean; `download-data`; `download-nwm-data`; `test`; `train-elnino-seeds`; set `tft_use_year`; `train-elnino`; `train-pollution`; `train-nwm`; `export-tft-forecasts`; `nwm-ablation`; `gen-eval-artifacts`; `save-run`; `sync-paper-artifacts`; and the two PDF targets. Dependencies between steps: `nwm-ablation` scores the main weather model (`train-nwm` first) and the forecast-conditioned variant (`export-tft-forecasts` first, which needs the main TFT); `clean-eval-artifacts` also removes the seed results.
+
+**Seeds.** `model.seed` seeds Python, NumPy and PyTorch (`utils.set_seed()`) before every model is built. `run_elnino_seeds.py` runs one seed per training subprocess with separate checkpoint, metadata and log directories, and chooses the TFT variant on validation loss only, so test data never drives a modelling choice. Residual non-determinism comes from hardware and thread counts.
+
+**Isolation of concurrent runs.** `run_nwm_ablation.py` starts one training process per variant with its own `MODEL_CHECKPOINT_DIR`, `META_METADATA_PATH` and `LOG_DIR`, because the shared metadata JSON and log files are not safe for concurrent writers.
+
+**Google Colab.** `run.ipynb` follows the same sequence. It installs the package on top of Colab's PyTorch, replaces the Makefile's `.venv/bin/python` with a one-line wrapper around the notebook interpreter so that every `make` target works unchanged, reads the OpenAQ key from Colab secrets, and (optionally) mounts Google Drive to restore and save datasets and results across sessions. A quick mode (2 epochs, one seed) checks the workflow end to end.
+
+**Not automated.** Result numbers quoted in the paper, patent and README are updated by hand.
+
+---
+
+## 12. Known Limitations and Future Work
 
 | Area | Current State | Potential Improvement |
 |:---|:---|:---|

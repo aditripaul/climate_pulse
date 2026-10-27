@@ -7,6 +7,7 @@
   [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
   [![PyTorch 2.12](https://img.shields.io/badge/PyTorch-2.12.1-ee4c2c.svg)](https://pytorch.org/)
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+  [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/archanpaul/climate_pulse/blob/main/run.ipynb)
 </div>
 
 ---
@@ -53,13 +54,13 @@ A global weather surrogate predicting the next 6-hourly 2 m temperature and prec
 
 ## Current Results
 
-Reference run `runtime/saved/run_20261026_162519` (single run, CPU). Full tables are in its [`metrics_summary.md`](runtime/saved/run_20261026_162519/eval_artifacts/metrics_summary.md) and the [research paper](docs/research_paper/research_paper.md).
+Results from the corrected evaluation code (no train/test leakage, no synthetic values). Full tables are written to `runtime/eval_artifacts/metrics_summary.md` by `make gen-eval-artifacts`; the [research paper](docs/research_paper/research_paper.md) discusses them. Single-run results are noted as such.
 
 | Model | Result | Caveats |
 |:---|:---|:---|
-| El Niño TFT | RMSE 0.936 °C, ACC 0.727, skill 0.178 vs. persistence (test 2015–2026, leads 1–12) | LSTM is better on RMSE (0.871 °C, skill 0.289); TFT has a −0.68 °C cold bias, 30 % coverage of its 80 % interval, and large run-to-run variance |
-| Pollution A3TGCN | F1 0.973 for exceedance at a normalised threshold | Threshold is about 83 µg/m³, not AQI 100, and missing readings count as exceedances; an always-alert rule scores F1 0.977 |
-| Neural Weather Model | Best validation MSE 0.1185; test 2 m temperature RMSE 1.32 K | Trained on 2020–2021 only; no unconditioned baseline yet |
+| El Niño TFT (no year covariate) | Test 2015–2026, leads 1–12, mean ± s.d. over 5 seeds: RMSE 0.80 ± 0.10 °C, ACC 0.65 ± 0.04, skill 0.40 ± 0.15 vs. persistence | LSTM is comparable (RMSE 0.83 ± 0.03 °C, skill 0.36 ± 0.04) and far more stable across seeds; both are biased about −0.3 °C because the test period is warmer than training; the TFT 80 % interval covers 66 ± 19 % of observations |
+| Pollution A3TGCN | RMSE 46.6 µg/m³ vs. 52.0 persistence; exceedance F1 0.83 at PM2.5 ≥ 35.5 µg/m³ (AQI > 100) | Only 85 of 1,500 test station-days have readings (36 stations); the model alerts on every one, so F1 equals an always-alert rule and persistence scores higher |
+| Neural Weather Model | Earlier single run: best validation MSE 0.1185; test 2 m temperature RMSE 1.32 K | Trained on 2020–2021 only; that run normalised with full-record statistics, so it is being re-run with training-only statistics together with the conditioning / loss-weighting ablation |
 | Change-points | One break in 1976: 0.03 → 0.21 °C/decade | Break year is loosely constrained (1971–1986); a second break in 2012 is nearly as well supported |
 
 ---
@@ -202,6 +203,65 @@ make gen-patent-application-pdf
 
 Retraining replaces the previous run's checkpoints in `runtime/models/checkpoints/`; run `make save-run` first to keep them.
 
+`make train` trains the four model families in sequence but not the seed study, the forecast export or the ablation; use the sequence below to rebuild everything the paper reports.
+
+---
+
+## Reproducing the Results
+
+Everything the paper and patent report can be rebuilt from scratch. A full run takes about 7–8 hours on CPU (about 2 h for the main weather model and 5 h for its comparison versions) and much less on a GPU.
+
+```bash
+# 0. Environment and credentials
+make install-dev                    # venv, torch, dependencies, pytest
+cp .env.example .env                # then set DATA_OPENAQ_API_KEY
+
+# 1. Start clean (the last command also deletes downloaded data; skip it to reuse the cache)
+make clean-checkpoints clean-eval-artifacts
+make clean-downloaded-datasets
+
+# 2. Data, and a check that the code works
+make download-data
+make download-nwm-data
+make test
+
+# 3. El Niño: five seeds, then the main run
+make train-elnino-seeds             # writes runtime/eval_artifacts/run_results/elnino_seeds.csv
+#    and elnino_seed_selection.json. Set model.tft_use_year in configs/runtime_conf.yaml to
+#    the "tft_use_year" value in that JSON file (the TFT variant with the lower mean validation loss).
+make train-elnino
+
+# 4. Other models and the weather-model comparison
+make train-pollution
+make train-climate                  # optional; not used in any reported result
+make train-nwm                      # main weather model
+make export-tft-forecasts           # needs the main TFT from step 3
+make nwm-ablation                   # trains and scores the 3 comparison versions
+
+# 5. Artifacts, snapshot and documents
+make gen-eval-artifacts
+make save-run
+make sync-paper-artifacts
+make gen-research-paper-pdf
+make gen-patent-application-pdf
+```
+
+Order matters: `nwm-ablation` scores the main weather model, so `train-nwm` comes first; `export-tft-forecasts` needs the main TFT; `clean-eval-artifacts` also removes the seed results, so run it only at the start.
+
+**What is and is not reproduced exactly**
+- Seeds are fixed (`model.seed`), but CPU/GPU type and thread counts can change floating-point results slightly, so expect numbers close to, not identical to, the paper's.
+- A fresh download uses live APIs (OpenAQ is capped at 10,000 records; NOAA and GISTEMP update monthly), so the data can differ from the data behind the paper. To freeze it, archive `datasets/` and skip the data-clean step.
+- The numbers written into `research_paper.md`, `patent_application.md` and the README results table are typed in by hand; the scripts update figures, tables, PDFs and `metrics_summary.md`, not the text.
+
+### Google Colab
+
+[`run.ipynb`](run.ipynb) runs the same sequence on Colab ([open it](https://colab.research.google.com/github/archanpaul/climate_pulse/blob/main/run.ipynb)):
+1. Choose a GPU runtime and add the secret `OPENAQ_API_KEY` (and `GITHUB_TOKEN` if the repository is private).
+2. Keep `QUICK = True` for a first pass (every step runs 2 epochs on one seed; results are not meaningful), then set `QUICK = False` for the full run.
+3. With `USE_DRIVE = True`, datasets and results are saved to Google Drive and restored in the next session, so an interrupted run can resume after the data step.
+
+The notebook applies the seed-study choice of `tft_use_year` automatically. PDF builds are optional (`BUILD_PDFS`) because installing XeLaTeX takes a few minutes.
+
 ---
 
 ## Documents
@@ -266,6 +326,7 @@ climate_pulse/
 |   |-- requirement_spec.md       # Formal requirements specification
 |   +-- design_doc.md             # Architecture and design decisions
 |-- tests/                        # pytest suite (make test)
+|-- run.ipynb                     # Google Colab notebook running the full pipeline
 |-- .agents/                      # AI agent workspace rules and skills
 |-- pyproject.toml                # Package metadata and dependencies
 |-- requirements.txt              # Flat dependency list

@@ -111,6 +111,7 @@ This document defines the functional, data, model, and non-functional requiremen
 | **R-02b** | The `gen-patent-application-pdf` Makefile target shall compile `docs/patent/patent_application.md` to PDF using Pandoc + XeLaTeX. |
 | **R-03** | The `save-run` Makefile target shall copy and snapshot the latest model checkpoints and evaluation artifacts to a timestamped folder under `runtime/saved/` for future reference and inference. |
 | **R-04** | The system shall maintain a consolidated single patent application draft (`docs/patent/patent_application.md`) integrating the Neural Weather Model, Fibonacci spherical mesh, ENSO message conditioning, and multi-modal climate framework for IPINDIA / PCT legal review. |
+| **R-05** | The system shall let every reported result be rebuilt from scratch with a documented command sequence (README, "Reproducing the Results") and with a Google Colab notebook (`run.ipynb`) that runs the same sequence, persists data and results to Google Drive, and has a quick mode for checking the workflow. Seeds shall be fixed; text in the paper and patent that quotes results is maintained by hand. |
 
 ---
 
