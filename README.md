@@ -58,10 +58,10 @@ Results from the corrected evaluation code (no train/test leakage, no synthetic 
 
 | Model | Result | Caveats |
 |:---|:---|:---|
-| El Niño TFT (no year covariate) | Test 2015–2026, leads 1–12, mean ± s.d. over 5 seeds: RMSE 0.80 ± 0.10 °C, ACC 0.65 ± 0.04, skill 0.40 ± 0.15 vs. persistence | LSTM is comparable (RMSE 0.83 ± 0.03 °C, skill 0.36 ± 0.04) and far more stable across seeds; both are biased about −0.3 °C because the test period is warmer than training; the TFT 80 % interval covers 66 ± 19 % of observations |
+| El Niño TFT (no year covariate) | Test 2015–2026, leads 1–12, mean ± s.d. over 5 seeds: RMSE 0.78 ± 0.08 °C, ACC 0.65 ± 0.02, skill 0.43 ± 0.11 vs. persistence | LSTM is comparable (RMSE 0.81 ± 0.02 °C, skill 0.39 ± 0.03) and far more stable across seeds; both are biased about −0.3 °C because the test period is warmer than training; the TFT 80 % interval covers 63 ± 11 % of observations |
 | Pollution A3TGCN | RMSE 46.6 µg/m³ vs. 52.0 persistence; exceedance F1 0.83 at PM2.5 ≥ 35.5 µg/m³ (AQI > 100) | Only 85 of 1,500 test station-days have readings (36 stations); the model alerts on every one, so F1 equals an always-alert rule and persistence scores higher |
-| Neural Weather Model | Earlier single run: best validation MSE 0.1185; test 2 m temperature RMSE 1.32 K | Trained on 2020–2021 only; that run normalised with full-record statistics, so it is being re-run with training-only statistics together with the conditioning / loss-weighting ablation |
-| Change-points | One break in 1976: 0.03 → 0.21 °C/decade | Break year is loosely constrained (1971–1986); a second break in 2012 is nearly as well supported |
+| Neural Weather Model | 6-hour 2 m temperature, area-weighted test RMSE 1.21 K vs. 2.46 K persistence | Ablation (one run each): unconditioned 1.20 K, TFT-forecast-conditioned 1.33 K, unweighted loss 1.16 K, so neither the Niño 3.4 conditioning nor the area-weighted loss helps; trained on 2020–2021 only, a single ENSO phase |
+| Change-points | One break in 1976: 0.03 → 0.21 °C/decade | Break year is loosely constrained (1970–1986); a second break in 2012 is nearly as well supported |
 
 ---
 
@@ -126,7 +126,7 @@ Two layers of configuration:
 
 **1. `.env` — private credentials**
 ```bash
-cp .env.example .env
+cp -n .env.example .env   # -n: never overwrite an existing .env
 # Fill in DATA_OPENAQ_API_KEY
 ```
 
@@ -214,7 +214,7 @@ Everything the paper and patent report can be rebuilt from scratch. A full run t
 ```bash
 # 0. Environment and credentials
 make install-dev                    # venv, torch, dependencies, pytest
-cp .env.example .env                # then set DATA_OPENAQ_API_KEY
+cp -n .env.example .env             # -n keeps an existing .env; set DATA_OPENAQ_API_KEY
 
 # 1. Start clean (the last command also deletes downloaded data; skip it to reuse the cache)
 make clean-checkpoints clean-eval-artifacts

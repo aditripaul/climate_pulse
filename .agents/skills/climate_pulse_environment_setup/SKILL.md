@@ -59,7 +59,7 @@ The project loads all settings from `.env` at the repo root (gitignored).
 Copy `.env.example` to `.env` and populate values before running any scripts:
 
 ```bash
-cp .env.example .env
+cp -n .env.example .env   # -n: never overwrite an existing .env
 ```
 
 Key secrets:

@@ -30,7 +30,7 @@ header-includes:
 
 Global climatic phenomena, regional pollution dispersion, and atmospheric field mechanics do not operate in isolation. They form a coupled, multi-scale physical system that no single modelling tradition has adequately captured. ClimatePulse binds four complementary components into one reproducible pipeline: (1) multi-horizon El Niño–Southern Oscillation (ENSO) forecasting via Temporal Fusion Transformers (TFT) with quantile regression; (2) PM2.5 dispersion modelling across 75 global monitoring stations through a 6,984-parameter A3TGCN Spatio-Temporal Graph Neural Network; (3) global weather-field prediction at $5.625^{\circ}$ resolution using a 128-dimensional Encoder-Processor-Decoder Neural Weather Model (NWM) on a 2,000-node Fibonacci spherical mesh, conditioned on the Niño 3.4 index; and (4) piecewise-linear change-point analysis of the global warming rate for climate-feedback analysis.
 
-On a strictly held-out test period (2015–2026), the TFT reaches RMSE = 0.936 °C and anomaly correlation ACC = 0.727 averaged over 1–12 month leads, a skill score of 0.178 against persistence. A bidirectional LSTM baseline scores better on RMSE (0.871 °C, skill 0.289) but worse on ACC (0.510). The TFT tracks ENSO phase but carries a systematic cold bias of −0.68 °C, its 80 % prediction interval covers only 29.8 % of observations, and its skill varies strongly between training runs. For PM2.5 exceedance detection at a normalised threshold, the pollution ST-GNN records F1 = 0.973 (precision 0.962, recall 0.983), which does not exceed a trivial always-alert baseline (F1 = 0.977). NWM training converges to a best validation MSE of 0.1185 at epoch 72 of 83. Across 76 annual GISTEMP means (1950–2025), a BIC-selected piecewise-linear trend with autocorrelated errors places a single change-point in 1976, where the warming rate rises from 0.03 to 0.21 °C/decade; a second break in 2012 is nearly as well supported but not established.
+On a strictly held-out test period (2015–2026), averaged over five training seeds and 1–12 month leads, the TFT reaches RMSE = 0.782 ± 0.075 °C, anomaly correlation ACC = 0.645 and a skill score of 0.427 against persistence; a bidirectional LSTM baseline scores RMSE = 0.809 ± 0.020 °C and skill 0.390. The TFT's advantage is smaller than its own run-to-run spread, and both models are biased cold by about 0.3 °C. On the 85 observed test station-days, the pollution ST-GNN predicts next-day PM2.5 with RMSE 46.6 µg/m³ against 52.0 µg/m³ for persistence, but at the AQI-100 threshold (35.5 µg/m³) its exceedance F1 of 0.828 only equals an always-alert baseline. The NWM predicts 6-hour-ahead 2 m temperature with an area-weighted test RMSE of 1.21 K, half that of persistence (2.46 K); an ablation finds no benefit from Niño 3.4 conditioning (1.20 K without it) and a loss from conditioning on TFT forecasts (1.33 K). Across 76 annual GISTEMP means (1950–2025), a BIC-selected piecewise-linear trend with autocorrelated errors places a single change-point in 1976, where the warming rate rises from 0.03 to 0.21 °C/decade; a second break in 2012 is nearly as well supported but not established.
 
 **Keywords:** Climate forecasting, Temporal Fusion Transformer, Spatio-temporal graph neural networks, Neural Weather Model, Encoder-Processor-Decoder, El Niño–Southern Oscillation, PM2.5 exceedance, Uncertainty quantification, Change-point detection
 
@@ -65,7 +65,7 @@ Three questions anchor the investigation.
 
 - **RQ2.** Can A3TGCN Spatio-Temporal Graph Neural Networks reliably detect PM2.5 exceedance events with high precision and recall on a real-world global monitoring network?
 
-- **RQ3.** Can an Encoder-Processor-Decoder ST-GNN trained on ERA5 reanalysis data learn global atmospheric mechanics on a Fibonacci spherical mesh without overfitting?
+- **RQ3.** Can an Encoder-Processor-Decoder ST-GNN trained on ERA5 reanalysis data learn global atmospheric mechanics on a Fibonacci spherical mesh without overfitting, and does conditioning on the Niño 3.4 index improve its forecasts?
 
 ### 1.5 Key Contributions
 
@@ -73,9 +73,9 @@ Rather than a catalogue of isolated components, ClimatePulse offers a tightly co
 
 A) **Framework integration.** An open-source research platform binds TFT-based ENSO forecasting, A3TGCN pollution ST-GNN, an Encoder-Processor-Decoder Neural Weather Model on a Fibonacci spherical mesh, and warming-rate change-point analysis into a single reproducible pipeline. Each module shares data infrastructure and evaluation tooling; none operates as a standalone script.
 
-B) **Rigorous empirical validation.** Evaluation proceeds against persistence and LSTM baselines for ENSO; confusion-matrix and F1 metrics for pollution exceedance; and MSE convergence analysis across 83 NWM training epochs (0–82). Metrics are generated automatically from the pipeline, not hand-assembled.
+B) **Rigorous empirical validation.** Evaluation proceeds against persistence and LSTM baselines for ENSO, over five training seeds; against persistence and always-alert baselines for pollution, in physical units with missing readings masked; and against persistence for the NWM, with an ablation of its conditioning input and loss weighting. Normalisation statistics come from training data only. Metrics are generated automatically from the pipeline, not hand-assembled.
 
-C) **Spherical-aware neural weather modelling.** The NWM relies on a 2,000-node Fibonacci lattice mesh with grid-to-mesh, mesh-to-mesh, and mesh-to-grid bipartite GraphSAGE convolution stages. The architecture conditions on the Niño 3.4 index at every processor layer. Spherical-awareness is structural, not post-hoc.
+C) **Spherical-aware neural weather modelling.** The NWM relies on a 2,000-node Fibonacci lattice mesh with grid-to-mesh, mesh-to-mesh, and mesh-to-grid bipartite GraphSAGE convolution stages. The architecture can condition on the Niño 3.4 index at every processor layer; an ablation tests whether it should. Spherical-awareness is structural, not post-hoc.
 
 D) **Reproducibility.** All data download, training, and evaluation steps are encapsulated in a declarative pipeline (`download-data`, `train`, `gen-eval-artifacts`), producing all paper figures and metrics without manual intervention.
 
@@ -267,32 +267,32 @@ A mean-shift CUSUM test is not suited to this question: it detects changes in le
 
 ### 5.1 El Niño Forecasting Performance
 
-Evaluation uses the held-out test period (January 2015–June 2026, 127 forecast windows × 12 leads). Metrics: RMSE (°C), MAE (°C), Anomaly Correlation Coefficient (ACC), mean error (bias, °C), and skill score $\text{SS} = 1 - \text{MSE}_{\text{model}}/\text{MSE}_{\text{persistence}}$.
+Evaluation uses the held-out test period (March 2015–September 2026, 128 forecast windows × 12 leads). Metrics: RMSE (°C), MAE (°C), Anomaly Correlation Coefficient (ACC), mean error (bias, °C), and skill score $\text{SS} = 1 - \text{MSE}_{\text{model}}/\text{MSE}_{\text{persistence}}$.
 
-**Across seeds.** Table 2 summarises five training seeds per configuration. Removing the calendar-year covariate lowered mean validation loss (0.282 vs. 0.322), so the TFT without it is the selected model. Test results for both variants are shown for transparency.
+**Across seeds.** Table 2 summarises five training seeds per configuration. Removing the calendar-year covariate lowered mean validation loss (0.283 vs. 0.331), so the TFT without it is the selected model. Test results for both variants are shown for transparency.
 
 | Model | Val. loss | RMSE (°C) | ACC | Skill Score | Bias (°C) |
 |---|---|---|---|---|---|
-| TFT, without year (selected) | 0.282 ± 0.018 | 0.796 ± 0.095 | 0.648 ± 0.038 | 0.399 ± 0.150 | −0.325 ± 0.188 |
-| TFT, with year | 0.322 ± 0.036 | 0.829 ± 0.094 | 0.468 ± 0.258 | 0.349 ± 0.148 | −0.224 ± 0.100 |
-| LSTM Baseline | 0.338 ± 0.013 | 0.826 ± 0.027 | 0.547 ± 0.028 | 0.360 ± 0.042 | −0.272 ± 0.037 |
-| Persistence Baseline | — | 1.032 | 0.398 | 0.000 | +0.063 |
+| TFT, without year (selected) | 0.283 ± 0.016 | 0.782 ± 0.075 | 0.645 ± 0.023 | 0.427 ± 0.113 | −0.321 ± 0.146 |
+| TFT, with year | 0.331 ± 0.036 | 0.838 ± 0.070 | 0.483 ± 0.193 | 0.341 ± 0.106 | −0.242 ± 0.141 |
+| LSTM Baseline | 0.342 ± 0.006 | 0.809 ± 0.020 | 0.562 ± 0.035 | 0.390 ± 0.029 | −0.268 ± 0.078 |
+| Persistence Baseline | — | 1.036 | 0.383 | 0.000 | +0.062 |
 
 *Table 2: Mean ± standard deviation over five seeds. Validation loss is quantile loss for the TFT and MSE for the LSTM, so it is comparable only within a model.*
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/elnino_seeds.csv`
 
-Both learned models clearly beat persistence. On average the selected TFT edges the LSTM (RMSE 0.796 vs. 0.826 °C, ACC 0.648 vs. 0.547), but the difference is smaller than the TFT's own run-to-run spread, which is about three times the LSTM's (RMSE s.d. 0.095 vs. 0.027 °C). The two architectures should therefore be regarded as comparable on this record, with the LSTM the more reliable to train.
+Both learned models clearly beat persistence. On average the selected TFT edges the LSTM (RMSE 0.782 vs. 0.809 °C, ACC 0.645 vs. 0.562), but the difference is smaller than the TFT's own run-to-run spread, which is nearly four times the LSTM's (RMSE s.d. 0.075 vs. 0.020 °C). The two architectures should therefore be regarded as comparable on this record, with the LSTM the more reliable to train.
 
-Both models are biased cold (−0.33 and −0.27 °C). Removing the calendar-year covariate did not remove this bias, and the LSTM, which never sees the year, shares it. The likelier cause is non-stationarity: mean Niño 3.4 anomaly rises from −0.23 °C in the training period to +0.09 °C in the test period, and models fitted to the earlier climate under-predict the later one.
+Both models are biased cold (−0.32 and −0.27 °C). Removing the calendar-year covariate did not remove this bias, and the LSTM, which never sees the year, shares it. The likelier cause is non-stationarity: mean Niño 3.4 anomaly rises from −0.23 °C in the training period to +0.14 °C in the test period, and models fitted to the earlier climate under-predict the later one.
 
-**Main run.** The figures below come from a separate run (seed 42) of the selected configuration:
+**Main run.** The figures below come from a separate run (seed 42) of the selected configuration. This run's TFT is better than the five-seed mean (RMSE 0.684 vs. 0.782 °C, about 1.3 standard deviations), so the seed averages above are the more representative estimate:
 
 | Model | RMSE (°C) | MAE (°C) | ACC | Skill Score | Bias (°C) |
 |---|---|---|---|---|---|
-| TFT | 0.7593 | 0.5770 | 0.6603 | 0.4591 | −0.2954 |
-| LSTM Baseline | 0.7931 | 0.6066 | 0.6070 | 0.4099 | −0.2881 |
-| Persistence Baseline | 1.0324 | 0.7511 | 0.3979 | 0.0000 | +0.0635 |
+| TFT | 0.6838 | 0.5237 | 0.7041 | 0.5644 | −0.2066 |
+| LSTM Baseline | 0.7984 | 0.6133 | 0.5569 | 0.4063 | −0.2364 |
+| Persistence Baseline | 1.0361 | 0.7510 | 0.3835 | 0.0000 | +0.0617 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metrics.json`
 
@@ -300,23 +300,23 @@ Per-lead-time RMSE sharpens the picture:
 
 | Lead Time (months) | TFT RMSE (°C) | LSTM RMSE (°C) | Persistence RMSE (°C) |
 |---|---|---|---|
-| 1 | 0.478 | 0.298 | 0.248 |
-| 3 | 0.582 | 0.555 | 0.610 |
-| 6 | 0.789 | 0.855 | 1.038 |
-| 9 | 0.869 | 0.952 | 1.273 |
-| 12 | 0.882 | 0.892 | 1.334 |
+| 1 | 0.394 | 0.324 | 0.247 |
+| 3 | 0.525 | 0.542 | 0.609 |
+| 6 | 0.704 | 0.862 | 1.032 |
+| 9 | 0.765 | 0.927 | 1.269 |
+| 12 | 0.856 | 0.934 | 1.376 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/elnino_lead_time_metrics.csv`
 
-Persistence is best at 1–2 months (RMSE 0.248 °C at 1 month) and degrades to 1.334 °C by month 12. Both learned models overtake it from month 3. The LSTM is more accurate than the TFT at 1–3 months; the TFT is more accurate at 4–11 months, and the two are level at 12 months. In answer to RQ1, the TFT's advantage is confined to longer leads and is not robust across seeds.
+Persistence is best at 1 month (RMSE 0.247 °C) and degrades to 1.376 °C by month 12. The LSTM overtakes it from month 2 and the TFT from month 3. The LSTM is more accurate than the TFT at 1–2 months; the TFT is more accurate at every lead from 3 to 12 months. In answer to RQ1, the TFT's advantage lies at longer leads, and across seeds it is smaller than its run-to-run variability.
 
-**Calibration.** The TFT 80 % prediction interval (10th–90th quantiles) covers 72.4 % of test observations, with an average width of 1.55 °C. The quantiles are shifted rather than merely too narrow: 7.1 % of observations fall below the 10th percentile, 28.3 % below the median and 79.5 % below the 90th percentile, against nominal 10 %, 50 % and 90 %. This is the cold bias seen from the probabilistic side.
+**Calibration.** The TFT 80 % prediction interval (10th–90th quantiles) covers 75.7 % of test observations, with an average width of 1.49 °C. The quantiles are shifted rather than merely too narrow: 8.2 % of observations fall below the 10th percentile, 34.9 % below the median and 83.9 % below the 90th percentile, against nominal 10 %, 50 % and 90 %. This is the cold bias seen from the probabilistic side.
 
 ![](artifacts/eval_artifacts/elnino_forecast_vs_actual.png)\
-**Figure 1:** 12-month SST anomaly forecast for a single held-out test sequence: TFT median (blue) and LSTM baseline (red, dashed) versus observed Niño 3.4 values (black). The shaded region is the TFT 10th–90th percentile interval, which contains the observations throughout this sequence while both medians sit below them from month 5 onward.
+**Figure 1:** 12-month SST anomaly forecast for a single held-out test sequence: TFT median (blue) and LSTM baseline (red, dashed) versus observed Niño 3.4 values (black). The shaded region is the TFT 10th–90th percentile interval, which contains the observations throughout this sequence while both medians sit below them from month 2 to month 8.
 
 ![](artifacts/eval_artifacts/elnino_crps_leadtime.png)\
-**Figure 2:** RMSE as a function of forecast lead time. Persistence (green, dashed) is lowest at 1–2 months; the LSTM (red) is lower than the TFT (blue) at 1–3 months and higher at 4–11 months; both beat persistence from month 3.
+**Figure 2:** RMSE as a function of forecast lead time. Persistence (green, dashed) is lowest at 1 month; the LSTM (red) is lower than the TFT (blue) at 1–2 months and higher from month 3; the LSTM beats persistence from month 2 and the TFT from month 3.
 
 ![](artifacts/eval_artifacts/elnino_calibration_diagram.png)\
 **Figure 2b:** TFT quantile calibration on the test set: observed frequency of outcomes below the predicted 10th, 50th and 90th percentiles. Points below the diagonal indicate forecasts that are too low.
@@ -338,7 +338,7 @@ The test split holds 20 windows over the 75-node graph, i.e. 1,500 station-days,
 |---|---|---|---|
 | RMSE (µg/m³) | 46.6 | 52.0 | — |
 | MAE (µg/m³) | 40.1 | — | — |
-| F1, PM2.5 ≥ 35.5 µg/m³ (AQI > 100) | 0.828 | 0.881 | 0.828 |
+| F1, PM2.5 $\ge$ 35.5 µg/m³ (AQI > 100) | 0.828 | 0.881 | 0.828 |
 | Precision / Recall | 0.706 / 1.000 | — | — |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/summary_metrics.json`
@@ -351,41 +351,61 @@ Per-station RMSE (from `docs/research_paper/artifacts/eval_artifacts/run_results
 **Figure 4:** Distribution of per-station RMSE (µg/m³) across the 36 stations with test readings.
 
 ![](artifacts/eval_artifacts/pollution_confusion_matrix.png)\
-**Figure 4b:** Exceedance confusion matrix at PM2.5 ≥ 35.5 µg/m³ (AQI > 100) on observed test station-days: 60 true positives, 25 false positives, no false negatives and no true negatives.
+**Figure 4b:** Exceedance confusion matrix at PM2.5 $\ge$ 35.5 µg/m³ (AQI > 100) on observed test station-days: 60 true positives, 25 false positives, no false negatives and no true negatives.
 
 ### 5.3 Neural Weather Model Performance & Convergence
 
-Training ran for 83 epochs (0–82) before early stopping. The best validation checkpoint landed at epoch 72 (validation MSE = 0.1185); the final epoch recorded training MSE = 0.1053 and validation MSE = 0.1185.
+Training ran for 81 epochs (0–80) before early stopping. The best validation checkpoint landed at epoch 70 (area-weighted validation MSE = 0.1173 on normalised fields); the final epoch recorded training MSE = 0.1070 and validation MSE = 0.1174.
 
-| Metric | Epoch 0 | Best (Epoch 72) | Final (Epoch 82) |
+| Metric | Epoch 0 | Best (Epoch 70) | Final (Epoch 80) |
 |---|---|---|---|
-| Training Loss (MSE) | 0.2715 | 0.1063 | 0.1053 |
-| Validation Loss (MSE) | 0.1968 | 0.1185 | 0.1185 |
+| Training Loss (MSE) | 0.2861 | 0.1079 | 0.1070 |
+| Validation Loss (MSE) | 0.1939 | 0.1173 | 0.1174 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/nwm_metrics.csv`
 
-From epoch 0 to 82, training loss fell 61.2 % (0.2715 → 0.1053); validation loss dropped 39.8 % (0.1968 → 0.1185). The 11.5 % train-validation gap at the best checkpoint (0.1063 vs. 0.1185) is consistent with the added expressivity of explicit positional features — a mild overfitting signal, not a pathological one. Note that the normalisation statistics for the NWM are computed over the full 2020–2021 record, including the validation and test periods; the effect on these losses is expected to be small but has not been quantified.
+From epoch 0 to 80, training loss fell 62.6 % (0.2861 → 0.1070); validation loss dropped 39.5 % (0.1939 → 0.1173 at best). The 8.7 % train-validation gap at the best checkpoint (0.1079 vs. 0.1173) is a mild overfitting signal, not a pathological one. Normalisation statistics are computed on the training period only.
+
+**Test skill.** On the 438 held-out test samples, the main model predicts 2 m temperature 6 hours ahead with an area-weighted RMSE of **1.214 K**, half that of persistence (2.457 K). For total precipitation the RMSE is $6.82 \times 10^{-4}$ m per 6 h against $9.03 \times 10^{-4}$ for persistence, a 24 % reduction.
+
+**Ablation.** Table 3 scores each variant on the same test samples.
+
+| Variant | Niño 3.4 input | Loss | Epochs | T2m RMSE (K) | Precip RMSE (m / 6 h) |
+|---|---|---|---|---|---|
+| Main model | observed | area-weighted | 81 | 1.214 | $6.82 \times 10^{-4}$ |
+| Forecast-conditioned | TFT lead-1 forecast | area-weighted | 85 | 1.335 | $6.83 \times 10^{-4}$ |
+| Unconditioned | none (zero) | area-weighted | 79 | 1.195 | $6.80 \times 10^{-4}$ |
+| Unweighted loss | observed | unweighted | 85 | 1.164 | $6.79 \times 10^{-4}$ |
+| Persistence | — | — | — | 2.457 | $9.03 \times 10^{-4}$ |
+
+*Table 3: NWM ablation on the test period. RMSE is area-weighted by cos(latitude) for every variant; each variant was trained once.*
+
+Source: `docs/research_paper/artifacts/eval_artifacts/run_results/nwm_ablation.csv`
+
+The Niño 3.4 conditioning does not help. The unconditioned model is marginally more accurate than the main model (1.195 vs. 1.214 K), and conditioning on the TFT's forecasts is the worst variant (1.335 K). The area-weighted loss does not help either: the model trained with an unweighted loss scores best (1.164 K) even on the area-weighted metric. Precipitation RMSE barely differs between variants. Since each variant was trained once, differences of a few hundredths of a kelvin are within the range that a change of seed could produce; the forecast-conditioned model's deficit of about 0.12 K is the only one large enough to read as a real effect.
+
+These results are not surprising. Over a 6-hour step, the recent atmospheric state carries far more information than a monthly ENSO index, and the 2020–2021 record contains a single La Niña episode, so a monthly index that barely varies offers little to learn from. Feeding the TFT's forecast instead of the observed index adds forecast error to a signal that the model was not using productively. In answer to RQ3, the spherical-mesh NWM learns the 6-hour dynamics well enough to halve persistence error without overfitting, but on this record the ENSO conditioning pathway gives no measurable benefit.
 
 ![](artifacts/eval_artifacts/nwm_convergence_lr.png)\
 **Figure 5:** NWM MSE loss convergence and ReduceLROnPlateau learning rate schedule.
 
 ![](artifacts/eval_artifacts/nwm_predicted_vs_actual.png)\
-**Figure 5b:** Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right). Sample RMSE = 1.13 K.
+**Figure 5b:** Global 2m temperature field prediction (middle) versus ERA5 ground truth (left) for a held-out test sample, alongside the prediction error (right). Sample RMSE = 1.15 K.
 
 ![](artifacts/eval_artifacts/nwm_spatial_error_map.png)\
-**Figure 5c:** Time-averaged 2m temperature RMSE per grid node across the entire test set (global 1.32 K, tropical 0.83 K, polar 1.46 K).
+**Figure 5c:** Time-averaged 2m temperature RMSE per grid node across the entire test set (area-weighted global 1.21 K, tropical 0.84 K, polar 1.55 K).
 
 ### 5.4 Warming-Rate Change-Point Analysis
 
-Applied to 76 annual means of NASA GISTEMP v4 global temperature anomalies (1950–2025), BIC selects a single change-point ($K = 1$) in **1976**. The warming rate rises from 0.034 °C/decade (1950–1976) to 0.212 °C/decade (1976–2025). The residual AR(1) coefficient is $\phi = 0.27$.
+Applied to 76 annual means of NASA GISTEMP v4 global temperature anomalies (1950–2025), BIC selects a single change-point ($K = 1$) in **1976**. The warming rate rises from 0.035 °C/decade (1950–1976) to 0.211 °C/decade (1976–2025). The residual AR(1) coefficient is $\phi = 0.27$.
 
 | Change-points $K$ | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
-| BIC | −105.4 | **−113.9** | −113.6 | −105.6 |
+| BIC | −105.7 | **−114.1** | −113.7 | −105.7 |
 
 Source: `docs/research_paper/artifacts/eval_artifacts/run_results/climate_feedback_results.json`
 
-Two qualifications apply. First, the location is loosely constrained: single-break years from 1971 to 1993 all lie within ΔBIC < 2 of the optimum (most of them between 1971 and 1986), so the result supports a mid-1970s regime change rather than a specific year. Second, the two-break model is nearly tied (ΔBIC = 0.3). Its best fit places breaks in 1971 and 2012, with a final-segment rate of 0.365 °C/decade. The record is therefore consistent with a recent acceleration of warming but does not establish one.
+Two qualifications apply. First, the location is loosely constrained: single-break years from 1970 to 1986 lie within ΔBIC < 2 of the optimum, so the result supports a mid-1970s regime change rather than a specific year. Second, the two-break model is nearly tied (ΔBIC = 0.4). Its best fit places breaks in 1971 and 2012, with a final-segment rate of 0.363 °C/decade. The record is therefore consistent with a recent acceleration of warming but does not establish one.
 
 The robust finding is a transition from near-zero warming in the 1950s–1970s to sustained warming of about 0.2 °C/decade, consistent with the growing dominance of greenhouse-gas forcing over aerosol cooling in that period.
 
@@ -394,7 +414,9 @@ The robust finding is a transition from near-zero warming in the 1950s–1970s t
 
 ### 5.5 Architecture Analysis
 
-The ENSO results do not support a general advantage for the TFT over the LSTM. The TFT's higher anomaly correlation suggests that attention over a 60-month context window does capture the phase of the oscillation; that advantage is outweighed by its cold bias and by large run-to-run variability. With only 571 training windows, a 100k-parameter TFT is likely data-limited, and its additional covariates (including the calendar year as a known real) offer more ways to extrapolate poorly into a test period whose mean state differs from training.
+The ENSO results do not support a general advantage for the TFT over the LSTM. The TFT's higher anomaly correlation suggests that attention over a 60-month context window does capture the phase of the oscillation; that advantage is offset by its cold bias and by large run-to-run variability. With only 571 training windows, a 100k-parameter TFT is likely data-limited, and its additional covariates offer more ways to extrapolate poorly into a test period whose mean state differs from training; the calendar year as a known real was the clearest case, and removing it lowered both validation loss and test error.
+
+The NWM ablation qualifies the case for cross-domain coupling. Conditioning a 6-hour weather model on a monthly ENSO index added nothing measurable on a two-year record, and routing the TFT's forecasts into it made it worse. Coupling the modules through a shared pipeline is useful for reproducibility; coupling them through model inputs has to be justified per task, and here it is not.
 
 In the pollution module, soft temporal attention weights recent accumulation events differently from distant ones. Graph convolution aggregates neighbouring-station signals, capturing wind-driven dispersion that a purely temporal model would miss.
 
@@ -404,15 +426,15 @@ For the change-point module, modelling autocorrelated errors and selecting the n
 
 ### 5.6 Limitations & Probabilistic Calibration
 
-**TFT stability and calibration.** The 60-month lookback window is a hard requirement. More pressing, TFT test skill varies widely between runs of identical code (skill 0.18 vs. 0.53 in two runs), and the run with the better validation loss performed worse on the test period. Reported TFT figures should be replaced by the mean and spread over multiple seeds, together with a diagnosis of the −0.68 °C cold bias. The 80 % prediction interval achieves only 29.8 % empirical coverage, almost entirely because observations exceed the 90th percentile. Split Conformal Quantile Regression (CQR) is the planned corrective for the interval width, but it cannot by itself remove a bias that differs between calibration and test periods. Non-conformity scores $s_i = \max(\hat{q}_{0.1}(x_i) - y_i,\; y_i - \hat{q}_{0.9}(x_i))$ computed on a held-out calibration split would adjust interval bounds by a finite-sample correction quantile $Q_{1-\alpha}(s)$, guaranteeing $\ge 80\%$ marginal coverage with distribution-free validity.
+**TFT stability and calibration.** The 60-month lookback window is a hard requirement. More pressing, TFT test skill varies between seeds of identical code (skill s.d. 0.11 over five seeds, against 0.03 for the LSTM), so single-run TFT figures, including the main run in §5.1, should be read alongside the seed averages. Both models carry a cold bias of about 0.3 °C, which is consistent with the warmer mean state of the test period. The 80 % prediction interval covers 75.7 % of observations, and the miss is mostly on the warm side (16.1 % above the 90th percentile, 8.2 % below the 10th). Split Conformal Quantile Regression (CQR) is the planned corrective for the interval width, but it cannot by itself remove a bias that differs between calibration and test periods. Non-conformity scores $s_i = \max(\hat{q}_{0.1}(x_i) - y_i,\; y_i - \hat{q}_{0.9}(x_i))$ computed on a held-out calibration split would adjust interval bounds by a finite-sample correction quantile $Q_{1-\alpha}(s)$, guaranteeing $\ge 80\%$ marginal coverage with distribution-free validity.
 
-**ST-GNN.** Exceedance metrics use a threshold on normalised values that corresponds to about 83 µg/m³ rather than AQI 100, and missing readings (encoded as zero) enter both training loss and evaluation as real observations. As a result the reported F1 does not exceed an always-alert baseline. Re-evaluation with a threshold in physical units and masked missing readings is required before drawing conclusions about exceedance detection. The normalisation statistics are also computed over all snapshots, including the test period. The 75-station graph is static, adding stations requires retraining, and geographic coverage concentrates in India and the United States.
+**ST-GNN.** The test split contains only 85 observed station-days, 62 of them on two dates, so neither the RMSE gain over persistence nor the exceedance scores are statistically robust. With 70.6 % of observed station-days above the AQI-100 threshold, an always-alert classifier is a strong baseline, and the model does not beat it. The 75-station graph is static, adding stations requires retraining, and geographic coverage concentrates in India and the United States.
 
-**NWM.** The 2020–2021 ERA5 window offers limited temporal diversity. At $5.625^{\circ}$ resolution, mesoscale phenomena are smoothed beyond recovery.
+**NWM.** The 2020–2021 ERA5 window offers limited temporal diversity: it spans a single ENSO phase, which limits any test of ENSO conditioning. Each ablation variant was trained once, so small differences between variants are not resolved. At $5.625^{\circ}$ resolution, mesoscale phenomena are smoothed beyond recovery.
 
 ### 5.7 Computational Efficiency
 
-The full pipeline runs on a single workstation; the results reported here were produced on CPU only. Training all models took about 2.2 hours, dominated by the NWM (about 2.1 hours, roughly 90 s per epoch); the El Niño, pollution and change-point models each train in under 5 minutes. Inference across all models, plus complete artifact generation, finishes in under one minute.
+The full pipeline runs on a single workstation; the results reported here were produced on CPU only. Training the main models took about 2.2 hours, dominated by the NWM (about 2 hours, roughly 90 s per epoch); the El Niño, pollution and change-point models each train in under 5 minutes. The robustness studies add about 6 hours: the five-seed El Niño study and, mostly, the three NWM ablation variants, trained in parallel in about 5 hours. Inference across all models, plus complete artifact generation, finishes in a few minutes.
 
 ![](artifacts/eval_artifacts/model_training_curves.png)\
 **Figure 7:** Training (blue) and validation (red dashed) loss trajectories for all four deep learning architectures.
@@ -423,11 +445,11 @@ The full pipeline runs on a single workstation; the results reported here were p
 
 ClimatePulse began as an integration problem: four modelling tasks, each well-studied in isolation, none previously coupled in a single reproducible pipeline. The empirical record from this work speaks to whether that coupling is productive.
 
-For ENSO forecasting on a strictly held-out 2015–2026 test period, the TFT posts RMSE = 0.936 °C, ACC = 0.727 and a skill score of 0.178 against persistence. The LSTM baseline is better on RMSE (0.871 °C) and skill (0.289) but worse on ACC (0.510). Both beat persistence beyond 4–5 months' lead. The TFT follows the ENSO phase but is biased cold, poorly calibrated and unstable across training runs. The pollution ST-GNN's exceedance metrics (F1 = 0.973) do not exceed a trivial always-alert baseline under the current threshold, so exceedance skill remains to be demonstrated. The NWM converges to a best validation MSE of 0.1185 at epoch 72 of 83, with a test-set 2 m temperature RMSE of 1.32 K. Across 76 annual GISTEMP means, warming shows a regime change in the mid-1970s (best estimate 1976), from 0.03 to 0.21 °C/decade; a further acceleration around 2012 is suggested but not established.
+For ENSO forecasting on a strictly held-out 2015–2026 test period, the TFT averages RMSE = 0.782 °C, ACC = 0.645 and a skill score of 0.427 against persistence over five seeds; the LSTM baseline averages 0.809 °C, 0.562 and 0.390. The TFT is more accurate from 3 months' lead onward, but its margin over the LSTM is smaller than its run-to-run spread, and both models are biased cold by about 0.3 °C. The pollution ST-GNN improves on persistence for next-day PM2.5 (RMSE 46.6 vs. 52.0 µg/m³) but does not beat an always-alert baseline for AQI-100 exceedance, on only 85 observed test station-days. The NWM halves the persistence error for 6-hour 2 m temperature (1.21 vs. 2.46 K), while an ablation shows that its Niño 3.4 conditioning brings no measurable benefit and that conditioning on TFT forecasts degrades it. Across 76 annual GISTEMP means, warming shows a regime change in the mid-1970s (best estimate 1976), from 0.03 to 0.21 °C/decade; a further acceleration around 2012 is suggested but not established.
 
-The integration itself works: one pipeline downloads, trains, evaluates and documents all four components. The empirical results are, however, more modest than the architectures' reputations suggest, and several, in particular the TFT and pollution results, need multi-seed evaluation and corrected metrics before they can support strong claims.
+The integration itself works: one pipeline downloads, trains, evaluates and documents all four components, and every figure in this paper can be rebuilt from it. The empirical results are, however, more modest than the architectures' reputations suggest, and the proposed cross-domain conditioning of the weather model is not supported by this record.
 
-Four directions follow. The most immediate is methodological: multi-seed TFT evaluation with a diagnosis of its bias, and pollution evaluation with physical thresholds and masked missing data. Beyond that, multi-year NWM training with data assimilation would extend the temporal window beyond 2020–2021. Multi-regional TFT extensions to the Indian Ocean Dipole and North Atlantic Oscillation would test whether the architecture generalises beyond ENSO. Satellite $\text{NO}_2$ and methane integration would broaden pollution coverage beyond the current 75-station footprint.
+Four directions follow. The most immediate is diagnostic: the source of the shared ENSO cold bias, and a pollution test set large enough to measure exceedance skill. Beyond that, multi-year NWM training, spanning several ENSO phases and longer lead times, is needed before ENSO conditioning can be properly tested. Multi-regional TFT extensions to the Indian Ocean Dipole and North Atlantic Oscillation would test whether the architecture generalises beyond ENSO. Satellite $\text{NO}_2$ and methane integration would broaden pollution coverage beyond the current 75-station footprint.
 
 ---
 
