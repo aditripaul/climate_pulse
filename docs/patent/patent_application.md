@@ -7,8 +7,8 @@ header-includes:
   - \usepackage[utf8]{inputenc}
   - \usepackage{draftwatermark}
   - \SetWatermarkText{research.aditripaul.org}
-  - \SetWatermarkScale{0.5}
-  - \SetWatermarkColor[gray]{0.9}
+  - \SetWatermarkScale{0.25}
+  - \SetWatermarkColor[gray]{0.95}
   - \newcommand{\gt}{>}
   - \pagestyle{fancy}
   - '\fancyhead[L]{\small ClimatePulse: Temporal Fusion Transformers and Spatio-Temporal Graph Networks in Climate Modeling}'
@@ -19,7 +19,6 @@ header-includes:
   - \renewcommand{\headrulewidth}{0.4pt}
   - \setlength{\headheight}{15pt}
 ---
-
 <!--
 
         Copyright 2026 research.aditripaul.org
