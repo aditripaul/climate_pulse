@@ -23,7 +23,7 @@ ClimatePulse is an academic deep learning research project exploring the interco
 | **Neural Weather Model** | Next 6-hour T2m & precipitation, conditioned on Niño 3.4 | Spherical-mesh Encoder–Processor–Decoder GNN |
 | **Climate Feedback** | Detect changes in the global warming rate | Piecewise-linear trend with AR(1) errors, change-points selected by BIC |
 
-The stack is Python-only, stores data as Parquet + JSON, and runs on CPU; CUDA, AMD ROCm and Intel NPU installs are also supported. A full CPU-only training run takes about 2.2 hours, almost all of it the Neural Weather Model.
+The stack is Python-only, stores data as Parquet + JSON, and runs on CPU; CUDA, AMD ROCm and Intel NPU installs are also supported. A full CPU-only training run takes about 2.2 hours, almost all of it the Neural Weather Model. An interactive [Streamlit app](#interactive-simulation-app) (`make app`) runs the trained models on held-out data.
 
 ---
 
@@ -73,6 +73,7 @@ Results from the corrected evaluation code (no train/test leakage, no synthetic 
 | **Statistical Modelling** | NumPy (change-point search), PyMC 6 + ArviZ 1.2 (emissions regression) |
 | **Data Engineering** | xarray 2026.7, pandas 3, pyarrow 25, zarr 3, gcsfs |
 | **Configuration** | Pydantic-Settings v2, PyYAML |
+| **Interactive app** | Streamlit 1.66, Plotly |
 | **Logging / Metrics** | Loguru, CSV training history, JSON run metadata |
 
 ---
@@ -207,6 +208,42 @@ Retraining replaces the previous run's checkpoints in `runtime/models/checkpoint
 
 ---
 
+## Interactive Simulation App
+
+A Streamlit app that runs the **already-trained** models on held-out data and shows the results interactively. Nothing is trained in the app.
+
+```bash
+make install        # includes streamlit and plotly
+make app            # opens http://localhost:8501
+```
+
+A top menu switches between five pages:
+
+| Page | What you can do | Status |
+|:---|:---|:---|
+| **Overview** | See the reported results and which checkpoints were found | n/a |
+| **Weather** | Pick a moment in the test period; compare the model with ERA5 as maps and a rotatable 3D globe; switch between the main model and the three ablation variants; override the Niño 3.4 input; roll the model forward and animate it | Validated for one 6-hour step; roll-forward is a demonstration |
+| **El Niño** | Pick a test window and see the TFT median and 10–90 % band against the LSTM, persistence and what happened; animate through 2015–2026; see error by lead time | Validated on held-out years |
+| **Air pollution** | See next-day PM2.5 at the stations coloured by EPA band; highlight a station; roll forward a few snapshots | Demonstration only (85 observed test station-days) |
+| **Warming rate** | Change the number of breaks and the shortest segment and watch the BIC choice; compare with a straight line | Statistical model, no network |
+
+Each page links to a direct URL, for example `/weather` or `/elnino`.
+
+**What it needs**
+
+- Checkpoints are read from `runtime/models/checkpoints/` first and then from the newest committed snapshot in `runtime/saved/run_*/checkpoints/`, so a fresh clone can run the El Niño, weather and pollution models without retraining.
+- Data files are not in the repository. The weather page needs the ERA5 file (`make download-nwm-data`) and `nino_features.parquet` (`make download-data`); the El Niño page needs `nino_features.parquet`; the pollution page needs the cached OpenAQ file; the warming page needs `gistemp_features.parquet`. A page whose files are missing shows what to run instead of failing.
+- The pollution station graph is rebuilt offline from the cached OpenAQ file and reproduces the reported test figures (85 observed station-days, RMSE 46.6 µg/m³ against 52.0 for persistence).
+
+**Caveats the app states on screen**
+
+- The weather model was trained and tested only for a single 6-hour step. Rolling it forward feeds it its own output and is not validated: errors grow and it can end up worse than persistence.
+- Weather predictions are computed one sample at a time. The model's graph `LayerNorm` pools statistics across a batch, so scores differ slightly with batch size (about 1.217 K one at a time against the reported 1.214 K in batches of 16).
+
+The code is in `src/app/` (`loaders.py` has the model and data access and is tested without Streamlit; `views/` has one module per page; `main.py` is the entry point). The theme is set in `.streamlit/config.toml`.
+
+---
+
 ## Reproducing the Results
 
 Everything the paper and patent report can be rebuilt from scratch. A full run takes about 7–8 hours on CPU (about 2 h for the main weather model and 5 h for its comparison versions) and much less on a GPU.
@@ -280,7 +317,7 @@ The notebook applies the seed-study choice of `tft_use_year` automatically. PDF 
 
 ## Project Structure
 
-- **`src/`**: Python source code: data ingestion and processing (`src/data/`), models (`src/models/`) and command-line scripts (`src/scripts/`).
+- **`src/`**: Python source code: data ingestion and processing (`src/data/`), models (`src/models/`), command-line scripts (`src/scripts/`) and the Streamlit app (`src/app/`).
 - **`configs/`**: YAML configuration for runtime behaviour, hyperparameters and data sources.
 - **`datasets/`**: Raw downloads and processed Parquet files (gitignored).
 - **`runtime/`**: Checkpoints, evaluation artifacts, saved runs and logs.
@@ -303,6 +340,7 @@ climate_pulse/
 |   |   |-- nwm/                  # Neural Weather Model (native PyTorch ST-GNN)
 |   |   +-- climate_feedback/     # Change-point detection + Bayesian regression
 |   |-- visualization/            # Chart helpers and themes
+|   |-- app/                      # Streamlit simulation app (make app)
 |   +-- scripts/
 |       |-- download_data.py
 |       |-- download_nwm_data.py
@@ -325,6 +363,7 @@ climate_pulse/
 |   |-- project_proposal.md       # Project proposal
 |   |-- requirement_spec.md       # Formal requirements specification
 |   +-- design_doc.md             # Architecture and design decisions
+|-- .streamlit/config.toml        # Streamlit theme (white, grey, blue)
 |-- tests/                        # pytest suite (make test)
 |-- run.ipynb                     # Google Colab notebook running the full pipeline
 |-- .agents/                      # AI agent workspace rules and skills
@@ -343,6 +382,7 @@ climate_pulse/
 make install                    # Standard install (torch 2.12.1, CPU/CUDA)
 make install-dev                # Install plus test dependencies (pytest)
 make test                       # Run the test suite
+make app                        # Launch the Streamlit simulation app (needs trained checkpoints)
 make install-rocm               # torch 2.6.0 with ROCm 6.1 (AMD GPUs)
 make install-npu                # torch 2.12.1 + OpenVINO (Intel NPU)
 

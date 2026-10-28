@@ -78,6 +78,7 @@ climate_pulse.git/
 │   │   ├── generate_eval_artifacts.py  # CLI: generate evaluation figures/tables
 │   │   ├── install_rocm_deps.py      # ROCm-specific dependency installer
 │   │   └── patch_rocm_elf.py         # Radeon 680M ELF patcher
+│   ├── app/              # Streamlit simulation app (make app): main.py, loaders.py, views/
 │   └── visualization/
 │       ├── charts.py         # Plot generation functions
 │       └── themes.py         # Matplotlib/Plotly theme config

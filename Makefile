@@ -1,4 +1,4 @@
-.PHONY: venv install install-dev test install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate train-elnino-seeds export-tft-forecasts nwm-ablation clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
+.PHONY: venv install install-dev test app install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate train-elnino-seeds export-tft-forecasts nwm-ablation clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf help
 
 .DEFAULT_GOAL := help
 
@@ -175,6 +175,10 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	rm -rf dist/ build/ *.egg-info/ htmlcov/
 
+# === Interactive simulation app ===
+app:
+	PYTHONPATH=src $(ROCM_ENV) $(NPU_ENV) .venv/bin/streamlit run src/app/main.py
+
 # === Help ===
 help:
 	@echo "ClimatePulse - Available Commands:"
@@ -192,6 +196,7 @@ help:
 	@echo "  make export-tft-forecasts : Export TFT lead-1 forecasts for NWM conditioning"
 	@echo "  make nwm-ablation : Train and score NWM ablation variants"
 	@echo "  make test : Run the test suite (needs make install-dev)"
+	@echo "  make app : Launch the Streamlit app that simulates the trained models"
 	@echo "  make gen-eval-artifacts : Generate publication-quality paper figures/results"
 	@echo "  make sync-paper-artifacts : Point research paper artifacts at the newest saved run (after save-run)"
 	@echo "  make sync-patent-artifacts : Sync evaluation artifacts to patent docs"

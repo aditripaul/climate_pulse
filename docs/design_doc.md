@@ -71,6 +71,11 @@ src/                  # PYTHONPATH root
 |       +-- bayesian_regression.py  # build_bayesian_model(), fit_bayesian_model()
 |       +-- ols_baseline.py         # statsmodels OLS baseline
 |       +-- evaluate.py
++-- app/
+|   +-- main.py               # Streamlit entry point: top navigation, overview
+|   +-- loaders.py            # Checkpoint lookup, model loading, rollouts (no Streamlit)
+|   +-- style.py, ui.py       # Plotly look, page chrome and CSS
+|   +-- views/                # weather.py, elnino.py, pollution.py, warming.py
 +-- scripts/
     +-- download_data.py           # CLI: ingest pipeline
     +-- download_nwm_data.py       # CLI: ERA5 Zarr download
@@ -389,6 +394,17 @@ TFT requires a `pytorch-lightning` `Trainer` because `TemporalFusionTransformer`
 **Decision:** Evaluation artifacts never fall back to synthetic or default values.  
 **Rationale:** A missing result is shown as "n/a" or an empty panel, so that no invented number or curve can reach the paper or patent.
 
+### 7.7 Inference-Only Streamlit App
+
+**Decision:** `src/app/` loads trained checkpoints and runs inference; it never trains. All model and data access is in `loaders.py` as plain, cached functions with no Streamlit import, and the pages in `views/` only render. Pages are selected with `st.navigation(position="top")`, so only the chosen page runs.  
+**Rationale:** Keeping logic out of the UI makes it testable (`tests/test_app_loaders.py`) and keeps one page's heavy model load from slowing the others.
+
+- **Checkpoint resolution:** `find_checkpoint()` searches the live checkpoint directory and then each committed snapshot, newest first, so a fresh clone can run without retraining. Missing data raises `DataMissing` with the command that creates it, and the page shows that message.
+- **Reuse:** the weather page builds the model exactly as `evaluate_nwm_checkpoint()` does; the El Niño page calls `elnino_test_predictions()` and `elnino_metrics()`; the warming page calls `detect_slope_changepoints()`.
+- **Pollution offline:** `build_pollution_splits()` calls the OpenAQ API for station locations, so the app rebuilds the graph from the cached measurement file (which carries each station's coordinates). A test run reproduces the reported 85 observed station-days and RMSE 46.58 µg/m³.
+- **Roll-forward is outside the validated scope:** the NWM was trained and tested for one 6-hour step. The app can feed predictions back in (sliding both input windows), but labels this as a demonstration on screen.
+- **Batch dependence:** `torch_geometric.nn.LayerNorm` defaults to graph mode and, without a batch vector, normalises over every node in the batch, so a prediction depends slightly on the other samples in its batch. The reported 1.214 K was measured in batches of 16; the app runs one sample at a time and gets 1.217 K. Fixing it needs per-sample normalisation and retraining.
+
 ---
 
 ## 8. Hardware Configuration
@@ -526,3 +542,5 @@ Running `make gen-eval-artifacts` executes model inference and generates publica
 | Evaluation | RMSE, MAE, ACC, skill, quantile calibration | Add CRPS for the probabilistic TFT forecasts |
 | Mixed precision | Not implemented | FP16/BF16 training on supported GPUs |
 | Artifact generator | Monolithic 27 KB script | Split into per-model artifact modules |
+| NWM layer norm | Graph-mode `LayerNorm` pools statistics across a batch, so predictions depend slightly on batch composition | Per-sample normalisation (needs retraining) |
+| Simulation app | Reads the cached OpenAQ file; edits to model code are not hot-reloaded in cached loaders | Packaged datasets for demos; model registry |

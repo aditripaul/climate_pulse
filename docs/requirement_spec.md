@@ -113,6 +113,20 @@ This document defines the functional, data, model, and non-functional requiremen
 | **R-04** | The system shall maintain a consolidated single patent application draft (`docs/patent/patent_application.md`) integrating the Neural Weather Model, Fibonacci spherical mesh, ENSO message conditioning, and multi-modal climate framework for IPINDIA / PCT legal review. |
 | **R-05** | The system shall let every reported result be rebuilt from scratch with a documented command sequence (README, "Reproducing the Results") and with a Google Colab notebook (`run.ipynb`) that runs the same sequence, persists data and results to Google Drive, and has a quick mode for checking the workflow. Seeds shall be fixed; text in the paper and patent that quotes results is maintained by hand. |
 
+### 3.9 Interactive Simulation App
+
+| ID | Requirement |
+|:---|:---|
+| **R-06** | The system shall provide a Streamlit application (`make app`, entry point `src/app/main.py`) that runs the trained El Niño, pollution and weather models and the change-point analysis on held-out data. It shall not train or modify any model. |
+| **R-06a** | Navigation shall be a top menu with an overview and one page per simulation; each page shall have a direct URL. |
+| **R-06b** | The weather page shall show truth, prediction and error for a chosen test time, as maps and as a 3D globe, for temperature and precipitation, for each available model version, with an optional Niño 3.4 override. Rolling the model forward beyond one 6-hour step shall be available only with an on-screen statement that it is not validated. |
+| **R-06c** | The El Niño page shall show TFT median and 10–90 % interval, LSTM and persistence for a chosen test window, an animation across the test period, and error by lead time. |
+| **R-06d** | The pollution page shall show station predictions coloured by US EPA PM2.5 band against observations where they exist, and shall state that the test record is too small to show exceedance skill. |
+| **R-06e** | The warming page shall let the user change the maximum number of breaks and the shortest segment and shall show the BIC for each number of breaks. |
+| **R-07** | Checkpoints shall be resolved from the live checkpoint directory and then from the newest saved run. A page whose checkpoint or data file is missing shall show which command creates it instead of failing. |
+| **R-08** | Model and data access shall be separate from rendering (`src/app/loaders.py`) and covered by tests that run without Streamlit. |
+| **R-09** | The app shall use the repository theme (white, grey, blue accent) configured in `.streamlit/config.toml` and the Plotly styling in `src/app/style.py`. |
+
 ---
 
 ## 4. Non-Functional Requirements
