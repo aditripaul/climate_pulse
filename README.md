@@ -217,7 +217,7 @@ make install        # includes streamlit and plotly
 make app            # opens http://localhost:8501
 ```
 
-A top menu switches between five pages:
+Five tabs switch between the pages (only the open tab runs):
 
 | Page | What you can do | Status |
 |:---|:---|:---|
@@ -226,8 +226,6 @@ A top menu switches between five pages:
 | **El Niño** | Pick a test window and see the TFT median and 10–90 % band against the LSTM, persistence and what happened; animate through 2015–2026; see error by lead time | Validated on held-out years |
 | **Air pollution** | See next-day PM2.5 at the stations coloured by EPA band; highlight a station; roll forward a few snapshots | Demonstration only (85 observed test station-days) |
 | **Warming rate** | Change the number of breaks and the shortest segment and watch the BIC choice; compare with a straight line | Statistical model, no network |
-
-Each page links to a direct URL, for example `/weather` or `/elnino`.
 
 **What it needs**
 

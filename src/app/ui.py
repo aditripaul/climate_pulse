@@ -6,7 +6,7 @@ import streamlit as st
 
 CSS = """
 <style>
-.block-container {padding-top: 4.6rem; padding-bottom: 3rem; max-width: 1280px;}
+.block-container {padding-top: 3.2rem; padding-bottom: 3rem; max-width: 1280px;}
 h1, h2, h3 {letter-spacing: -0.01em; color: #1F2937;}
 /* Metric cards */
 [data-testid="stMetric"] {background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 14px; padding: 14px 18px;}
@@ -16,6 +16,9 @@ h1, h2, h3 {letter-spacing: -0.01em; color: #1F2937;}
 [data-testid="stVerticalBlockBorderWrapper"] {border-radius: 14px; border-color: #E5E7EB;}
 /* Top navigation */
 header[data-testid="stHeader"] {background: rgba(255,255,255,0.92); border-bottom: 1px solid #E5E7EB;}
+/* Main tabs (navigation) */
+.st-key-main_tabs [role="tab"] {font-size: 1.05rem; font-weight: 600; padding: .6rem 1.2rem;}
+.st-key-main_tabs [role="tablist"] {gap: .4rem;}
 /* Hero + pills */
 .cp-hero {background: linear-gradient(135deg, #F3F6FB 0%, #FFFFFF 70%); border: 1px solid #E5E7EB; border-radius: 18px; padding: 2rem 2.2rem; margin-bottom: 1.2rem;}
 .cp-hero h1 {margin: 0 0 .3rem 0; font-size: 2.4rem;}

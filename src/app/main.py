@@ -30,21 +30,21 @@ def overview() -> None:
     st.markdown(
         '<div class="cp-hero"><div class="cp-eyebrow">Interactive simulations</div><h1>ClimatePulse</h1>'
         "<p>Run the trained models on held-out data and see what they get right and where they fail. "
-        "Choose a simulation below or from the menu at the top.</p></div>",
+        "Pick a simulation from the tabs above.</p></div>",
         unsafe_allow_html=True,
     )
     cards = [
-        (weather_page, "Weather model", ":material/public:", "Global 2 m temperature and rain, 6 hours ahead, animated against ERA5 on maps and a 3D globe.", "Validated for one step"),
-        (elnino_page, "El Niño", ":material/waves:", "12-month Niño 3.4 forecasts with uncertainty bands from the TFT, compared with an LSTM.", "Validated"),
-        (pollution_page, "Air pollution", ":material/air:", "Next-day PM2.5 at monitoring stations on a map, coloured by air-quality band.", "Demonstration"),
-        (warming_page, "Warming rate", ":material/trending_up:", "Find when global warming changed speed, with adjustable break search.", "Statistical model"),
+        ("Weather", "Weather model", ":material/public:", "Global 2 m temperature and rain, 6 hours ahead, animated against ERA5 on maps and a 3D globe.", "Validated for one step"),
+        ("El Niño", "El Niño", ":material/waves:", "12-month Niño 3.4 forecasts with uncertainty bands from the TFT, compared with an LSTM.", "Validated"),
+        ("Air pollution", "Air pollution", ":material/air:", "Next-day PM2.5 at monitoring stations on a map, coloured by air-quality band.", "Demonstration"),
+        ("Warming rate", "Warming rate", ":material/trending_up:", "Find when global warming changed speed, with adjustable break search.", "Statistical model"),
     ]
     cols = st.columns(4)
-    for col, (page, title, icon, text, tag) in zip(cols, cards, strict=True):
+    for col, (page, title, _icon, text, tag) in zip(cols, cards, strict=True):
         with col, st.container(border=True):
             st.markdown(f'<div class="cp-card-title">{title}</div>', unsafe_allow_html=True)
             st.markdown(f'<p class="cp-card-text">{text}</p><span class="cp-pill {"demo" if tag == "Demonstration" else "ok"}">{tag}</span>', unsafe_allow_html=True)
-            st.page_link(page, label="Open", icon=icon)
+            st.caption(f"Open the **{page}** tab above")
 
     st.markdown("### Reported results")
     m1, m2, m3, m4 = st.columns(4)
@@ -68,17 +68,24 @@ def overview() -> None:
     st.dataframe(rows, hide_index=True, width="stretch")
 
 
-overview_page = st.Page(overview, title="Overview", icon=":material/home:", url_path="overview", default=True)
-weather_page = st.Page(weather.render, title="Weather", icon=":material/public:", url_path="weather")
-elnino_page = st.Page(elnino.render, title="El Niño", icon=":material/waves:", url_path="elnino")
-pollution_page = st.Page(pollution.render, title="Air pollution", icon=":material/air:", url_path="pollution")
-warming_page = st.Page(warming.render, title="Warming rate", icon=":material/trending_up:", url_path="warming")
+TABS = [
+    (":material/home: Overview", overview),
+    (":material/public: Weather", weather.render),
+    (":material/waves: El Niño", elnino.render),
+    (":material/air: Air pollution", pollution.render),
+    (":material/trending_up: Warming rate", warming.render),
+]
 
 
 def main() -> None:
     st.set_page_config(page_title="ClimatePulse", page_icon="🌍", layout="wide")
     ui.inject_css()
-    st.navigation([overview_page, weather_page, elnino_page, pollution_page, warming_page], position="top").run()
+    tabs = st.tabs([label for label, _ in TABS], key="main_tabs", on_change="rerun")
+    for tab, (_, render) in zip(tabs, TABS, strict=True):
+        with tab:
+            # Only the open tab runs, so one page's models are not loaded or re-run for the others
+            if getattr(tab, "open", True):
+                render()
 
 
 main()

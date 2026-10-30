@@ -396,7 +396,7 @@ TFT requires a `pytorch-lightning` `Trainer` because `TemporalFusionTransformer`
 
 ### 7.7 Inference-Only Streamlit App
 
-**Decision:** `src/app/` loads trained checkpoints and runs inference; it never trains. All model and data access is in `loaders.py` as plain, cached functions with no Streamlit import, and the pages in `views/` only render. Pages are selected with `st.navigation(position="top")`, so only the chosen page runs.  
+**Decision:** `src/app/` loads trained checkpoints and runs inference; it never trains. All model and data access is in `loaders.py` as plain, cached functions with no Streamlit import, and the pages in `views/` only render. The pages are `st.tabs` with `on_change="rerun"`, and each page renders only when its tab is open (`tab.open`), so one page's models are not loaded or re-run for the others.  
 **Rationale:** Keeping logic out of the UI makes it testable (`tests/test_app_loaders.py`) and keeps one page's heavy model load from slowing the others.
 
 - **Checkpoint resolution:** `find_checkpoint()` searches the live checkpoint directory and then each committed snapshot, newest first, so a fresh clone can run without retraining. Missing data raises `DataMissing` with the command that creates it, and the page shows that message.

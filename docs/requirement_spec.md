@@ -118,7 +118,7 @@ This document defines the functional, data, model, and non-functional requiremen
 | ID | Requirement |
 |:---|:---|
 | **R-06** | The system shall provide a Streamlit application (`make app`, entry point `src/app/main.py`) that runs the trained El Niño, pollution and weather models and the change-point analysis on held-out data. It shall not train or modify any model. |
-| **R-06a** | Navigation shall be a top menu with an overview and one page per simulation; each page shall have a direct URL. |
+| **R-06a** | Navigation shall be tabs with an overview and one tab per simulation; only the open tab shall run. |
 | **R-06b** | The weather page shall show truth, prediction and error for a chosen test time, as maps and as a 3D globe, for temperature and precipitation, for each available model version, with an optional Niño 3.4 override. Rolling the model forward beyond one 6-hour step shall be available only with an on-screen statement that it is not validated. |
 | **R-06c** | The El Niño page shall show TFT median and 10–90 % interval, LSTM and persistence for a chosen test window, an animation across the test period, and error by lead time. |
 | **R-06d** | The pollution page shall show station predictions coloured by US EPA PM2.5 band against observations where they exist, and shall state that the test record is too small to show exceedance skill. |
