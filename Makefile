@@ -1,4 +1,4 @@
-.PHONY: venv install install-dev test app install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate train-elnino-seeds export-tft-forecasts nwm-ablation clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf project_report_pdf help
+.PHONY: venv install install-dev test app install-rocm install-npu download-data download-nwm-data train train-elnino train-pollution train-nwm train-climate train-elnino-seeds export-tft-forecasts nwm-ablation clean clean-checkpoints clean-eval-artifacts clean-downloaded-datasets gen-eval-artifacts save-run sync-paper-artifacts gen-research-paper-pdf sync-patent-artifacts gen-patent-application-pdf project_proposal_pdf gen-project-report-pdf help
 
 .DEFAULT_GOAL := help
 
@@ -149,7 +149,7 @@ project_proposal_pdf:
     -s
 
 # Page geometry, font and footer are set in the report's YAML header
-project_report_pdf:
+gen-project-report-pdf:
 	cd docs/ && pandoc project_report.md -o project_report.pdf \
     --pdf-engine=xelatex \
     --metadata=smart:false \
@@ -210,7 +210,7 @@ help:
 	@echo "  make gen-research-paper-pdf : Generate publication-quality paper pdf"
 	@echo "  make gen-patent-application-pdf : Generate publication-quality patent application pdf"
 	@echo "  make project_proposal_pdf : Generate project proposal pdf"
-	@echo "  make project_report_pdf : Generate project report pdf"
+	@echo "  make gen-project-report-pdf : Generate project report pdf"
 	@echo "  make save-run : Save the latest trained checkpoints and evaluation artifacts to a timestamped folder for future inference"
 	@echo "  make clean : Remove build and test cache artifacts"
 	@echo "  make clean-checkpoints : Remove trained model checkpoints"

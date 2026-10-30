@@ -212,6 +212,27 @@ The core of the project is a set of four models. Each is chosen to fit the struc
     - *Task:* Fits a continuous piecewise-linear trend to 76 annual GISTEMP global means (1950–2025), so that a change-point alters the warming *rate* rather than the temperature level. Errors follow an AR(1) process, fitted by Prais–Winsten generalised least squares, so that year-to-year correlation does not invent breaks. Every placement of 0 to 3 change-points with segments of at least 10 years is fitted, and BIC chooses how many the data justify. No neural network is involved.
     - *Comparison:* A mean-shift CUSUM test, which finds 12 spurious breaks because it tests the level rather than the slope.
 
+### 2.2.1 Model Choice and Alternatives
+
+Each architecture was chosen because it fits the shape of its data, and each choice was set against established approaches from the literature.
+
+| Task | Chosen | Alternatives considered | Why the choice |
+|:---|:---|:---|:---|
+| El Niño | Temporal Fusion Transformer | CNN on climate-model output (Ham et al.); plain LSTM | Forecasts all 12 months at once, uses known future inputs such as the calendar month, gives calibrated quantile intervals rather than only point forecasts, and its attention can be inspected |
+| Air pollution | A3TGCN | Grid CNNs; diffusion GCN (DCRNN) | Stations are irregular points, not a grid: graph convolution shares signal between nearby stations, a GRU tracks time and attention weighs recent days, in only 6,984 parameters |
+| Weather | Mesh GNN on a Fibonacci mesh | FourCastNet (regular grid); GraphCast (icosahedral mesh) | Regular grids crowd at the poles; a Fibonacci mesh is uniform at any size, while icosahedral meshes exist only at fixed subdivision levels |
+| Warming rate | Segmented trend, AR(1) errors, BIC | Mean-shift CUSUM; breaks with independent errors | Tests the rate, not the level; AR(1) errors stop autocorrelation inventing breaks (CUSUM finds 12 spurious ones) |
+
+### 2.2.2 Baselines and Skill Score
+
+A model adds value only where it beats a simple reference. Climate variables change slowly, so at short leads this is a demanding test. Every model is therefore compared with **persistence**, which assumes nothing changes and needs no model at all:
+
+- **El Niño:** each of the next 12 months equals this month's Niño 3.4 value.
+- **Air pollution:** tomorrow's PM2.5 equals today's PM2.5 at the same station. For exceedance days, an **always-alert** rule (predict unhealthy air every day) is also used.
+- **Weather:** the field in 6 hours equals the current field.
+
+Skill is measured as $\text{Skill} = 1 - \text{MSE}_\text{model} / \text{MSE}_\text{persistence}$ (the convention of Barnston et al.). A value of 0 means no better than persistence, 1 would be perfect and a negative value is worse than persistence.
+
 ## 2.3 Functionality to Module Mapping
 
 To keep the code base clean, each concern lives in its own module under `src/` (imported with `PYTHONPATH=src`):
@@ -258,7 +279,15 @@ The front end is a Streamlit application, launched with `make app`, that runs th
 The pipeline is driven by a `Makefile` and a single training entry point, so every step can be run on its own or as part of the full sequence.
 
 - **Configuration:** Two layers of configuration keep secrets apart from parameters. Credentials (the OpenAQ API key) live in an untracked `.env` file; operational parameters (epochs, seeds, encoder lengths, NWM conditioning source and loss weighting) live in `configs/runtime_conf.yaml`. Any value can be overridden with an environment variable such as `MODEL_MAX_EPOCHS=5`, which makes quick tests and the Colab notebook (`run.ipynb`) possible without editing files.
-- **Training setup:** All networks use PyTorch, a learning rate of $10^{-3}$ and `ReduceLROnPlateau` (factor 0.5). The TFT uses Adam with gradient clipping 0.1 and early stopping after 10 epochs without improvement; the LSTM uses Adam with clipping 1.0 and patience 15; the A3TGCN trains for 100 epochs and keeps the best validation checkpoint; the weather model uses AdamW (weight decay $10^{-4}$) with patience 10. Batch size is 32, except for the A3TGCN, which trains on one graph window per step.
+- **Training setup:** All models use PyTorch, and the learning rate halves when validation loss stops improving (`ReduceLROnPlateau`, factor 0.5). Batch size is 32 for the TFT, LSTM and weather model; the A3TGCN trains on one graph window per step. The best checkpoint by validation loss is kept in every case.
+
+| Model | Parameters | Loss | Optimiser | Stopping |
+|:---|:---:|:---|:---|:---|
+| TFT | 96,047 | Quantile (pinball) loss at $\tau$ = 0.1, 0.5, 0.9 | Adam, lr $10^{-3}$, clip 0.1 | Early stop, patience 10 |
+| BiLSTM | 142,668 | MSE over 12 leads | Adam, lr $10^{-3}$, clip 1.0 | Early stop, patience 15 |
+| A3TGCN | 6,984 | MSE on observed station-days only | Adam, lr $10^{-3}$, clip 1.0 | 100 epochs, best kept |
+| Weather model | 217,346 | MSE weighted by cos(latitude) | AdamW, lr $10^{-3}$, decay $10^{-4}$ | Early stop, patience 10 |
+
 - **Efficient graph batching:** In the weather model, the edge indices for a whole batch are built by offset arithmetic on tensors rather than Python loops, so the per-batch overhead does not grow with batch size.
 - **Compute budget:** The networks are small (7k to 217k parameters) and train on a CPU. The main models take about 2.2 hours, almost all of it the weather model (about 2 hours, roughly 90 s per epoch); the robustness studies add about 6 hours, mostly the three ablation variants trained in parallel.
 - **Snapshots:** `make save-run` copies checkpoints and artifacts to `runtime/saved/run_<timestamp>/`. The research paper's `artifacts/` folder is a symbolic link to the selected snapshot, so the paper always reads one fixed run. The results in this report come from `run_20261027_230426`, which is committed together with its checkpoints.
@@ -284,6 +313,43 @@ Further safeguards in the code:
 
 ![Warming-rate tab: adjustable change-point search with the BIC choice and segment slopes.](project_report_figures/app_warming.png){width=90%}
 
+## 3.4 How to Run: Rebuilding Every Result
+
+One ordered run rebuilds every figure and table. The same steps are listed in `run.sh`, and `run.ipynb` runs them on Google Colab. The committed snapshot `run_20261027_230426` lets results be checked without retraining.
+
+```bash
+# 0. Get the code
+git clone <repository-url> && cd climate_pulse
+
+# 1. Environment and credentials
+make install-dev
+cp -n .env.example .env             # set DATA_OPENAQ_API_KEY
+
+# 2. Data
+make download-data
+make download-nwm-data
+make test
+
+# 3. El Niño: five seeds, then main run
+make train-elnino-seeds
+# set tft_use_year in configs/runtime_conf.yaml from elnino_seed_selection.json
+make train-elnino
+
+# 4. Other models
+make train-pollution
+make train-nwm                      # about 2 h on CPU
+make export-tft-forecasts           # needs the main TFT
+make nwm-ablation                   # about 5 h on CPU
+
+# 5. Artifacts, snapshot, documents
+make gen-eval-artifacts
+make save-run
+make sync-paper-artifacts
+make gen-research-paper-pdf
+```
+
+The order matters: the ablation scores the main weather model, so `train-nwm` comes first, and exporting TFT forecasts needs the main TFT.
+
 # 4. DATA FLOW
 
 ## 4.1 Data Flow for Training and Evaluation
@@ -296,7 +362,29 @@ The primary execution cycle turns five public datasets into trained models and p
 4. **Training:** Each model is trained on its training windows, monitored on its validation windows, and its best checkpoint by validation loss is saved.
 5. **Evaluation:** Checkpoints are scored on the test windows against persistence (and the LSTM or always-alert baselines), predictions are converted back to physical units, and the metrics, figures and tables are written to `runtime/eval_artifacts/` and then frozen in a snapshot.
 
-## 4.2 Data Flow for the Simulation App
+## 4.2 Data Sources and Pipeline Stages
+
+All five datasets are open access and are downloaded automatically by `make download-data` (four sources) and `make download-nwm-data` (ERA5). Only OpenAQ needs a free API key.
+
+| Dataset | What it provides | Used by | URL |
+|:----------|:------------------------|:----------|:----------------------|
+| NOAA ERSST v5 | Sea temperature 1950–2026, monthly on a 2° grid | El Niño | psl.noaa.gov/data/gridded/ |
+| OpenAQ v3 | PM2.5, 75 stations, 2016–2025 | Pollution | openaq.org |
+| NASA GISTEMP v4 | Global temperature 1950–2025 | Warming rate | data.giss.nasa.gov/gistemp/ |
+| Climate TRACE v7 | Country emissions (optional regression) | Not used in any reported result | climatetrace.org |
+| ERA5 / WeatherBench2 | 2 m temperature and rain, 2020–2021, 6-hourly at 5.625° (2,924 time steps) | Weather | weatherbench2.readthedocs.io |
+
+Each model reads its own cached file, so any stage can be rerun or inspected on its own. The splits and training-only normalisation happen later, inside each model's dataset module.
+
+| Source | Processing | Stored in `datasets/` | Used by |
+|:----------|:--------------------|:----------------------|:----------|
+| NOAA ERSST v5 | Clean → Niño indices → rolling and seasonal features | `nino_features.parquet` | TFT, LSTM; weather-model Niño input |
+| OpenAQ v3 | Clean, add AQI; stations → 10-nearest-neighbour haversine graph | PM2.5 cache + `openaq/locations.parquet` | A3TGCN |
+| NASA GISTEMP v4 | Clean → rolling and seasonal features | `gistemp_features.parquet` | Change-point model |
+| Climate TRACE v7 | Clean → align with GISTEMP by year | `regression_dataset.parquet` | Bayesian regression (optional) |
+| ERA5 / WeatherBench2 | Subset 2020–2021, 5.625°, temperature and rain | `era5_5deg_6hr_2020_2022.nc` | Weather model |
+
+## 4.3 Data Flow for the Simulation App
 
 The app reads the same checkpoints and evaluation code as the paper, so its numbers match the reported ones:
 
@@ -329,7 +417,129 @@ The work also contributed to a draft research paper and a draft patent applicati
 
 Ultimately, ClimatePulse shows that a small, open, CPU-trainable pipeline can study ENSO, air quality, global weather and the warming trend under one consistent evaluation, and that holding every model to the same leakage-free standard produces results that are more modest than the architectures' reputations, but trustworthy.
 
-## 5.2 Future Work
+## 5.2 Detailed Evaluation Results
+
+### 5.2.1 Evaluation Protocol
+
+Leakage, meaning test-period information reaching training, inflated an earlier version of this project (TFT skill 0.91). The six rules in Section 3.3 remove it, so the numbers below are lower than the leaky run's, but each one is a fair test on unseen data. All results come from the saved run `20261027_230426`, the same snapshot that the research paper and the patent application report.
+
+### 5.2.2 El Niño: Five Seeds
+
+Test period March 2015 – September 2026, leads 1–12, mean ± standard deviation over five seeds. RMSE is the average error (lower is better), ACC the correlation with observed anomalies, and bias is forecast minus observed.
+
+| Model | RMSE (°C) | ACC | Skill | Bias (°C) |
+|:---|:---:|:---:|:---:|:---:|
+| TFT, no year (selected) | 0.782 ± 0.075 | 0.645 ± 0.023 | 0.427 ± 0.113 | −0.321 ± 0.146 |
+| TFT, with year | 0.838 ± 0.070 | 0.483 ± 0.193 | 0.341 ± 0.106 | −0.242 ± 0.141 |
+| Bidirectional LSTM | 0.809 ± 0.020 | 0.562 ± 0.035 | 0.390 ± 0.029 | −0.268 ± 0.078 |
+| Persistence | 1.036 | 0.383 | 0.000 | +0.062 |
+
+Removing the calendar-year input lowered the mean validation loss from 0.331 to 0.283, so that TFT variant was selected before any test result was examined. Both learned models clearly beat persistence. The TFT's edge over the LSTM is smaller than its seed-to-seed spread (its RMSE spread is nearly four times the LSTM's), so the two should be treated as comparable. The seed-42 main run scored better than this average (RMSE 0.684 °C).
+
+### 5.2.3 El Niño: Lead Time
+
+RMSE by forecast lead in the main run (seed 42):
+
+| Lead (months) | TFT | LSTM | Persistence |
+|:---:|:---:|:---:|:---:|
+| 1 | 0.394 | 0.324 | **0.247** |
+| 3 | **0.525** | 0.542 | 0.609 |
+| 6 | **0.704** | 0.862 | 1.032 |
+| 9 | **0.765** | 0.927 | 1.269 |
+| 12 | **0.856** | 0.934 | 1.376 |
+
+Persistence is best at 1 month because Niño 3.4 changes slowly from month to month. The LSTM overtakes it from month 2, and the TFT is the most accurate of the three at every lead from 3 to 12 months. The learned models earn their keep from about three months out.
+
+### 5.2.4 El Niño: Bias and Calibration
+
+Both models run cold in a warmer test period. The mean TFT bias over five seeds is −0.32 °C (LSTM −0.27 °C), and the mean Niño 3.4 anomaly rises from −0.23 °C in the training period to +0.14 °C in the test period. The LSTM never sees the calendar year and shares the bias, so the year input is not the cause; non-stationarity is the likelier one.
+
+An 80 % interval should contain 80 % of observations. In the main run the TFT's interval contains 75.7 %, with 16.1 % above its top and 8.2 % below its bottom; the five-seed mean coverage is about 63 %. Recent years are warmer than the training years, so fixing the bias matters more than widening the interval.
+
+### 5.2.5 Air Pollution: Next-Day PM2.5
+
+Forecasts are scored only where a reading exists. An exceedance is a day with PM2.5 ≥ 35.5 µg/m³ (AQI above 100).
+
+| Metric | A3TGCN | Persistence | Always alert |
+|:---|:---:|:---:|:---:|
+| RMSE (µg/m³) | 46.6 | 52.0 | — |
+| Exceedance F1 | 0.828 | 0.881 | 0.828 |
+| Precision / recall | 0.706 / 1.000 | — | — |
+
+Only 85 of the 1,500 test station-days (from 36 stations) have a reading, and 62 of those fall on two dates. Of these, 70.6 % exceed the threshold, which makes always-alert a strong baseline. The model flags every observed day (60 true positives, 25 false positives), so its F1 equals an always-alert rule. Concentration forecasts beat persistence by about 10 %, but 85 test readings are too few to show that the model can spot unhealthy-air days.
+
+### 5.2.6 Training Logs
+
+The logs below are verbatim lines from the main run on 27 October 2026; only the logger prefix (level and module) is trimmed.
+
+```text
+# El Niño main run
+14:31:54 Prepared TFT DataFrame: 921 timesteps, 15 features
+14:31:57 Split: train=644 months, val=138 months, test=139 months;
+         windows train=573, val=127, test=128
+14:31:57 Created TFT model: 96,047 parameters
+14:31:57 Training TFT: 100 epochs, batch_size=32
+14:32:50 TFT training complete. Best val_loss=0.287493
+14:32:52 Created LSTM model: 142,668 params, hidden=64, layers=2,
+         bidirectional=True
+14:33:03 Early stopping at epoch 21
+14:33:03 LSTM training complete. Best val_loss=0.337486
+
+# Pollution A3TGCN
+14:33:17 Created PollutionSTGNN: 6,984 params, hidden=32, periods=7
+14:33:17 Training PollutionSTGNN: 100 epochs, lr=0.001, device=cpu,
+         params=6,984
+14:33:20 Epoch 1/100: train=1.741392, val=0.380588
+14:37:44 Epoch 100/100: train=0.968618, val=0.301509
+
+# Main weather model
+14:37:52 NWM conditioning=observed (nino_features.parquet),
+         area_weighted_loss=True
+14:37:53 Training NWM ST-GNN: 100 epochs, device=cpu, lr=0.001, wd=0.0001
+14:39:11 Epoch 1/100: train_loss=0.286078, val_loss=0.193916,
+         val_rmse=0.440358
+16:32:23 Epoch 80/100: train_loss=0.107055, val_loss=0.117450,
+         val_rmse=0.342710
+16:33:47 Early stopping triggered at epoch 81.
+16:33:47 NWM training complete. Best val_loss=0.117334
+
+# Ablation (nwm_ablation/forecast/train_nwm_forecast.log)
+16:53:06 NWM conditioning=forecast (nino34_tft_lead1.parquet),
+         area_weighted_loss=True
+22:06:03 Early stopping triggered at epoch 85.
+
+# Evaluation (make gen-eval-artifacts)
+23:04:07 NWM test (observed): T2m RMSE 1.214 K (persistence 2.457 K),
+         precip RMSE 6.821e-04 (persistence 9.032e-04)
+```
+
+The TFT trained in under a minute, and its best validation loss of 0.2875 matches its checkpoint name. The pollution model ran all 100 epochs and keeps the best validation checkpoint. The main weather model trained from 14:37 to 16:33 (about 86 seconds per epoch), the three ablation variants trained in parallel from 16:53 to 22:06, and the logged test RMSE is exactly the 1.214 K reported.
+
+### 5.2.7 Patent Application Status
+
+The draft application has 15 claims covering the spherical-mesh weather model, a fast graph-batching method and the four-module system.
+
+| Claims | Subject |
+|:---:|:---|
+| 1–7 | Fibonacci-mesh weather model with ENSO conditioning |
+| 8–9 | Loop-free batching of graph edge indices |
+| 10–13 | Four-module system, TFT forecasts driving the weather model |
+| 14–15 | Matching method and storage-medium claims |
+
+The application is still a draft: inventor names remain to be completed, Section 7 now discloses the ablation results, and revised claim wording has been drafted for the patent agent. Claims built on ENSO coupling (1(d), 3, 10 and 14) conflict with the disclosed results and need revising; the mesh and batching claims are the strongest.
+
+### 5.2.8 Conclusions by Model
+
+| Model | What the evidence supports | Next step |
+|:---|:---|:---|
+| El Niño | TFT and LSTM are comparable and beat persistence from 2–3 months ahead | Remove the shared cold bias |
+| Air pollution | About 10 % below persistence on concentration | A longer download to test exceedance skill |
+| Weather | Halves persistence error at 6 hours | ENSO coupling is not supported on two years of data |
+| Warming rate | A regime change around 1976, from 0.03 to 0.21 °C per decade | A second break after 2012 is possible but not yet established |
+
+The integration works and is reproducible, but the scientific claims must stay modest, and ENSO coupling of the weather model is not supported.
+
+## 5.3 Future Work
 
 To strengthen the scientific results and extend the system, the following enhancements are recommended:
 
