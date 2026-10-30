@@ -294,7 +294,7 @@ The pipeline is driven by a `Makefile` and a single training entry point, so eve
 - **Compute budget:** The networks are small (7k to 217k parameters) and train on a CPU. The main models take about 2.2 hours, almost all of it the weather model (about 2 hours, roughly 90 s per epoch); the robustness studies add about 6 hours, mostly the three ablation variants trained in parallel.
 - **Snapshots:** `make save-run` copies checkpoints and artifacts to `runtime/saved/run_<timestamp>/`. The research paper's `artifacts/` folder is a symbolic link to the selected snapshot, so the paper always reads one fixed run. The results in this report come from `run_20261027_230426`, which is committed together with its checkpoints.
 
-![Training (blue) and validation (red, dashed) loss for the four deep-learning models.](research_paper/artifacts/eval_artifacts/model_training_curves.png){width=85%}
+![Training dynamics of the four deep-learning models: training loss (blue) and validation loss (red, dashed) per epoch for the TFT, the LSTM baseline, the pollution A3TGCN and the weather model. The best checkpoint by validation loss is kept in every case. The TFT and LSTM validation losses stop improving after about 5 to 13 epochs, while the weather model converges smoothly.](research_paper/artifacts/eval_artifacts/model_training_curves.png){width=85%}
 
 ## 3.3 Robustness & Error Handling
 
