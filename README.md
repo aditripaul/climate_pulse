@@ -35,7 +35,7 @@ Forecasts the monthly Niño 3.4 sea-surface temperature anomaly 1–12 months ah
 - **LSTM baseline:** a two-layer bidirectional LSTM on the Niño 3.4 series alone.
 - **Persistence baseline:** the last observed anomaly held constant; skill scores are measured against it.
 
-Data are split chronologically 70/15/15 (train 1950–mid-2003, validation to 2014, test 2015–2026). No training target falls in the validation or test periods.
+Data are split chronologically 70/15/15 (train Jan 1950–Aug 2003, validation to Feb 2015, test Mar 2015–Sep 2026). No training target falls in the validation or test periods.
 
 ### 2. Pollution Dispersion (A3TGCN)
 Predicts next-day PM2.5 at each station of an OpenAQ monitoring network (75 stations in India and the United States in the reference run).
@@ -143,7 +143,7 @@ model:
   max_epochs: 100
   seed: 42
   tft_encoder_length: 60
-  tft_use_year: true
+  tft_use_year: false     # set from the seed study (elnino_seed_selection.json)
   lstm_encoder_length: 60
   lstm_hidden_size: 64
   gnn_num_periods: 7
