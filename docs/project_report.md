@@ -212,6 +212,8 @@ The core of the project is a set of four models. Each is chosen to fit the struc
     - *Task:* Fits a continuous piecewise-linear trend to 76 annual GISTEMP global means (1950–2025), so that a change-point alters the warming *rate* rather than the temperature level. Errors follow an AR(1) process, fitted by Prais–Winsten generalised least squares, so that year-to-year correlation does not invent breaks. Every placement of 0 to 3 change-points with segments of at least 10 years is fitted, and BIC chooses how many the data justify. No neural network is involved.
     - *Comparison:* A mean-shift CUSUM test, which finds 12 spurious breaks because it tests the level rather than the slope.
 
+<!-- ![The weather model maps the 2,048 equirectangular ERA5 grid nodes (light coral) onto a 2,000-node Fibonacci spherical mesh (blue) for evenly spaced message passing.](research_paper/artifacts/eval_artifacts/nwm_fibonacci_mesh.png){width=70%} -->
+
 ### 2.2.1 Model Choice and Alternatives
 
 Each architecture was chosen because it fits the shape of its data, and each choice was set against established approaches from the literature.
@@ -291,6 +293,8 @@ The pipeline is driven by a `Makefile` and a single training entry point, so eve
 - **Efficient graph batching:** In the weather model, the edge indices for a whole batch are built by offset arithmetic on tensors rather than Python loops, so the per-batch overhead does not grow with batch size.
 - **Compute budget:** The networks are small (7k to 217k parameters) and train on a CPU. The main models take about 2.2 hours, almost all of it the weather model (about 2 hours, roughly 90 s per epoch); the robustness studies add about 6 hours, mostly the three ablation variants trained in parallel.
 - **Snapshots:** `make save-run` copies checkpoints and artifacts to `runtime/saved/run_<timestamp>/`. The research paper's `artifacts/` folder is a symbolic link to the selected snapshot, so the paper always reads one fixed run. The results in this report come from `run_20261027_230426`, which is committed together with its checkpoints.
+
+![Training (blue) and validation (red, dashed) loss for the four deep-learning models.](research_paper/artifacts/eval_artifacts/model_training_curves.png){width=85%}
 
 ## 3.3 Robustness & Error Handling
 
@@ -436,6 +440,8 @@ Test period March 2015 – September 2026, leads 1–12, mean ± standard deviat
 
 Removing the calendar-year input lowered the mean validation loss from 0.331 to 0.283, so that TFT variant was selected before any test result was examined. Both learned models clearly beat persistence. The TFT's edge over the LSTM is smaller than its seed-to-seed spread (its RMSE spread is nearly four times the LSTM's), so the two should be treated as comparable. The seed-42 main run scored better than this average (RMSE 0.684 °C).
 
+![A 12-month forecast for one held-out sequence: TFT median and 10–90 % band, LSTM and observed Niño 3.4.](research_paper/artifacts/eval_artifacts/elnino_forecast_vs_actual.png){width=85%}
+
 ### 5.2.3 El Niño: Lead Time
 
 RMSE by forecast lead in the main run (seed 42):
@@ -450,11 +456,17 @@ RMSE by forecast lead in the main run (seed 42):
 
 Persistence is best at 1 month because Niño 3.4 changes slowly from month to month. The LSTM overtakes it from month 2, and the TFT is the most accurate of the three at every lead from 3 to 12 months. The learned models earn their keep from about three months out.
 
+![RMSE as a function of forecast lead time for the TFT, LSTM and persistence.](research_paper/artifacts/eval_artifacts/elnino_crps_leadtime.png){width=70%}
+
 ### 5.2.4 El Niño: Bias and Calibration
 
 Both models run cold in a warmer test period. The mean TFT bias over five seeds is −0.32 °C (LSTM −0.27 °C), and the mean Niño 3.4 anomaly rises from −0.23 °C in the training period to +0.14 °C in the test period. The LSTM never sees the calendar year and shares the bias, so the year input is not the cause; non-stationarity is the likelier one.
 
 An 80 % interval should contain 80 % of observations. In the main run the TFT's interval contains 75.7 %, with 16.1 % above its top and 8.2 % below its bottom; the five-seed mean coverage is about 63 %. Recent years are warmer than the training years, so fixing the bias matters more than widening the interval.
+
+![TFT quantile calibration: observed frequency of outcomes below the predicted 10th, 50th and 90th percentiles. Points below the diagonal indicate forecasts that are too low.](research_paper/artifacts/eval_artifacts/elnino_calibration_diagram.png){width=60%}
+
+![Six-month-ahead TFT median and 10–90 % interval against observed values across the test set. The forecast reproduces the timing of the 2015–16 and 2023–24 El Niño events but underestimates their peaks.](research_paper/artifacts/eval_artifacts/elnino_quantile_coverage.png){width=85%}
 
 ### 5.2.5 Air Pollution: Next-Day PM2.5
 
@@ -466,9 +478,47 @@ Forecasts are scored only where a reading exists. An exceedance is a day with PM
 | Exceedance F1 | 0.828 | 0.881 | 0.828 |
 | Precision / recall | 0.706 / 1.000 | — | — |
 
-Only 85 of the 1,500 test station-days (from 36 stations) have a reading, and 62 of those fall on two dates. Of these, 70.6 % exceed the threshold, which makes always-alert a strong baseline. The model flags every observed day (60 true positives, 25 false positives), so its F1 equals an always-alert rule. Concentration forecasts beat persistence by about 10 %, but 85 test readings are too few to show that the model can spot unhealthy-air days.
+Only 85 of the 1,500 test station-days (from 36 stations) have a reading, and 62 of those fall on two dates. Of all 85 readings, 70.6 % exceed the threshold, which makes always-alert a strong baseline. The model flags every observed day (60 true positives, 25 false positives), so its F1 equals an always-alert rule. Concentration forecasts beat persistence by about 10 %, but 85 test readings are too few to show that the model can spot unhealthy-air days.
 
-### 5.2.6 Training Logs
+![Exceedance confusion matrix on observed test station-days: 60 true positives, 25 false positives, no false negatives and no true negatives.](research_paper/artifacts/eval_artifacts/pollution_confusion_matrix.png){width=70%}
+
+![Distribution of per-station RMSE (µg/m³) across the 36 stations with test readings.](research_paper/artifacts/eval_artifacts/pollution_dispersion_nodes.png){width=70%}
+
+### 5.2.6 Weather Model
+
+On the 438 held-out test samples, the main model predicts 2 m temperature 6 hours ahead with an area-weighted (cosine-latitude) RMSE of **1.214 K**, half that of persistence (2.457 K). Its error is lowest in the tropics (0.84 K) and highest near the poles (1.55 K). For total precipitation, the RMSE is $6.82 \times 10^{-4}$ m per 6 h against $9.03 \times 10^{-4}$ for persistence, a 24 % reduction. Training ran for 81 epochs before early stopping, with the best validation loss of 0.1173 at epoch 70; the gap of about 9 % between training and validation loss at that point (0.1079 vs. 0.1173) is mild overfitting at most.
+
+![Global 2 m temperature for a held-out test sample: ERA5 truth (left), model prediction (middle) and error (right). Sample RMSE 1.15 K.](research_paper/artifacts/eval_artifacts/nwm_predicted_vs_actual.png){width=85%}
+
+![Time-averaged 2 m temperature RMSE at each grid point over the test set (global 1.21 K, tropics 0.84 K, poles 1.55 K).](research_paper/artifacts/eval_artifacts/nwm_spatial_error_map.png){width=85%}
+
+![Weather-model loss convergence and the learning-rate schedule.](research_paper/artifacts/eval_artifacts/nwm_convergence_lr.png){width=85%}
+
+An ablation changes one thing in the main model, retrains it, and scores every variant on the same test samples (one training run per variant; gaps below about 0.05 K are within seed noise):
+
+| Variant | Niño 3.4 input | Loss | T2m RMSE (K) |
+|:---|:---|:---|:---:|
+| Unweighted loss | observed | unweighted | **1.164** |
+| Unconditioned | none (zero) | area-weighted | 1.195 |
+| Main model | observed | area-weighted | 1.214 |
+| Conditioned on TFT forecasts | TFT lead-1 forecast | area-weighted | 1.335 |
+| Persistence | — | — | 2.457 |
+
+Niño 3.4 adds nothing at 6 hours, and feeding in TFT forecasts makes the model worse (+0.12 K); the area-weighted loss does not help either. Over a 6-hour step, the recent atmospheric state carries far more information than a monthly ENSO index, and 2020–2021 spans a single La Niña episode, so the index barely varies.
+
+### 5.2.7 Warming Rate
+
+A trend of joined straight segments is fitted to 76 annual global means (GISTEMP, 1950–2025), and BIC decides how many breaks the data justify.
+
+| Change-points $K$ | 0 | 1 | 2 | 3 |
+|:---|:---:|:---:|:---:|:---:|
+| BIC | −105.7 | **−114.1** | −113.7 | −105.7 |
+
+BIC selects one change-point, in **1976**, where the warming rate rises from 0.035 to 0.211 °C per decade (residual AR(1) coefficient $\phi$ = 0.27). The location is loosely constrained: break years from 1970 to 1986 fit almost as well ($\Delta$BIC < 2). A second break in 2012 is nearly tied ($\Delta$BIC = 0.4; the two-break fit places breaks in 1971 and 2012, with a final rate of 0.363 °C per decade). Warming therefore sped up about six-fold in the mid-1970s, while a further acceleration after 2012 is possible but not yet established.
+
+![GISTEMP anomalies: monthly values (grey), annual means (black points) and the BIC-selected piecewise-linear trend with the 1976 change-point.](research_paper/artifacts/eval_artifacts/climate_changepoint_regression.png){width=85%}
+
+### 5.2.8 Training Logs
 
 The logs below are verbatim lines from the main run on 27 October 2026; only the logger prefix (level and module) is trimmed.
 
@@ -515,7 +565,7 @@ The logs below are verbatim lines from the main run on 27 October 2026; only the
 
 The TFT trained in under a minute, and its best validation loss of 0.2875 matches its checkpoint name. The pollution model ran all 100 epochs and keeps the best validation checkpoint. The main weather model trained from 14:37 to 16:33 (about 86 seconds per epoch), the three ablation variants trained in parallel from 16:53 to 22:06, and the logged test RMSE is exactly the 1.214 K reported.
 
-### 5.2.7 Patent Application Status
+### 5.2.9 Patent Application Status
 
 The draft application has 15 claims covering the spherical-mesh weather model, a fast graph-batching method and the four-module system.
 
@@ -528,7 +578,7 @@ The draft application has 15 claims covering the spherical-mesh weather model, a
 
 The application is still a draft: inventor names remain to be completed, Section 7 now discloses the ablation results, and revised claim wording has been drafted for the patent agent. Claims built on ENSO coupling (1(d), 3, 10 and 14) conflict with the disclosed results and need revising; the mesh and batching claims are the strongest.
 
-### 5.2.8 Conclusions by Model
+### 5.2.10 Conclusions by Model
 
 | Model | What the evidence supports | Next step |
 |:---|:---|:---|
@@ -563,6 +613,8 @@ To strengthen the scientific results and extend the system, the following enhanc
 - Barnston, A. G., Tippett, M. K., L'Heureux, M. L., Li, S., & DeWitt, D. G. (2012). Skill of Real-Time Seasonal ENSO Model Predictions During 2002–11. *Bulletin of the American Meteorological Society*, 93(5), 631–651.
 - Prais, S. J., & Winsten, C. B. (1954). Trend Estimators and Serial Correlation. *Cowles Commission Discussion Paper*, Statistics No. 383.
 - Schwarz, G. (1978). Estimating the Dimension of a Model. *Annals of Statistics*, 6(2), 461–464.
+- Li, Y., Yu, R., Shahabi, C., & Liu, Y. (2018). Diffusion Convolutional Recurrent Neural Network: Data-Driven Traffic Forecasting. *ICLR 2018*.
+- Pathak, J., Subramanian, S., Harrington, P., et al. (2022). FourCastNet: A Global Data-Driven High-Resolution Weather Model Using Adaptive Fourier Neural Operators. *arXiv:2202.11214*.
 - Hersbach, H., et al. (2020). The ERA5 Global Reanalysis. *Quarterly Journal of the Royal Meteorological Society*, 146(730), 1999–2049.
 - NOAA Extended Reconstructed SST v5. https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html
 - OpenAQ: Open Air Quality Data. https://openaq.org/
