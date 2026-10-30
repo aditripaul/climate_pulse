@@ -306,6 +306,7 @@ The notebook applies the seed-study choice of `tft_use_year` automatically. PDF 
 | Research paper | [`docs/research_paper/research_paper.md`](docs/research_paper/research_paper.md) | `make gen-research-paper-pdf` |
 | Patent application (draft) | [`docs/patent/patent_application.md`](docs/patent/patent_application.md) | `make gen-patent-application-pdf` |
 | Project proposal | [`docs/project_proposal.md`](docs/project_proposal.md) | `make project_proposal_pdf` |
+| Project report | [`docs/project_report.md`](docs/project_report.md) | `make project_report_pdf` |
 | Requirements specification | [`docs/requirement_spec.md`](docs/requirement_spec.md) | — |
 | Design document | [`docs/design_doc.md`](docs/design_doc.md) | — |
 
@@ -408,6 +409,7 @@ make gen-research-paper-pdf     # Compile paper PDF (needs pandoc + xelatex)
 make sync-patent-artifacts      # Copy runtime/eval_artifacts/ into docs/patent/artifacts/
 make gen-patent-application-pdf # Sync patent artifacts and compile patent PDF
 make project_proposal_pdf       # Compile project proposal PDF
+make project_report_pdf         # Compile project report PDF
 
 # Cleanup
 make clean                      # Remove __pycache__, build artifacts
